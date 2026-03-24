@@ -1,347 +1,357 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+const emptyStats = {
+  totalStudents: 0,
+  totalFaculty: 0,
+  overallAttendanceRate: 0,
+  studentsByCourse: [],
+  studentsByYear: [],
+  facultyByCourse: [],
+  coursePerformance: [],
+  newlyRegisteredStudents: 0,
+  lowAttendanceStudents: 0,
+  inactiveStudents: 0,
+};
+
 export default function AdminStatsPage() {
+  const [stats, setStats] = useState(emptyStats);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const res = await fetch("/api/admin/stats", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(data.message || "Failed to load statistics");
+        }
+
+        setStats({
+          totalStudents: data.totalStudents || 0,
+          totalFaculty: data.totalFaculty || 0,
+          overallAttendanceRate: data.overallAttendanceRate || 0,
+          studentsByCourse: Array.isArray(data.studentsByCourse)
+            ? data.studentsByCourse
+            : [],
+          studentsByYear: Array.isArray(data.studentsByYear)
+            ? data.studentsByYear
+            : [],
+          facultyByCourse: Array.isArray(data.facultyByCourse)
+            ? data.facultyByCourse
+            : [],
+          coursePerformance: Array.isArray(data.coursePerformance)
+            ? data.coursePerformance
+            : [],
+          newlyRegisteredStudents: data.newlyRegisteredStudents || 0,
+          lowAttendanceStudents: data.lowAttendanceStudents || 0,
+          inactiveStudents: data.inactiveStudents || 0,
+        });
+      } catch (err) {
+        setError(err.message || "Failed to load statistics");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchStats();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Page Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <h1 className="text-2xl font-bold text-gray-900">
           Statistics & Analytics
         </h1>
         <p className="text-sm text-gray-600 mt-1">
-          View detailed reports and insights
+          Live admin overview of students, faculty, and course performance
         </p>
       </div>
 
       <div className="p-6 space-y-6">
-        {/* Time Period Filter */}
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            {error}
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <h2 className="text-lg font-semibold text-gray-900">Overview</h2>
-            <div className="flex gap-2">
-              <button className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition">
-                This Week
-              </button>
-              <button className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition">
-                This Month
-              </button>
-              <button className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition">
-                This Year
-              </button>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Academic Overview
+            </h2>
+            <div className="text-sm text-gray-600">
+              {loading ? "Loading latest data..." : "Updated from live records"}
             </div>
           </div>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Attendance Rate */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-gray-600">
-                Attendance Rate
-              </h3>
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">87.5%</p>
+            <h3 className="text-sm font-medium text-gray-600">
+              Overall Attendance Rate
+            </h3>
+            <p className="text-3xl font-bold text-gray-900 mt-2">
+              {loading ? "..." : `${stats.overallAttendanceRate}%`}
+            </p>
             <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-green-600 h-2 rounded-full"
-                style={{ width: "87.5%" }}
-              ></div>
+                style={{ width: `${stats.overallAttendanceRate}%` }}
+              />
             </div>
-            <p className="text-xs text-gray-500 mt-2">+5.2% from last month</p>
+            <p className="text-xs text-gray-500 mt-2">
+              Based on all marked attendance records
+            </p>
           </div>
 
-          {/* Assignment Submission */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-gray-600">
-                Assignment Submissions
-              </h3>
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">456</p>
-            <p className="text-sm text-gray-600 mt-2">Out of 520 total</p>
-            <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full"
-                style={{ width: "87.7%" }}
-              ></div>
-            </div>
+            <h3 className="text-sm font-medium text-gray-600">Total Students</h3>
+            <p className="text-3xl font-bold text-gray-900 mt-2">
+              {loading ? "..." : stats.totalStudents}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">
+              Students across all courses
+            </p>
           </div>
 
-          {/* Average Marks */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-gray-600">
-                Average Marks
-              </h3>
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 text-purple-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">78.4%</p>
-            <p className="text-sm text-green-600 mt-2">↑ 3.1% improvement</p>
-            <div className="mt-4 flex items-center gap-2">
-              <span className="text-xs text-gray-500">
-                Last semester: 75.3%
-              </span>
-            </div>
+            <h3 className="text-sm font-medium text-gray-600">Total Faculty</h3>
+            <p className="text-3xl font-bold text-gray-900 mt-2">
+              {loading ? "..." : stats.totalFaculty}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">
+              Faculty assigned to active courses
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-sm font-medium text-gray-600">
+              Newly Registered Students
+            </h3>
+            <p className="text-3xl font-bold text-gray-900 mt-2">
+              {loading ? "..." : stats.newlyRegisteredStudents}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">Joined in the last 30 days</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-sm font-medium text-gray-600">
+              Low Attendance Students
+            </h3>
+            <p className="text-3xl font-bold text-gray-900 mt-2">
+              {loading ? "..." : stats.lowAttendanceStudents}
+            </p>
+            <p className="text-sm text-amber-600 mt-1">Below 75% attendance</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-sm font-medium text-gray-600">
+              Inactive Students
+            </h3>
+            <p className="text-3xl font-bold text-gray-900 mt-2">
+              {loading ? "..." : stats.inactiveStudents}
+            </p>
+            <p className="text-sm text-red-600 mt-1">
+              No attendance in the last 30 days
+            </p>
           </div>
         </div>
 
-        {/* Department-wise Performance */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Department-wise Performance
+            Course-wise Performance
           </h2>
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
-                    Department
+                  <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">
+                    Course
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
+                  <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">
                     Students
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
+                  <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">
                     Faculty
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
-                    Avg. Attendance
+                  <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">
+                    Faculty Names
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">
-                    Avg. Marks
+                  <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">
+                    Avg. Attendance
                   </th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-gray-100">
-                <tr className="hover:bg-gray-50">
-                  <td className="py-3 px-4 text-sm text-gray-900 font-medium">
-                    Computer Science
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">245</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">18</td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-green-600 font-medium">
-                      92.3%
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-gray-900 font-medium">
-                      81.2%
-                    </span>
-                  </td>
-                </tr>
-                <tr className="hover:bg-gray-50">
-                  <td className="py-3 px-4 text-sm text-gray-900 font-medium">
-                    Mechanical Engineering
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">198</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">15</td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-green-600 font-medium">
-                      88.7%
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-gray-900 font-medium">
-                      76.8%
-                    </span>
-                  </td>
-                </tr>
-                <tr className="hover:bg-gray-50">
-                  <td className="py-3 px-4 text-sm text-gray-900 font-medium">
-                    Electrical Engineering
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">223</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">16</td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-green-600 font-medium">
-                      85.4%
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-gray-900 font-medium">
-                      77.5%
-                    </span>
-                  </td>
-                </tr>
-                <tr className="hover:bg-gray-50">
-                  <td className="py-3 px-4 text-sm text-gray-900 font-medium">
-                    Civil Engineering
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">187</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">14</td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-yellow-600 font-medium">
-                      83.1%
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-gray-900 font-medium">
-                      74.9%
-                    </span>
-                  </td>
-                </tr>
-                <tr className="hover:bg-gray-50">
-                  <td className="py-3 px-4 text-sm text-gray-900 font-medium">
-                    Paramedical Sciences
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">381</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">28</td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-green-600 font-medium">
-                      89.6%
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-gray-900 font-medium">
-                      79.3%
-                    </span>
-                  </td>
-                </tr>
+                {(loading ? [] : stats.coursePerformance).map((row) => (
+                  <tr key={row.course} className="hover:bg-gray-50">
+                    <td className="py-3 px-4 font-medium text-gray-900">
+                      {row.course}
+                    </td>
+                    <td className="py-3 px-4 text-gray-700">{row.students}</td>
+                    <td className="py-3 px-4 text-gray-700">{row.faculty}</td>
+                    <td className="py-3 px-4 text-gray-700">
+                      <div className="flex flex-wrap gap-2">
+                        {row.facultyNames?.length > 0 ? (
+                          row.facultyNames.map((faculty) => (
+                            <span
+                              key={faculty._id}
+                              className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700"
+                            >
+                              {faculty.name}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-500">
+                            No faculty assigned
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-green-600 font-medium">
+                      {row.attendanceRate}%
+                    </td>
+                  </tr>
+                ))}
+                {!loading && stats.coursePerformance.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="py-6 px-4 text-sm text-gray-500 text-center"
+                    >
+                      No course statistics found.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Recent Activities Summary */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Performers */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Top Performing Students
+              Students by Year
             </h2>
-            <div className="space-y-3">
-              {[
-                { name: "Priya Sharma", marks: "94.5%", dept: "CSE" },
-                { name: "Rahul Verma", marks: "92.8%", dept: "ECE" },
-                { name: "Anjali Singh", marks: "91.3%", dept: "Paramedical" },
-                { name: "Amit Kumar", marks: "90.7%", dept: "ME" },
-                { name: "Sneha Patel", marks: "89.9%", dept: "Civil" },
-              ].map((student, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-bold">
-                      {idx + 1}
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {student.name}
-                      </p>
-                      <p className="text-xs text-gray-500">{student.dept}</p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-semibold text-green-600">
-                    {student.marks}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Faculty Performance */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Faculty Ratings
-            </h2>
             <div className="space-y-3">
-              {[
-                {
-                  name: "Dr. Rajesh Kumar",
-                  rating: 4.8,
-                  subject: "Data Structures",
-                },
-                {
-                  name: "Prof. Meera Devi",
-                  rating: 4.7,
-                  subject: "Thermodynamics",
-                },
-                { name: "Dr. Amit Singh", rating: 4.6, subject: "Anatomy" },
-                {
-                  name: "Prof. Sunita Sharma",
-                  rating: 4.5,
-                  subject: "Circuit Theory",
-                },
-                {
-                  name: "Dr. Vikram Patel",
-                  rating: 4.4,
-                  subject: "Structural Analysis",
-                },
-              ].map((faculty, idx) => (
+              {(loading ? [] : stats.studentsByYear).map((item) => (
                 <div
-                  key={idx}
-                  className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
+                  key={item.year}
+                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"
                 >
                   <div>
                     <p className="text-sm font-medium text-gray-900">
-                      {faculty.name}
+                      Year {item.year}
                     </p>
-                    <p className="text-xs text-gray-500">{faculty.subject}</p>
+                    <p className="text-xs text-gray-500">
+                      {item.students?.slice(0, 4).map((s) => s.name).join(", ") ||
+                        "No students"}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <svg
-                      className="w-4 h-4 text-yellow-400"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {faculty.rating}
+                  <span className="text-sm font-semibold text-violet-700">
+                    {item.count}
+                  </span>
+                </div>
+              ))}
+              {!loading && stats.studentsByYear.length === 0 && (
+                <p className="text-sm text-gray-500">No year data found.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Faculty by Course
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Assigned faculty members for each course
+                </p>
+              </div>
+              <div className="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center">
+                <svg
+                  className="w-5 h-5 text-blue-700"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {(loading ? [] : stats.facultyByCourse).map((item) => (
+                <div
+                  key={item.course}
+                  className="overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white"
+                >
+                  <div className="flex items-center justify-between border-b border-blue-100 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold tracking-wide text-gray-900">
+                        {item.course}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Faculty assigned to this course
+                      </p>
+                    </div>
+                    <span className="inline-flex min-w-10 justify-center rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">
+                      {item.count}
                     </span>
+                  </div>
+
+                  <div className="px-4 py-3">
+                    {item.faculty?.length > 0 ? (
+                      <div className="space-y-2">
+                        {item.faculty.map((faculty) => (
+                          <div
+                            key={faculty._id}
+                            className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {faculty.name}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {faculty.email}
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                              Faculty
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-4 text-center text-sm text-gray-500">
+                        No faculty assigned
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
+              {!loading && stats.facultyByCourse.length === 0 && (
+                <p className="text-sm text-gray-500">No faculty data found.</p>
+              )}
             </div>
           </div>
         </div>

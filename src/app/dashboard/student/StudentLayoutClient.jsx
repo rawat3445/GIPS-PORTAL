@@ -1,43 +1,65 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  BarChart3,
+  BookOpen,
+  CalendarDays,
+  ClipboardList,
+  CreditCard,
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Sparkles,
+} from "lucide-react";
 
 export default function StudentLayoutClient({ children }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [me, setMe] = useState(null);
   const pathname = usePathname();
   const router = useRouter();
 
-  const menuItems = [
+  const primaryMenuItems = [
     {
       name: "Dashboard",
       href: "/dashboard/student",
-      icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
-    },
-    {
-      name: "My Courses",
-      href: "/dashboard/student/courses",
-      icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
+      icon: LayoutDashboard,
     },
     {
       name: "Attendance",
       href: "/dashboard/student/attendance",
-      icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
+      icon: CalendarDays,
+    },
+  ];
+
+  const secondaryMenuItems = [
+    {
+      name: "My Courses",
+      href: "/dashboard/student/courses",
+      icon: BookOpen,
+      badge: "Soon",
     },
     {
       name: "Assignments",
       href: "/dashboard/student/assignments",
-      icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+      icon: ClipboardList,
+      badge: "Soon",
     },
     {
       name: "Results",
       href: "/dashboard/student/results",
-      icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 00-2-2m0 0h-2",
+      icon: BarChart3,
+      badge: "Soon",
     },
     {
       name: "Fees",
       href: "/dashboard/student/fees",
-      icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z",
+      icon: CreditCard,
+      badge: "Soon",
     },
   ];
 
@@ -51,118 +73,270 @@ export default function StudentLayoutClient({ children }) {
     }
   };
 
+  useEffect(() => {
+    async function loadMe() {
+      try {
+        const res = await fetch("/api/auth/me", {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return;
+
+        setMe(data.user || null);
+      } catch {
+        setMe(null);
+      }
+    }
+
+    loadMe();
+  }, []);
+
+  useEffect(() => {
+    function handleResize() {
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
+    }
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const studentSubText = [
+    me?.enrollmentNo || "",
+    me?.course || "",
+    me?.year ? `Year ${me.year}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-[radial-gradient(circle_at_top,#eff6ff_0%,#e2e8f0_38%,#f8fafc_100%)]">
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px] md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
-        className={`${
-          sidebarOpen ? "w-64" : "w-20"
-        } bg-gradient-to-b from-blue-900 to-blue-800 text-white transition-all duration-300 flex flex-col`}
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col overflow-x-hidden border-r border-white/10 bg-[linear-gradient(180deg,#0f172a_0%,#1d4ed8_52%,#0f172a_100%)] text-white shadow-[24px_0_80px_-42px_rgba(15,23,42,0.9)] transition-all duration-300 md:static md:z-auto ${
+          sidebarOpen
+            ? "translate-x-0 w-64"
+            : "-translate-x-full w-64 md:translate-x-0 md:w-24"
+        }`}
       >
         {/* Logo */}
-        <div className="p-4 border-b border-blue-700">
-          <div className="flex items-center justify-between">
+        <div className="border-b border-white/10 p-4">
+          <div
+            className={`flex items-center ${
+              sidebarOpen ? "justify-between" : "justify-center"
+            }`}
+          >
             {sidebarOpen && (
-              <h1 className="text-xl font-bold truncate">Student Portal</h1>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/12 shadow-inner shadow-white/10">
+                    <GraduationCap className="h-5 w-5 text-cyan-200" />
+                  </span>
+                  <div className="min-w-0">
+                    <h1 className="truncate text-lg font-bold">Student Portal</h1>
+                    <p className="mt-0.5 text-xs text-blue-100/75">
+                      GIPS dashboard
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-blue-700 transition"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/8 transition hover:bg-white/14"
               aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d={
-                    sidebarOpen
-                      ? "M6 18L18 6M6 6l12 12"
-                      : "M4 6h16M4 12h16M4 18h16"
-                  }
-                />
-              </svg>
+              {sidebarOpen ? (
+                <PanelLeftClose className="h-5 w-5" />
+              ) : (
+                <PanelLeftOpen className="h-5 w-5" />
+              )}
             </button>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menuItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${
-                  isActive
-                    ? "bg-blue-600 text-white shadow-lg"
-                    : "text-blue-100 hover:bg-blue-700 hover:text-white"
-                }`}
-              >
-                <svg
-                  className="w-5 h-5 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+        <nav className="flex-1 overflow-y-auto p-4">
+          {sidebarOpen && (
+            <p className="mb-3 px-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-blue-200/80">
+              Main
+            </p>
+          )}
+
+          <div className="space-y-2">
+            {primaryMenuItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => {
+                    if (window.innerWidth < 768) {
+                      setSidebarOpen(false);
+                    }
+                  }}
+                  className={`group relative flex items-center rounded-2xl py-3 transition ${
+                    isActive
+                      ? "bg-white text-slate-900 shadow-[0_16px_35px_-18px_rgba(255,255,255,0.7)]"
+                      : "text-blue-50/90 hover:bg-white/10 hover:text-white"
+                  } ${
+                    sidebarOpen
+                      ? "gap-3 px-4 justify-start"
+                      : "justify-center px-2"
+                  }`}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d={item.icon}
-                  />
-                </svg>
-                {sidebarOpen && (
-                  <span className="font-medium truncate">{item.name}</span>
-                )}
-                {!sidebarOpen && <span className="sr-only">{item.name}</span>}
-              </Link>
-            );
-          })}
+                  <span
+                    className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ${
+                      isActive
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-white/8 text-cyan-100 group-hover:bg-white/14"
+                    }`}
+                  >
+                    <item.icon className="h-5 w-5" />
+                  </span>
+                  {sidebarOpen && (
+                    <span className="font-medium truncate">{item.name}</span>
+                  )}
+                  {!sidebarOpen && <span className="sr-only">{item.name}</span>}
+                </Link>
+              );
+            })}
+          </div>
+
+          {sidebarOpen && (
+            <div className="mb-3 mt-6 flex items-center justify-between px-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-blue-200/80">
+                Working On It
+              </p>
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                <Sparkles className="h-3.5 w-3.5" />
+                Soon
+              </span>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {secondaryMenuItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => {
+                    if (window.innerWidth < 768) {
+                      setSidebarOpen(false);
+                    }
+                  }}
+                  className={`group flex items-center rounded-2xl border py-3 transition ${
+                    isActive
+                      ? "border-white/25 bg-white/12 text-white shadow-[0_18px_40px_-24px_rgba(15,23,42,0.9)]"
+                      : "border-white/10 bg-white/[0.05] text-blue-100/85 hover:border-white/20 hover:bg-white/[0.09] hover:text-white"
+                  } ${
+                    sidebarOpen
+                      ? "gap-3 px-4 justify-start"
+                      : "justify-center px-2"
+                  }`}
+                >
+                  <span
+                    className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ${
+                      isActive
+                        ? "bg-white/12 text-white"
+                        : "bg-white/7 text-blue-100 group-hover:bg-white/12"
+                    }`}
+                  >
+                    <item.icon className="h-5 w-5" />
+                  </span>
+                  {sidebarOpen && (
+                    <>
+                      <span className="min-w-0 flex-1 truncate font-medium">
+                        {item.name}
+                      </span>
+                      {item.badge && (
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                            isActive
+                              ? "bg-white/15 text-white"
+                              : "bg-cyan-100 text-cyan-800"
+                          }`}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </>
+                  )}
+                  {!sidebarOpen && <span className="sr-only">{item.name}</span>}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
         {/* User Info & Logout */}
-        <div className="p-4 border-t border-blue-700">
+        <div className="border-t border-white/10 p-4">
           {sidebarOpen && (
-            <div className="mb-3 px-4 py-3 bg-blue-800 rounded-lg">
-              <p className="text-sm font-medium text-white truncate">
-                Rahul Sharma
-              </p>
-              <p className="text-xs text-blue-200 truncate">
-                CS001 - CSE 3rd Year
-              </p>
+            <div className="mb-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-4 shadow-inner shadow-white/5">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-300/20 text-sm font-bold text-cyan-100">
+                  {(me?.name || "S").charAt(0)}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">
+                    {me?.name || "Student"}
+                  </p>
+                  <p className="mt-1 truncate text-xs text-blue-100/75">
+                    {studentSubText || "Student profile"}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-blue-100 hover:bg-red-600 hover:text-white transition"
+            className={`flex w-full items-center rounded-2xl border border-white/10 py-3 text-blue-50/90 transition hover:bg-red-500 hover:text-white ${
+              sidebarOpen ? "gap-3 px-4 justify-start" : "justify-center px-2"
+            }`}
           >
-            <svg
-              className="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
+              <LogOut className="h-5 w-5 flex-shrink-0" />
+            </span>
             {sidebarOpen && <span className="font-medium">Logout</span>}
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <main className="min-w-0 flex-1 overflow-y-auto md:ml-0">
+        <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-white/60 bg-white/80 px-4 py-3 backdrop-blur md:hidden">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200/80 bg-white text-gray-700 shadow-sm"
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-900">Student Portal</p>
+            <p className="truncate text-xs text-gray-500">
+              {me?.name || "Student"}
+            </p>
+          </div>
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

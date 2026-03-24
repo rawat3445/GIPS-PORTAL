@@ -1,10 +1,25 @@
 "use client";
-import { useState } from "react";
+
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  BarChart3,
+  CalendarDays,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  UsersRound,
+} from "lucide-react";
 
 export default function AdminLayoutClient({ children }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [me, setMe] = useState(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -12,149 +27,232 @@ export default function AdminLayoutClient({ children }) {
     {
       name: "Dashboard",
       href: "/dashboard/admin",
-      icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+      icon: LayoutDashboard,
     },
     {
       name: "Statistics",
       href: "/dashboard/admin/stats",
-      icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 00-2-2m0 0h-2",
+      icon: BarChart3,
+    },
+    {
+      name: "Attendance",
+      href: "/dashboard/admin/attendance",
+      icon: CalendarDays,
     },
     {
       name: "Students",
       href: "/dashboard/admin/students",
-      icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
+      icon: Users,
     },
     {
       name: "Faculty",
       href: "/dashboard/admin/faculty",
-      icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
+      icon: UsersRound,
     },
   ];
 
-  // ✅ Better logout handler
   const handleLogout = async () => {
     try {
-      // Call logout API to clear cookie
       await fetch("/api/auth/logout", { method: "POST" });
       router.push("/login");
     } catch (error) {
       console.error("Logout failed:", error);
-      window.location.href = "/login"; // Fallback
+      window.location.href = "/login";
     }
   };
 
+  useEffect(() => {
+    async function loadMe() {
+      try {
+        const res = await fetch("/api/auth/me", {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return;
+
+        setMe(data.user || null);
+      } catch {
+        setMe(null);
+      }
+    }
+
+    loadMe();
+  }, []);
+
+  useEffect(() => {
+    function handleResize() {
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
+    }
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
+    <div className="flex min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7_0%,#fff7ed_28%,#f8fafc_62%,#f8fafc_100%)]">
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px] md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <aside
-        className={`${
-          sidebarOpen ? "w-64" : "w-20"
-        } bg-gray-900 text-white transition-all duration-300 flex flex-col`}
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col overflow-x-hidden border-r border-white/10 bg-[linear-gradient(180deg,#3f1d12_0%,#b45309_42%,#111827_100%)] text-white shadow-[24px_0_80px_-42px_rgba(15,23,42,0.9)] transition-all duration-300 md:static md:z-auto ${
+          sidebarOpen
+            ? "translate-x-0 w-64"
+            : "-translate-x-full w-64 md:translate-x-0 md:w-24"
+        }`}
       >
-        {/* Logo */}
-        <div className="p-4 border-b border-gray-800">
-          <div className="flex items-center justify-between">
+        <div className="border-b border-white/10 p-4">
+          <div
+            className={`flex items-center ${
+              sidebarOpen ? "justify-between" : "justify-center"
+            }`}
+          >
             {sidebarOpen && (
-              <h1 className="text-xl font-bold truncate">Admin Panel</h1>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/12 shadow-inner shadow-white/10">
+                    <ShieldCheck className="h-5 w-5 text-amber-200" />
+                  </span>
+                  <div className="min-w-0">
+                    <h1 className="truncate text-lg font-bold">Admin Panel</h1>
+                    <p className="mt-0.5 text-xs text-amber-100/75">
+                      College control center
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
+
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-gray-800 transition"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/8 transition hover:bg-white/14"
               aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d={
-                    sidebarOpen
-                      ? "M6 18L18 6M6 6l12 12"
-                      : "M4 6h16M4 12h16M4 18h16"
-                  }
-                />
-              </svg>
+              {sidebarOpen ? (
+                <PanelLeftClose className="h-5 w-5" />
+              ) : (
+                <PanelLeftOpen className="h-5 w-5" />
+              )}
             </button>
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menuItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${
-                  isActive
-                    ? "bg-indigo-600 text-white"
-                    : "text-gray-300 hover:bg-gray-800 hover:text-white"
-                }`}
-              >
-                <svg
-                  className="w-5 h-5 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d={item.icon}
-                  />
-                </svg>
-                {sidebarOpen && (
-                  <span className="font-medium truncate">{item.name}</span>
-                )}
-                {!sidebarOpen && <span className="sr-only">{item.name}</span>}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* User Info & Logout */}
-        <div className="p-4 border-t border-gray-800">
+        <nav className="flex-1 overflow-y-auto p-4">
           {sidebarOpen && (
-            <div className="mb-3 px-4 py-2 bg-gray-800 rounded-lg">
-              <p className="text-sm font-medium text-white truncate">
-                Admin User
+            <div className="mb-3 flex items-center justify-between px-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-100/75">
+                Admin Tools
               </p>
-              <p className="text-xs text-gray-400 truncate">
-                admin@college.edu
-              </p>
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100">
+                <Sparkles className="h-3.5 w-3.5" />
+                Live
+              </span>
             </div>
           )}
+
+          <div className="space-y-2">
+            {menuItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => {
+                    if (window.innerWidth < 768) {
+                      setSidebarOpen(false);
+                    }
+                  }}
+                  className={`group relative flex items-center rounded-2xl py-3 transition ${
+                    isActive
+                      ? "bg-white text-slate-900 shadow-[0_16px_35px_-18px_rgba(255,255,255,0.7)]"
+                      : "text-amber-50/90 hover:bg-white/10 hover:text-white"
+                  } ${
+                    sidebarOpen
+                      ? "gap-3 px-4 justify-start"
+                      : "justify-center px-2"
+                  }`}
+                >
+                  <span
+                    className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ${
+                      isActive
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-white/8 text-amber-100 group-hover:bg-white/14"
+                    }`}
+                  >
+                    <item.icon className="h-5 w-5" />
+                  </span>
+                  {sidebarOpen && (
+                    <span className="truncate font-medium">{item.name}</span>
+                  )}
+                  {!sidebarOpen && <span className="sr-only">{item.name}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        <div className="border-t border-white/10 p-4">
+          {sidebarOpen && (
+            <div className="mb-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-4 shadow-inner shadow-white/5">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-300/20 text-sm font-bold text-amber-100">
+                  {(me?.name || "A").charAt(0)}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">
+                    {me?.name || "Admin User"}
+                  </p>
+                  <p className="mt-1 truncate text-xs text-amber-100/75">
+                    {me?.email || "Administrator"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-red-900 hover:text-white transition"
+            className={`flex w-full items-center rounded-2xl border border-white/10 py-3 text-amber-50/90 transition hover:bg-red-500 hover:text-white ${
+              sidebarOpen ? "gap-3 px-4 justify-start" : "justify-center px-2"
+            }`}
           >
-            <svg
-              className="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
+              <LogOut className="h-5 w-5 flex-shrink-0" />
+            </span>
             {sidebarOpen && <span className="font-medium">Logout</span>}
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <main className="min-w-0 flex-1 overflow-y-auto">
+        <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-white/60 bg-white/80 px-4 py-3 backdrop-blur md:hidden">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200/80 bg-white text-gray-700 shadow-sm"
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-900">Admin Panel</p>
+            <p className="truncate text-xs text-gray-500">
+              {me?.name || "Admin User"}
+            </p>
+          </div>
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

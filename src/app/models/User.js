@@ -2,15 +2,19 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
+    // ================= COMMON =================
     name: {
       type: String,
       required: true,
+      trim: true,
     },
 
     email: {
       type: String,
       required: true,
       unique: true,
+      lowercase: true,
+      trim: true,
     },
 
     password: {
@@ -21,10 +25,55 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["student", "faculty", "admin"],
-      default: "student",
+      required: true,
+    },
+
+    // ================= FACULTY =================
+    assignedCourse: {
+      type: String,
+      enum: ["BPT", "BOPTOM", "BMRIT", "DOPTOM", "BOTT"],
+      required: function () {
+        return this.role === "faculty";
+      },
+    },
+
+    // ================= STUDENT =================
+    enrollmentNo: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true, // ⭐ CRITICAL FIX
+      required: function () {
+        return this.role === "student";
+      },
+    },
+
+    course: {
+      type: String,
+      enum: ["BPT", "BOPTOM", "BMRIT", "DOPTOM", "BOTT"],
+      required: function () {
+        return this.role === "student";
+      },
+    },
+
+    year: {
+      type: Number,
+      min: 1,
+      max: 4,
+      required: function () {
+        return this.role === "student";
+      },
+    },
+
+    phone: {
+      type: String,
+      trim: true,
+      required: function () {
+        return this.role === "student";
+      },
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.models.User || mongoose.model("User", userSchema);

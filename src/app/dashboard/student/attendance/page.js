@@ -1,435 +1,451 @@
 "use client";
-import { useState } from "react";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  AlertCircle,
+  CalendarDays,
+  CalendarRange,
+  CheckCircle2,
+  Clock3,
+  Sparkles,
+  TrendingUp,
+} from "lucide-react";
+
+const ATTENDANCE_START_MONTH = "2026-01";
+const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function getCurrentMonthKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function getMonthLabel(monthKey) {
+  const [year, month] = monthKey.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(year, month - 1, 1));
+}
+
+function getDaysInMonth(monthKey) {
+  const [year, month] = monthKey.split("-").map(Number);
+  return new Date(year, month, 0).getDate();
+}
+
+function getMonthStartDay(monthKey) {
+  const [year, month] = monthKey.split("-").map(Number);
+  return new Date(year, month - 1, 1).getDay();
+}
+
+function getStatusClasses(status) {
+  switch (status) {
+    case "present":
+      return "border-green-200 bg-green-50 text-green-800";
+    case "absent":
+      return "border-red-200 bg-red-50 text-red-800";
+    case "internship":
+      return "border-cyan-200 bg-cyan-50 text-cyan-800";
+    case "event":
+      return "border-violet-200 bg-violet-50 text-violet-800";
+    case "holiday":
+      return "border-slate-200 bg-slate-100 text-slate-700";
+    case "vacation":
+      return "border-amber-200 bg-amber-50 text-amber-800";
+    default:
+      return "border-gray-200 bg-white text-gray-700";
+  }
+}
+
+function getStatusLabel(status) {
+  switch (status) {
+    case "present":
+      return "Present";
+    case "absent":
+      return "Absent";
+    case "internship":
+      return "Internship";
+    case "event":
+      return "Event";
+    case "holiday":
+      return "Holiday";
+    case "vacation":
+      return "Vacation";
+    default:
+      return "Not Marked";
+  }
+}
 
 export default function StudentAttendancePage() {
-  const [selectedCourse, setSelectedCourse] = useState("all");
-  const [selectedMonth, setSelectedMonth] = useState("december");
+  const [monthKey, setMonthKey] = useState(getCurrentMonthKey());
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
 
-  const courses = [
-    { id: "all", name: "All Courses" },
-    { id: "1", name: "Data Structures" },
-    { id: "2", name: "Database Management" },
-    { id: "3", name: "Operating Systems" },
-    { id: "4", name: "Computer Networks" },
-    { id: "5", name: "Algorithm Lab" },
-    { id: "6", name: "Web Development" },
-  ];
+  useEffect(() => {
+    async function fetchSummary() {
+      try {
+        setLoading(true);
+        setErr("");
 
-  const attendanceData = [
-    { course: "Data Structures", present: 37, total: 40, percentage: 92.5 },
-    { course: "Database Management", present: 35, total: 40, percentage: 87.5 },
-    { course: "Operating Systems", present: 38, total: 40, percentage: 95.0 },
-    { course: "Computer Networks", present: 36, total: 40, percentage: 90.0 },
-    { course: "Algorithm Lab", present: 19, total: 20, percentage: 95.0 },
-    { course: "Web Development", present: 17, total: 20, percentage: 85.0 },
-  ];
+        const res = await fetch("/api/student/attendance?view=summary", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
 
-  const monthlyAttendance = [
-    { date: "2025-12-01", course: "Data Structures", status: "present" },
-    { date: "2025-12-01", course: "Operating Systems", status: "present" },
-    { date: "2025-12-02", course: "Database Management", status: "present" },
-    { date: "2025-12-02", course: "Computer Networks", status: "absent" },
-    { date: "2025-12-03", course: "Data Structures", status: "present" },
-    { date: "2025-12-03", course: "Operating Systems", status: "present" },
-    { date: "2025-12-04", course: "Algorithm Lab", status: "present" },
-    { date: "2025-12-05", course: "Web Development", status: "present" },
-    { date: "2025-12-05", course: "Data Structures", status: "present" },
-    { date: "2025-12-06", course: "Database Management", status: "absent" },
-  ];
+        if (!res.ok) {
+          throw new Error(data.message || "Failed to load attendance");
+        }
 
-  const overallStats = {
-    totalClasses: 200,
-    totalPresent: 182,
-    totalAbsent: 18,
-    percentage: 91.0,
+        setSummary(data);
+
+        if (monthKey < ATTENDANCE_START_MONTH || monthKey > getCurrentMonthKey()) {
+          setMonthKey(getCurrentMonthKey());
+        }
+      } catch (error) {
+        setErr(error.message || "Error");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchSummary();
+  }, [monthKey]);
+
+  const selectedMonthStats = useMemo(() => {
+    return (
+      summary?.months?.find((item) => item.monthKey === monthKey) || {
+        monthKey,
+        label: getMonthLabel(monthKey),
+        workingDays: 0,
+        markedDays: 0,
+        present: 0,
+        absent: 0,
+        percentage: 0,
+      }
+    );
+  }, [summary, monthKey]);
+
+  const calendarMap = useMemo(() => {
+    const map = new Map();
+    (summary?.calendar || []).forEach((item) => {
+      if (item.monthKey === monthKey) {
+        map.set(item.day, item);
+      }
+    });
+    return map;
+  }, [summary, monthKey]);
+
+  const monthGrid = useMemo(() => {
+    const startDay = getMonthStartDay(monthKey);
+    const totalDays = getDaysInMonth(monthKey);
+    const cells = [];
+
+    for (let i = 0; i < startDay; i += 1) {
+      cells.push(null);
+    }
+
+    for (let day = 1; day <= totalDays; day += 1) {
+      cells.push(calendarMap.get(day) || { day, status: "not_marked", note: "" });
+    }
+
+    return cells;
+  }, [calendarMap, monthKey]);
+
+  const overall = summary?.overall || {
+    workingDays: 0,
+    markedDays: 0,
+    present: 0,
+    absent: 0,
+    percentage: 0,
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Page Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <h1 className="text-2xl font-bold text-gray-900">My Attendance</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Track your class attendance and records
-        </p>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0%,#eef2ff_22%,#f8fafc_56%,#f8fafc_100%)]">
+      <div className="border-b border-white/70 bg-[radial-gradient(circle_at_top_left,#eff6ff_0%,#ffffff_48%,#eef2ff_100%)] px-4 py-6 md:px-6">
+        <div className="max-w-4xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/90 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-blue-700 shadow-sm">
+            <Sparkles className="h-3.5 w-3.5" />
+            Smart Attendance
+          </div>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
+            My Attendance
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-600 md:text-base">
+            Attendance is tracked from January 1, 2026 to today. Winter vacation
+            from January 1 to January 18, 2026 is excluded, and Sundays are
+            treated as holidays.
+          </p>
+        </div>
       </div>
 
-      <div className="p-6 space-y-6">
-        {/* Overall Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
+      <div className="space-y-6 p-4 md:p-6">
+        <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(239,246,255,0.92),rgba(236,253,245,0.88))] p-4 shadow-[0_26px_70px_-44px_rgba(15,23,42,0.45)] backdrop-blur md:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+                Attendance Rules
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                Smart Attendance Calendar
+              </h2>
+              <p className="mt-2 text-sm leading-7 text-gray-600">
+                Winter vacation dates and Sundays are excluded from working-day
+                attendance tracking.
+              </p>
+            </div>
+
+            <div className="w-full max-w-xs rounded-2xl border border-white/80 bg-white/80 p-3 shadow-sm">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Select Month
+              </label>
+              <input
+                type="month"
+                min={ATTENDANCE_START_MONTH}
+                max={getCurrentMonthKey()}
+                value={monthKey}
+                onChange={(e) => setMonthKey(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
+            Loading attendance summary...
+          </div>
+        ) : err ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm font-medium text-red-700">
+            {err}
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-5">
+              <div className="rounded-[26px] border border-white/80 bg-white/90 p-4 shadow-[0_18px_36px_-30px_rgba(15,23,42,0.35)] md:p-6">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+                  <CalendarDays className="h-5 w-5" />
+                </span>
+                <p className="text-sm font-medium text-gray-600">
+                  {selectedMonthStats.label}
+                </p>
+                <p className="mt-2 text-3xl font-bold text-gray-900">
+                  {selectedMonthStats.percentage}%
+                </p>
+                <p className="mt-2 text-xs text-gray-500">
+                  Monthly attendance percentage
+                </p>
+              </div>
+
+              <div className="rounded-[26px] border border-white/80 bg-white/90 p-4 shadow-[0_18px_36px_-30px_rgba(15,23,42,0.35)] md:p-6">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                  <TrendingUp className="h-5 w-5" />
+                </span>
                 <p className="text-sm font-medium text-gray-600">
                   Overall Attendance
                 </p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">
-                  {overallStats.percentage}%
+                <p className="mt-2 text-3xl font-bold text-blue-700">
+                  {overall.percentage}%
+                </p>
+                <p className="mt-2 text-xs text-gray-500">
+                  From January 2026 to current date
                 </p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-green-600 h-2 rounded-full"
-                style={{ width: `${overallStats.percentage}%` }}
-              ></div>
-            </div>
-          </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Total Classes
+              <div className="rounded-[26px] border border-white/80 bg-white/90 p-4 shadow-[0_18px_36px_-30px_rgba(15,23,42,0.35)] md:p-6">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
+                  <CalendarRange className="h-5 w-5" />
+                </span>
+                <p className="text-sm font-medium text-gray-600">Working Days</p>
+                <p className="mt-2 text-3xl font-bold text-gray-900">
+                  {selectedMonthStats.workingDays}
                 </p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">
-                  {overallStats.totalClasses}
+                <p className="mt-2 text-xs text-gray-500">
+                  Sundays and vacation excluded
                 </p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Classes Present
+              <div className="rounded-[26px] border border-white/80 bg-white/90 p-4 shadow-[0_18px_36px_-30px_rgba(15,23,42,0.35)] md:p-6">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-green-100 text-green-700">
+                  <CheckCircle2 className="h-5 w-5" />
+                </span>
+                <p className="text-sm font-medium text-gray-600">Present</p>
+                <p className="mt-2 text-3xl font-bold text-green-600">
+                  {selectedMonthStats.present}
                 </p>
-                <p className="text-3xl font-bold text-green-600 mt-2">
-                  {overallStats.totalPresent}
+                <p className="mt-2 text-xs text-gray-500">
+                  Marked present this month
                 </p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Classes Absent
+              <div className="rounded-[26px] border border-white/80 bg-white/90 p-4 shadow-[0_18px_36px_-30px_rgba(15,23,42,0.35)] md:p-6">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-red-100 text-red-700">
+                  <AlertCircle className="h-5 w-5" />
+                </span>
+                <p className="text-sm font-medium text-gray-600">Absent</p>
+                <p className="mt-2 text-3xl font-bold text-red-600">
+                  {selectedMonthStats.absent}
                 </p>
-                <p className="text-3xl font-bold text-red-600 mt-2">
-                  {overallStats.totalAbsent}
+                <p className="mt-2 text-xs text-gray-500">
+                  Marked absent this month
                 </p>
               </div>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Course
-              </label>
-              <select
-                value={selectedCourse}
-                onChange={(e) => setSelectedCourse(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.name}
-                  </option>
-                ))}
-              </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Month
-              </label>
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="december">December 2025</option>
-                <option value="november">November 2025</option>
-                <option value="october">October 2025</option>
-                <option value="september">September 2025</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Course-wise Attendance */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Course-wise Attendance
-            </h2>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="text-left py-3 px-6 text-sm font-medium text-gray-600">
-                    Course Name
-                  </th>
-                  <th className="text-center py-3 px-6 text-sm font-medium text-gray-600">
-                    Classes Held
-                  </th>
-                  <th className="text-center py-3 px-6 text-sm font-medium text-gray-600">
-                    Present
-                  </th>
-                  <th className="text-center py-3 px-6 text-sm font-medium text-gray-600">
-                    Absent
-                  </th>
-                  <th className="text-center py-3 px-6 text-sm font-medium text-gray-600">
-                    Percentage
-                  </th>
-                  <th className="text-center py-3 px-6 text-sm font-medium text-gray-600">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {attendanceData.map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <svg
-                            className="w-5 h-5 text-blue-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                            />
-                          </svg>
-                        </div>
-                        <span className="text-sm font-medium text-gray-900">
-                          {item.course}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-center text-sm text-gray-900">
-                      {item.total}
-                    </td>
-                    <td className="py-4 px-6 text-center text-sm font-medium text-green-600">
-                      {item.present}
-                    </td>
-                    <td className="py-4 px-6 text-center text-sm font-medium text-red-600">
-                      {item.total - item.present}
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <div className="flex flex-col items-center">
-                        <span
-                          className={`text-sm font-bold ${
-                            item.percentage >= 90
-                              ? "text-green-600"
-                              : item.percentage >= 75
-                              ? "text-yellow-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {item.percentage}%
-                        </span>
-                        <div className="w-20 bg-gray-200 rounded-full h-1.5 mt-1">
-                          <div
-                            className={`h-1.5 rounded-full ${
-                              item.percentage >= 90
-                                ? "bg-green-600"
-                                : item.percentage >= 75
-                                ? "bg-yellow-600"
-                                : "bg-red-600"
-                            }`}
-                            style={{ width: `${item.percentage}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <span
-                        className={`px-3 py-1 text-xs font-medium rounded-full ${
-                          item.percentage >= 75
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {item.percentage >= 75 ? "Good" : "Low"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Recent Attendance Records */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Recent Attendance Records
-          </h2>
-          <div className="space-y-3">
-            {monthlyAttendance.map((record, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                      record.status === "present"
-                        ? "bg-green-100"
-                        : "bg-red-100"
-                    }`}
-                  >
-                    {record.status === "present" ? (
-                      <svg
-                        className="w-6 h-6 text-green-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="w-6 h-6 text-red-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    )}
-                  </div>
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr]">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
+                <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {record.course}
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Attendance Calendar
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {selectedMonthStats.label}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(record.date).toLocaleDateString("en-IN", {
-                        weekday: "long",
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full bg-green-50 px-3 py-1 font-medium text-green-700">
+                      Present
+                    </span>
+                    <span className="rounded-full bg-red-50 px-3 py-1 font-medium text-red-700">
+                      Absent
+                    </span>
+                    <span className="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-700">
+                      Vacation
+                    </span>
+                    <span className="rounded-full bg-cyan-50 px-3 py-1 font-medium text-cyan-700">
+                      Internship
+                    </span>
+                    <span className="rounded-full bg-violet-50 px-3 py-1 font-medium text-violet-700">
+                      Event
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+                      Sunday
+                    </span>
                   </div>
                 </div>
-                <span
-                  className={`px-3 py-1 text-xs font-medium rounded-full ${
-                    record.status === "present"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  {record.status === "present" ? "Present" : "Absent"}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Warning Notice */}
-        {overallStats.percentage < 75 && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
-            <div className="flex items-start gap-3">
-              <svg
-                className="w-6 h-6 text-red-600 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                />
-              </svg>
-              <div>
-                <p className="text-sm font-medium text-red-800">
-                  Attendance Warning!
-                </p>
-                <p className="text-sm text-red-700 mt-1">
-                  Your attendance is below the required 75%. Please attend
-                  classes regularly to avoid academic penalties.
-                </p>
+                <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+                  <div className="min-w-[720px]">
+                    <div className="grid grid-cols-7 gap-2 md:gap-3">
+                      {WEEK_DAYS.map((day) => (
+                        <div
+                          key={day}
+                          className="pb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:text-xs"
+                        >
+                          {day}
+                        </div>
+                      ))}
+
+                      {monthGrid.map((item, index) =>
+                        item ? (
+                          <div
+                            key={`${monthKey}-${item.day}-${index}`}
+                            className={`min-h-[80px] rounded-xl border p-2.5 md:min-h-[88px] md:p-3 ${getStatusClasses(
+                              item.status
+                            )}`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="text-sm font-bold">{item.day}</span>
+                              <span className="text-[9px] font-semibold uppercase tracking-wide md:text-[10px]">
+                                {getStatusLabel(item.status)}
+                              </span>
+                            </div>
+                            {item.note && (
+                              <p className="mt-2 text-[10px] leading-4 md:mt-3 md:text-[11px]">
+                                {item.note}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <div
+                            key={`${monthKey}-empty-${index}`}
+                            className="min-h-[80px] rounded-xl border border-transparent md:min-h-[88px]"
+                          />
+                        )
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Overall Summary
+                  </h2>
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3">
+                      <span className="text-sm text-gray-600">Working Days</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {overall.workingDays}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3">
+                      <span className="text-sm text-gray-600">Marked Days</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {overall.markedDays}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3">
+                      <span className="text-sm text-gray-600">Present</span>
+                      <span className="text-sm font-semibold text-green-700">
+                        {overall.present}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3">
+                      <span className="text-sm text-gray-600">Absent</span>
+                      <span className="text-sm font-semibold text-red-700">
+                        {overall.absent}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Monthly Percentages
+                  </h2>
+                  <div className="mt-4 space-y-3">
+                    {(summary?.months || []).map((month) => (
+                      <div
+                        key={month.monthKey}
+                        className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {month.label}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500">
+                              Present {month.present} | Absent {month.absent} |
+                              {" "}Working {month.workingDays}
+                            </p>
+                          </div>
+                          <span className="text-sm font-bold text-blue-700">
+                            {month.percentage}%
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+
+            {overall.markedDays > 0 && overall.percentage < 75 && (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                <p className="text-sm font-semibold text-red-800">
+                  Attendance Warning
+                </p>
+                <p className="mt-1 text-sm text-red-700">
+                  Your overall attendance is below the required 75%.
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
