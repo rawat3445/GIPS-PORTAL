@@ -291,7 +291,7 @@ export default function LoginPage() {
                   style={{ animation: "fadeSlideUp 0.7s ease 0.12s both" }}
                 >
                   <div
-                    className="relative flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center"
+                    className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center"
                     style={{
                       borderRadius: "22px",
                       background:
@@ -387,7 +387,7 @@ export default function LoginPage() {
                         }}
                       >
                         <span
-                          className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center"
+                          className="inline-flex h-10 w-10 shrink-0 items-center justify-center"
                           style={{
                             borderRadius: "12px",
                             background: `${item.accent}18`,
@@ -568,7 +568,7 @@ export default function LoginPage() {
                         }
                       >
                         <Mail
-                          className="h-4 w-4 flex-shrink-0 transition-colors group-focus-within:text-amber-400"
+                          className="h-4 w-4 shrink-0 transition-colors group-focus-within:text-amber-400"
                           style={{ color: "rgba(255,255,255,0.3)" }}
                         />
                         <input
@@ -608,7 +608,7 @@ export default function LoginPage() {
                         }
                       >
                         <Lock
-                          className="h-4 w-4 flex-shrink-0 transition-colors group-focus-within:text-emerald-400"
+                          className="h-4 w-4 shrink-0 transition-colors group-focus-within:text-emerald-400"
                           style={{ color: "rgba(255,255,255,0.3)" }}
                         />
                         <input
@@ -623,7 +623,7 @@ export default function LoginPage() {
                         <button
                           type="button"
                           onClick={() => setShowPassword((p) => !p)}
-                          className="flex-shrink-0 transition-opacity hover:opacity-80"
+                          className="shrink-0 transition-opacity hover:opacity-80"
                           style={{ color: "rgba(255,255,255,0.3)" }}
                           aria-label={
                             showPassword ? "Hide password" : "Show password"

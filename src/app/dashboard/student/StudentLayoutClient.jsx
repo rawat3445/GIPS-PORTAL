@@ -199,7 +199,7 @@ export default function StudentLayoutClient({ children }) {
                   }`}
                 >
                   <span
-                    className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ${
+                    className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
                       isActive
                         ? "bg-blue-100 text-blue-700"
                         : "bg-white/8 text-cyan-100 group-hover:bg-white/14"
@@ -243,7 +243,7 @@ export default function StudentLayoutClient({ children }) {
                   className={`group flex items-center rounded-2xl border py-3 transition ${
                     isActive
                       ? "border-white/25 bg-white/12 text-white shadow-[0_18px_40px_-24px_rgba(15,23,42,0.9)]"
-                      : "border-white/10 bg-white/[0.05] text-blue-100/85 hover:border-white/20 hover:bg-white/[0.09] hover:text-white"
+                      : "border-white/10 bg-white/5 text-blue-100/85 hover:border-white/20 hover:bg-white/9 hover:text-white"
                   } ${
                     sidebarOpen
                       ? "gap-3 px-4 justify-start"
@@ -251,7 +251,7 @@ export default function StudentLayoutClient({ children }) {
                   }`}
                 >
                   <span
-                    className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ${
+                    className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
                       isActive
                         ? "bg-white/12 text-white"
                         : "bg-white/7 text-blue-100 group-hover:bg-white/12"
@@ -310,7 +310,7 @@ export default function StudentLayoutClient({ children }) {
             }`}
           >
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
-              <LogOut className="h-5 w-5 flex-shrink-0" />
+              <LogOut className="h-5 w-5 shrink-0" />
             </span>
             {sidebarOpen && <span className="font-medium">Logout</span>}
           </button>

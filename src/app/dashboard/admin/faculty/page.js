@@ -2,11 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 
 export default function FacultyPage() {
-  const searchParams = useSearchParams();
-  const success = searchParams.get("success");
   const [faculty, setFaculty] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -23,8 +20,11 @@ export default function FacultyPage() {
 
   
   useEffect(() => {
-    if (success) alert(success); // replace with toast later
-  }, [success]);
+    const success = new URLSearchParams(window.location.search).get("success");
+    if (success) {
+      alert(success); // replace with toast later
+    }
+  }, []);
 
   function openEditModal(member) {
     setEditingFaculty(member);

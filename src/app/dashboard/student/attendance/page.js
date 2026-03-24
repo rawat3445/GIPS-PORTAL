@@ -343,7 +343,7 @@ export default function StudentAttendancePage() {
                         item ? (
                           <div
                             key={`${monthKey}-${item.day}-${index}`}
-                            className={`min-h-[80px] rounded-xl border p-2.5 md:min-h-[88px] md:p-3 ${getStatusClasses(
+                            className={`min-h-80 rounded-xl border p-2.5 md:min-h-[88px] md:p-3 ${getStatusClasses(
                               item.status
                             )}`}
                           >
@@ -362,7 +362,7 @@ export default function StudentAttendancePage() {
                         ) : (
                           <div
                             key={`${monthKey}-empty-${index}`}
-                            className="min-h-[80px] rounded-xl border border-transparent md:min-h-[88px]"
+                            className="min-h-80 rounded-xl border border-transparent md:min-h-[88px]"
                           />
                         )
                       )}
