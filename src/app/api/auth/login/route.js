@@ -8,40 +8,97 @@ function isBcryptHash(value) {
   return /^\$2[aby]\$\d{2}\$/.test(String(value || ""));
 }
 
+function escapeRegex(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildIdentifierQuery(identifier) {
+  const trimmed = String(identifier || "").trim();
+  const emailLikeValue = trimmed.toLowerCase();
+
+  return {
+    $or: [
+      { email: emailLikeValue },
+      { email: new RegExp(`^\\s*${escapeRegex(emailLikeValue)}\\s*$`, "i") },
+      { enrollmentNo: trimmed },
+      { enrollmentNo: new RegExp(`^\\s*${escapeRegex(trimmed)}\\s*$`, "i") },
+    ],
+  };
+}
+
+async function passwordMatches(user, submittedPassword) {
+  const rawStoredPassword = String(user?.password || "");
+  const rawSubmittedPassword = String(submittedPassword || "");
+  const trimmedSubmittedPassword = rawSubmittedPassword.trim();
+
+  if (!rawStoredPassword) return false;
+
+  if (isBcryptHash(rawStoredPassword)) {
+    if (await bcrypt.compare(rawSubmittedPassword, rawStoredPassword)) {
+      return true;
+    }
+
+    if (
+      trimmedSubmittedPassword &&
+      trimmedSubmittedPassword !== rawSubmittedPassword &&
+      (await bcrypt.compare(trimmedSubmittedPassword, rawStoredPassword))
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  const trimmedStoredPassword = rawStoredPassword.trim();
+  const matched =
+    rawStoredPassword === rawSubmittedPassword ||
+    trimmedStoredPassword === trimmedSubmittedPassword;
+
+  if (!matched) return false;
+
+  user.password = await bcrypt.hash(trimmedSubmittedPassword || rawSubmittedPassword, 10);
+  await user.save();
+  return true;
+}
+
 export async function POST(req) {
   try {
     await connectDB();
 
     const body = await req.json();
-    const email = String(body?.email || "").trim().toLowerCase();
+    const identifier = String(
+      body?.email || body?.identifier || body?.enrollmentNo || ""
+    ).trim();
     const password = String(body?.password || "");
 
-    if (!email || !password) {
+    if (!identifier || !password) {
       return NextResponse.json(
-        { message: "Email and password are required" },
+        { message: "Email or enrollment number and password are required" },
         { status: 400 }
       );
     }
 
-    const user = await User.findOne({ email }).select("+password");
-    if (!user) {
+    const candidates = await User.find(buildIdentifierQuery(identifier))
+      .select("+password")
+      .sort({ role: 1, createdAt: 1 });
+
+    if (!candidates.length) {
       return NextResponse.json(
         { message: "Invalid credentials" },
         { status: 401 }
       );
     }
 
-    let isMatch = false;
+    let user = null;
 
-    if (isBcryptHash(user.password)) {
-      isMatch = await bcrypt.compare(password, user.password);
-    } else if (String(user.password) === password) {
-      isMatch = true;
-      user.password = await bcrypt.hash(password, 10);
-      await user.save();
+    for (const candidate of candidates) {
+      if (await passwordMatches(candidate, password)) {
+        user = candidate;
+        break;
+      }
     }
 
-    if (!isMatch) {
+    if (!user) {
       return NextResponse.json(
         { message: "Invalid credentials" },
         { status: 401 }

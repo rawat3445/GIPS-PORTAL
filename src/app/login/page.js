@@ -533,7 +533,7 @@ export default function LoginPage() {
                         className="mb-2 block text-xs font-semibold uppercase tracking-widest"
                         style={{ color: "rgba(255,255,255,0.4)" }}
                       >
-                        Email Address
+                        Email Address or Enrollment No.
                       </label>
                       <div
                         className="group flex items-center gap-3 px-4 py-3.5 transition-all duration-200 focus-within:scale-[1.01]"
@@ -556,10 +556,10 @@ export default function LoginPage() {
                           style={{ color: "rgba(255,255,255,0.3)" }}
                         />
                         <input
-                          type="email"
+                          type="text"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          placeholder="you@example.com"
+                          placeholder="you@example.com or 6189001"
                           required
                           className="w-full bg-transparent text-sm placeholder:text-white/25 focus:outline-none"
                           style={{ color: "rgba(255,255,255,0.9)" }}
