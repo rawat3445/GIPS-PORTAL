@@ -4,13 +4,25 @@ import jwt from "jsonwebtoken";
 import connectDB from "../../../lib/db";
 import User from "../../../models/User";
 
+function isBcryptHash(value) {
+  return /^\$2[aby]\$\d{2}\$/.test(String(value || ""));
+}
+
 export async function POST(req) {
   try {
     await connectDB();
 
-    const { email, password } = await req.json();
+    const body = await req.json();
+    const email = String(body?.email || "").trim().toLowerCase();
+    const password = String(body?.password || "");
 
-    // 1️⃣ Check user
+    if (!email || !password) {
+      return NextResponse.json(
+        { message: "Email and password are required" },
+        { status: 400 }
+      );
+    }
+
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
       return NextResponse.json(
@@ -19,8 +31,16 @@ export async function POST(req) {
       );
     }
 
-    // 2️⃣ Verify password
-    const isMatch = await bcrypt.compare(password, user.password);
+    let isMatch = false;
+
+    if (isBcryptHash(user.password)) {
+      isMatch = await bcrypt.compare(password, user.password);
+    } else if (String(user.password) === password) {
+      isMatch = true;
+      user.password = await bcrypt.hash(password, 10);
+      await user.save();
+    }
+
     if (!isMatch) {
       return NextResponse.json(
         { message: "Invalid credentials" },
@@ -28,7 +48,6 @@ export async function POST(req) {
       );
     }
 
-    // 3️⃣ Create JWT
     const role = String(user.role || "").toLowerCase();
     const assignedCourse = String(user.assignedCourse || "").toUpperCase();
     const redirectTo =
@@ -51,7 +70,6 @@ export async function POST(req) {
       { expiresIn: "7d" }
     );
 
-    // 4️⃣ Send response + cookie
     const response = NextResponse.json({
       message: "Login successful",
       role,
@@ -65,7 +83,7 @@ export async function POST(req) {
       path: "/",
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return response;
