@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
+import { jwtVerify } from "jose";
 
-export function middleware(req) {
+export async function middleware(req) {
   const token = req.cookies.get("token")?.value;
   const path = req.nextUrl.pathname;
 
@@ -9,15 +9,17 @@ export function middleware(req) {
     if (!token) return NextResponse.redirect(new URL("/login", req.url));
 
     try {
-      const user = jwt.verify(token, process.env.JWT_SECRET);
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+      const { payload } = await jwtVerify(token, secret);
+      const role = String(payload.role || "").toLowerCase();
 
-      if (path.startsWith("/dashboard/admin") && user.role !== "admin")
+      if (path.startsWith("/dashboard/admin") && role !== "admin")
         return NextResponse.redirect(new URL("/unauthorized", req.url));
 
-      if (path.startsWith("/dashboard/faculty") && user.role !== "faculty")
+      if (path.startsWith("/dashboard/faculty") && role !== "faculty")
         return NextResponse.redirect(new URL("/unauthorized", req.url));
 
-      if (path.startsWith("/dashboard/student") && user.role !== "student")
+      if (path.startsWith("/dashboard/student") && role !== "student")
         return NextResponse.redirect(new URL("/unauthorized", req.url));
     } catch (err) {
       return NextResponse.redirect(new URL("/login", req.url));
