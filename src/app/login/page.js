@@ -160,28 +160,12 @@ export default function LoginPage() {
         return;
       }
 
-      const meRes = await fetch("/api/auth/me", {
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      const meData = await meRes.json().catch(() => ({}));
-      if (!meRes.ok) {
-        setError(meData.message || "Authentication failed");
+      if (!data.redirectTo) {
+        setError("Login succeeded, but redirect target is missing.");
         return;
       }
 
-      const role = meData?.user?.role?.toLowerCase();
-      const assignedCourse = Array.isArray(meData?.user?.assignedCourse)
-        ? meData.user.assignedCourse[0]
-        : meData?.user?.assignedCourse;
-
-      if (role === "faculty" && assignedCourse) {
-        router.push(`/dashboard/faculty/${assignedCourse}`);
-        return;
-      }
-
-      router.push(`/dashboard/${role}`);
+      router.replace(data.redirectTo);
     } catch (err) {
       console.error(err);
       setError("Something went wrong, try again.");

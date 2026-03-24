@@ -29,6 +29,19 @@ export async function POST(req) {
     }
 
     // 3️⃣ Create JWT
+    const role = String(user.role || "").toLowerCase();
+    const assignedCourse = String(user.assignedCourse || "").toUpperCase();
+    const redirectTo =
+      role === "admin"
+        ? "/dashboard/admin"
+        : role === "faculty"
+        ? assignedCourse
+          ? `/dashboard/faculty/${assignedCourse}`
+          : "/dashboard/faculty"
+        : role === "student"
+        ? "/dashboard/student"
+        : "/";
+
     const token = jwt.sign(
       {
         id: user._id.toString(),
@@ -41,6 +54,8 @@ export async function POST(req) {
     // 4️⃣ Send response + cookie
     const response = NextResponse.json({
       message: "Login successful",
+      role,
+      redirectTo,
     });
 
     response.cookies.set({

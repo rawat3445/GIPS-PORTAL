@@ -30,6 +30,7 @@ const QUICK_STATS = [
 
 export default async function Home() {
   let token;
+  let role = "";
 
   try {
     const cookieStore = await cookies();
@@ -42,13 +43,22 @@ export default async function Home() {
     try {
       const secret = new TextEncoder().encode(process.env.JWT_SECRET);
       const { payload } = await jwtVerify(token, secret);
-
-      if (payload.role === "admin") return redirect("/dashboard/admin");
-      if (payload.role === "faculty") return redirect("/dashboard/faculty");
-      if (payload.role === "student") return redirect("/dashboard/student");
+      role = String(payload.role || "").toLowerCase();
     } catch (err) {
       console.error("Token invalid:", err);
     }
+  }
+
+  if (role === "admin") {
+    redirect("/dashboard/admin");
+  }
+
+  if (role === "faculty") {
+    redirect("/dashboard/faculty");
+  }
+
+  if (role === "student") {
+    redirect("/dashboard/student");
   }
 
   return (
