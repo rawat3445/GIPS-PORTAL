@@ -6,7 +6,11 @@ import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
-    const { name, email, password, role } = await req.json();
+    const body = await req.json();
+    const name = String(body?.name || "").trim();
+    const email = String(body?.email || "").trim().toLowerCase();
+    const password = String(body?.password || "");
+    const role = body?.role;
 
     if (!name || !email || !password) {
       return NextResponse.json(

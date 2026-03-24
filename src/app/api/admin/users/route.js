@@ -26,18 +26,33 @@ export async function POST(req) {
       phone,
     } = await req.json();
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const normalizedName = String(name || "").trim();
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const normalizedPassword = String(password || "");
+    const normalizedRole = String(role || "").trim().toLowerCase();
+    const normalizedAssignedCourse = String(assignedCourse || "")
+      .trim()
+      .toUpperCase();
+    const normalizedEnrollmentNo = String(enrollmentNo || "").trim();
+    const normalizedCourse = String(course || "").trim().toUpperCase();
+    const normalizedPhone = String(phone || "").trim();
+    const normalizedYear =
+      year === undefined || year === null || year === ""
+        ? undefined
+        : Number(year);
+
+    const hashedPassword = await bcrypt.hash(normalizedPassword, 10);
 
     await User.create({
-      name,
-      email,
+      name: normalizedName,
+      email: normalizedEmail,
       password: hashedPassword,
-      role,
-      assignedCourse,
-      enrollmentNo,
-      course,
-      year,
-      phone,
+      role: normalizedRole,
+      assignedCourse: normalizedAssignedCourse || undefined,
+      enrollmentNo: normalizedEnrollmentNo || undefined,
+      course: normalizedCourse || undefined,
+      year: Number.isNaN(normalizedYear) ? undefined : normalizedYear,
+      phone: normalizedPhone || undefined,
     });
 
     return NextResponse.json({ message: "User created" }, { status: 201 });
