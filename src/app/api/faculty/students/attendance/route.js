@@ -6,6 +6,7 @@ import {
   addDays,
   ATTENDANCE_START_DATE,
   COLLEGE_RESUME_DATE,
+  getCalendarEndDateForContext,
   getHolidayMapForContext,
   isSunday,
   isWinterVacation,
@@ -35,11 +36,17 @@ async function getMeOrThrow(request) {
 
 async function buildStudentAttendanceSummary(student) {
   const todayISO = toISODate(new Date());
-  const holidayMap = await getHolidayMapForContext({
-    fromDate: ATTENDANCE_START_DATE,
-    toDate: todayISO,
+  const calendarEndDate = await getCalendarEndDateForContext({
     course: student.course,
     year: student.year,
+    studentId: student._id,
+  });
+  const holidayMap = await getHolidayMapForContext({
+    fromDate: ATTENDANCE_START_DATE,
+    toDate: calendarEndDate,
+    course: student.course,
+    year: student.year,
+    studentId: student._id,
   });
   const docs = await Attendance.find({
     course: String(student.course || "").toUpperCase(),
@@ -64,7 +71,7 @@ async function buildStudentAttendanceSummary(student) {
   const calendar = [];
   let cursor = ATTENDANCE_START_DATE;
 
-  while (cursor <= todayISO) {
+  while (cursor <= calendarEndDate) {
     const monthKey = cursor.slice(0, 7);
     if (!monthsMap.has(monthKey)) {
       monthsMap.set(monthKey, {
@@ -100,6 +107,9 @@ async function buildStudentAttendanceSummary(student) {
     } else if (isSunday(cursor)) {
       status = "holiday";
       note = "Sunday holiday";
+    } else if (cursor > todayISO) {
+      status = "future";
+      note = "Upcoming day";
     } else {
       monthStats.workingDays += 1;
 
@@ -172,6 +182,7 @@ async function buildStudentAttendanceSummary(student) {
     },
     startDate: ATTENDANCE_START_DATE,
     currentDate: todayISO,
+    calendarEndDate,
     vacation: {
       from: WINTER_VACATION_FROM,
       to: WINTER_VACATION_TO,
@@ -185,6 +196,7 @@ async function buildStudentAttendanceSummary(student) {
       scopeType: holiday.scopeType,
       course: holiday.course || "",
       year: holiday.year ?? null,
+      studentId: holiday.studentId ?? null,
     })),
     resumeDate: COLLEGE_RESUME_DATE,
     overall,

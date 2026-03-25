@@ -73,6 +73,8 @@ function getMonthStartDay(monthKey) {
 
 function getStatusClasses(status) {
   switch (status) {
+    case "future":
+      return "border-sky-200 bg-sky-50 text-sky-800";
     case "present":
       return "border-green-200 bg-green-50 text-green-800";
     case "absent":
@@ -92,6 +94,8 @@ function getStatusClasses(status) {
 
 function getStatusLabel(status) {
   switch (status) {
+    case "future":
+      return "Upcoming";
     case "present":
       return "Present";
     case "absent":
@@ -109,7 +113,11 @@ function getStatusLabel(status) {
   }
 }
 
-function getScopeLabel(scopeType, course, year) {
+function getScopeLabel(scopeType, course, year, studentCount = 0) {
+  if (scopeType === "student") {
+    return `${course} Year ${year} (${studentCount} selected student${studentCount === 1 ? "" : "s"})`;
+  }
+
   if (scopeType === "courseYear") {
     return `${course} Year ${year}`;
   }
@@ -119,7 +127,12 @@ function getScopeLabel(scopeType, course, year) {
 
 function getAppliedEventLabel(eventInfo) {
   if (!eventInfo) return "";
-  return getScopeLabel(eventInfo.scopeType, eventInfo.course, eventInfo.year);
+  return getScopeLabel(
+    eventInfo.scopeType,
+    eventInfo.course,
+    eventInfo.year,
+    eventInfo.scopeType === "student" ? 1 : 0
+  );
 }
 
 function getEventTypeLabel(eventType) {
@@ -156,6 +169,11 @@ function AttendanceSummaryModal({
   onMonthChange,
   onClose,
 }) {
+  const maxMonthKey = useMemo(() => {
+    const endDate = summary?.calendarEndDate || summary?.currentDate;
+    return endDate ? endDate.slice(0, 7) : getCurrentMonthKey();
+  }, [summary]);
+
   const selectedMonthStats = useMemo(() => {
     return (
       summary?.months?.find((item) => item.monthKey === monthKey) || {
@@ -235,7 +253,7 @@ function AttendanceSummaryModal({
               <input
                 type="month"
                 min={ATTENDANCE_START_MONTH}
-                max={getCurrentMonthKey()}
+                max={maxMonthKey}
                 value={monthKey}
                 onChange={(e) => onMonthChange(e.target.value)}
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -300,6 +318,9 @@ function AttendanceSummaryModal({
                     <div className="flex flex-wrap gap-2 text-xs">
                       <span className="rounded-full bg-green-50 px-3 py-1 font-medium text-green-700">
                         Present
+                      </span>
+                      <span className="rounded-full bg-sky-50 px-3 py-1 font-medium text-sky-700">
+                        Upcoming
                       </span>
                       <span className="rounded-full bg-red-50 px-3 py-1 font-medium text-red-700">
                         Absent
@@ -444,6 +465,12 @@ export default function MarkAttendancePage() {
   const [eventScopeType, setEventScopeType] = useState("courseYear");
   const [eventType, setEventType] = useState("holiday");
   const [eventYear, setEventYear] = useState("1");
+  const [eventStudentIds, setEventStudentIds] = useState([]);
+  const [eventStudents, setEventStudents] = useState([]);
+  const [eventStudentsLoading, setEventStudentsLoading] = useState(false);
+  const [eventStudentsError, setEventStudentsError] = useState("");
+  const [studentsReloadToken, setStudentsReloadToken] = useState(0);
+  const [eventStudentsReloadToken, setEventStudentsReloadToken] = useState(0);
 
   const [students, setStudents] = useState([]);
   const [studentsLoading, setStudentsLoading] = useState(true);
@@ -472,6 +499,18 @@ export default function MarkAttendancePage() {
     ? `This date is blocked by ${getAppliedEventLabel(holidayInfo)}: ${holidayInfo.title || getEventTypeLabel(holidayInfo.eventType)}`
     : "";
   const actionBlockMessage = dateValidationMessage || holidayBlockMessage;
+  const markableStudents = useMemo(
+    () => students.filter((student) => !student.activeEvent),
+    [students]
+  );
+  const blockedStudents = useMemo(
+    () => students.filter((student) => student.activeEvent),
+    [students]
+  );
+  const blockedStudentIds = useMemo(
+    () => new Set(blockedStudents.map((student) => student._id)),
+    [blockedStudents]
+  );
 
   useEffect(() => {
     const run = async () => {
@@ -535,7 +574,7 @@ export default function MarkAttendancePage() {
 
       try {
         const res = await fetch(
-          `/api/faculty/students?course=${course}&year=${selectedYear}`,
+          `/api/faculty/students?course=${course}&year=${selectedYear}&date=${selectedDate}`,
           {
             credentials: "include",
             cache: "no-store",
@@ -591,7 +630,77 @@ export default function MarkAttendancePage() {
     };
 
     loadStudents();
-  }, [course, courseName, pageLoading, me, selectedYear, selectedDate]);
+  }, [course, courseName, pageLoading, me, selectedYear, selectedDate, studentsReloadToken]);
+
+  useEffect(() => {
+    if (eventScopeType !== "student") {
+      setEventStudents([]);
+      setEventStudentsLoading(false);
+      setEventStudentsError("");
+      return;
+    }
+
+    if (!courseName || pageLoading || !me || !eventYear) return;
+
+    let cancelled = false;
+
+    const loadEventStudents = async () => {
+      try {
+        setEventStudentsLoading(true);
+        setEventStudentsError("");
+
+        const res = await fetch(
+          `/api/faculty/students?course=${course}&year=${eventYear}&date=${selectedDate}`,
+          {
+            credentials: "include",
+            cache: "no-store",
+          }
+        );
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message || `Failed (HTTP ${res.status})`);
+        }
+
+        if (!Array.isArray(data)) {
+          throw new Error("Students API did not return an array");
+        }
+
+        if (!cancelled) {
+          setEventStudents(data);
+          setEventStudentIds((prev) =>
+            prev.filter((studentId) =>
+              data.some((student) => student._id === studentId)
+            )
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setEventStudents([]);
+          setEventStudentsError(error.message || "Failed to load students");
+        }
+      } finally {
+        if (!cancelled) {
+          setEventStudentsLoading(false);
+        }
+      }
+    };
+
+    loadEventStudents();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    course,
+    courseName,
+    eventScopeType,
+    eventYear,
+    me,
+    pageLoading,
+    selectedDate,
+    eventStudentsReloadToken,
+  ]);
 
   const fetchHolidayInfo = useCallback(async (nextDate = selectedDate, nextYear = selectedYear) => {
     if (!course || !nextYear || !nextDate || pageLoading || !me) {
@@ -640,6 +749,8 @@ export default function MarkAttendancePage() {
   }, [fetchHolidayInfo]);
 
   const toggleAttendance = (studentId) => {
+    if (blockedStudentIds.has(studentId)) return;
+
     setAttendance((prev) => ({
       ...prev,
       [studentId]:
@@ -652,40 +763,60 @@ export default function MarkAttendancePage() {
   };
 
   const markAllPresent = () => {
-    const all = {};
-    students.forEach((student) => {
-      all[student._id] = "present";
+    setAttendance((prev) => {
+      const next = { ...prev };
+      markableStudents.forEach((student) => {
+        next[student._id] = "present";
+      });
+      return next;
     });
-    setAttendance(all);
   };
 
   const markAllAbsent = () => {
-    const all = {};
-    students.forEach((student) => {
-      all[student._id] = "absent";
+    setAttendance((prev) => {
+      const next = { ...prev };
+      markableStudents.forEach((student) => {
+        next[student._id] = "absent";
+      });
+      return next;
     });
-    setAttendance(all);
   };
 
   const presentCount = useMemo(
-    () => Object.values(attendance).filter((value) => value === "present").length,
-    [attendance]
+    () =>
+      markableStudents.filter(
+        (student) => attendance[student._id] === "present"
+      ).length,
+    [attendance, markableStudents]
   );
 
   const absentCount = useMemo(
-    () => Object.values(attendance).filter((value) => value === "absent").length,
-    [attendance]
+    () =>
+      markableStudents.filter(
+        (student) => attendance[student._id] === "absent"
+      ).length,
+    [attendance, markableStudents]
   );
 
   const notMarkedCount = useMemo(
     () =>
-      Object.values(attendance).filter((value) => value === "not_marked").length,
-    [attendance]
+      markableStudents.filter((student) => {
+        const status = attendance[student._id] || "not_marked";
+        return status === "not_marked";
+      }).length,
+    [attendance, markableStudents]
   );
 
   const handleSubmit = async () => {
     if (actionBlockMessage) {
       setSubmitError(actionBlockMessage);
+      return;
+    }
+
+    if (markableStudents.length === 0) {
+      setSubmitError(
+        `All students in ${course} year ${selectedYear} already have an active event on ${selectedDate}.`
+      );
       return;
     }
 
@@ -705,7 +836,7 @@ export default function MarkAttendancePage() {
         course,
         year: Number(selectedYear),
         date: selectedDate,
-        records: students.map((student) => ({
+        records: markableStudents.map((student) => ({
           studentId: student._id,
           status: attendance[student._id] || "absent",
         })),
@@ -738,8 +869,13 @@ export default function MarkAttendancePage() {
       return;
     }
 
-    if (eventScopeType === "courseYear" && !eventYear) {
+    if ((eventScopeType === "courseYear" || eventScopeType === "student") && !eventYear) {
       setSubmitError("Select the year for this event.");
+      return;
+    }
+
+    if (eventScopeType === "student" && eventStudentIds.length === 0) {
+      setSubmitError("Select at least one student for this event.");
       return;
     }
 
@@ -759,7 +895,12 @@ export default function MarkAttendancePage() {
           title: holidayTitle.trim() || "Holiday",
           eventType,
           scopeType: eventScopeType,
-          year: eventScopeType === "courseYear" ? Number(eventYear) : undefined,
+          year:
+            eventScopeType === "courseYear" || eventScopeType === "student"
+              ? Number(eventYear)
+              : undefined,
+          studentIds:
+            eventScopeType === "student" ? eventStudentIds : undefined,
         }),
       });
 
@@ -772,9 +913,71 @@ export default function MarkAttendancePage() {
       setHolidayTitle(data.holiday?.title || "Holiday");
       setEventType(data.holiday?.eventType || eventType);
       setHolidayMessage(data.message || "Holiday saved successfully");
-      await fetchHolidayInfo();
+      setStudentsReloadToken((value) => value + 1);
+      setEventStudentsReloadToken((value) => value + 1);
+      if (eventScopeType !== "student") {
+        await fetchHolidayInfo();
+      }
     } catch (error) {
       setSubmitError(error.message || "Failed to save holiday");
+    } finally {
+      setHolidaySaving(false);
+    }
+  };
+
+  const removeConfiguredHoliday = async () => {
+    if (!eventFromDate || !eventToDate) {
+      setSubmitError("Select a start date and end date for the event.");
+      return;
+    }
+
+    if ((eventScopeType === "courseYear" || eventScopeType === "student") && !eventYear) {
+      setSubmitError("Select the year for this event.");
+      return;
+    }
+
+    if (eventScopeType === "student" && eventStudentIds.length === 0) {
+      setSubmitError("Select at least one student for this event.");
+      return;
+    }
+
+    try {
+      setHolidaySaving(true);
+      setHolidayMessage("");
+      setSubmitError("");
+      setSubmitMessage("");
+
+      const res = await fetch("/api/faculty/holidays", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          fromDate: eventFromDate,
+          toDate: eventToDate,
+          scopeType: eventScopeType,
+          year:
+            eventScopeType === "courseYear" || eventScopeType === "student"
+              ? Number(eventYear)
+              : undefined,
+          studentIds:
+            eventScopeType === "student" ? eventStudentIds : undefined,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to remove event");
+      }
+
+      setHolidayInfo(null);
+      setHolidayMessage(data.message || "Event removed successfully");
+      setStudentsReloadToken((value) => value + 1);
+      setEventStudentsReloadToken((value) => value + 1);
+      if (eventScopeType !== "student") {
+        await fetchHolidayInfo();
+      }
+    } catch (error) {
+      setSubmitError(error.message || "Failed to remove event");
     } finally {
       setHolidaySaving(false);
     }
@@ -797,6 +1000,14 @@ export default function MarkAttendancePage() {
           toDate: holidayInfo.toDate || holidayInfo.date,
           scopeType: holidayInfo.scopeType || "course",
           year: holidayInfo.year ?? undefined,
+          studentIds:
+            holidayInfo.scopeType === "student"
+              ? eventStudentIds.length
+                ? eventStudentIds
+                : holidayInfo.studentId
+                ? [holidayInfo.studentId]
+                : []
+              : undefined,
         }),
       });
 
@@ -807,7 +1018,11 @@ export default function MarkAttendancePage() {
 
       setHolidayMessage(data.message || "Event removed successfully");
       setHolidayInfo(null);
-      await fetchHolidayInfo();
+      setStudentsReloadToken((value) => value + 1);
+      setEventStudentsReloadToken((value) => value + 1);
+      if (holidayInfo.scopeType !== "student") {
+        await fetchHolidayInfo();
+      }
     } catch (error) {
       setSubmitError(error.message || "Failed to remove event");
     } finally {
@@ -956,7 +1171,10 @@ export default function MarkAttendancePage() {
                   type="button"
                   onClick={markAllPresent}
                   disabled={
-                    studentsLoading || students.length === 0 || !!actionBlockMessage
+                    studentsLoading ||
+                    students.length === 0 ||
+                    markableStudents.length === 0 ||
+                    !!actionBlockMessage
                   }
                   className="flex-1 px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50"
                 >
@@ -966,7 +1184,10 @@ export default function MarkAttendancePage() {
                   type="button"
                   onClick={markAllAbsent}
                   disabled={
-                    studentsLoading || students.length === 0 || !!actionBlockMessage
+                    studentsLoading ||
+                    students.length === 0 ||
+                    markableStudents.length === 0 ||
+                    !!actionBlockMessage
                   }
                   className="flex-1 px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50"
                 >
@@ -993,8 +1214,8 @@ export default function MarkAttendancePage() {
                 </p>
                 <p className="mt-2 text-sm text-gray-700">
                   Save internship days, department leave, workshops, or college
-                  off in one step. Faculty can apply the event to the whole course
-                  or to one selected year only.
+                  off in one step. Faculty can apply the event to the whole course,
+                  one selected year, or only selected students in that year.
                 </p>
               </div>
 
@@ -1054,6 +1275,7 @@ export default function MarkAttendancePage() {
                 >
                   <option value="courseYear">Selected Year Only</option>
                   <option value="course">Entire Course</option>
+                  <option value="student">Selected Students</option>
                 </select>
               </div>
 
@@ -1092,7 +1314,10 @@ export default function MarkAttendancePage() {
                 <select
                   value={eventYear}
                   onChange={(e) => setEventYear(e.target.value)}
-                  disabled={eventScopeType !== "courseYear"}
+                  disabled={
+                    eventScopeType !== "courseYear" &&
+                    eventScopeType !== "student"
+                  }
                   className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100 disabled:text-gray-400"
                 >
                   {YEAR_OPTIONS.map((yearOption) => (
@@ -1110,6 +1335,109 @@ export default function MarkAttendancePage() {
               </div>
             </div>
 
+            {eventScopeType === "student" && (
+              <div className="mt-4 rounded-xl border border-amber-100 bg-white/85 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Select Students
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Pick the students who should get this internship or event
+                      range. You can save one group now and another group on
+                      different dates.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEventStudentIds(
+                          eventStudents.map((student) => student._id)
+                        )
+                      }
+                      disabled={eventStudents.length === 0}
+                      className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEventStudentIds([])}
+                      disabled={eventStudentIds.length === 0}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-lg border border-dashed border-amber-200 bg-amber-50/60 px-3 py-2 text-xs font-medium text-amber-800">
+                  Selected students: {eventStudentIds.length}
+                </div>
+
+                {eventStudentsLoading ? (
+                  <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+                    Loading students for event selection...
+                  </div>
+                ) : eventStudentsError ? (
+                  <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {eventStudentsError}
+                  </div>
+                ) : eventStudents.length === 0 ? (
+                  <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+                    No students found for year {eventYear}.
+                  </div>
+                ) : (
+                  <div className="mt-4 grid max-h-72 grid-cols-1 gap-3 overflow-y-auto pr-1 md:grid-cols-2">
+                    {eventStudents.map((student) => {
+                      const isChecked = eventStudentIds.includes(student._id);
+
+                      return (
+                        <label
+                          key={`event-student-${student._id}`}
+                          className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${
+                            isChecked
+                              ? "border-amber-300 bg-amber-50"
+                              : "border-gray-200 bg-white hover:border-amber-200 hover:bg-amber-50/40"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() =>
+                              setEventStudentIds((prev) =>
+                                isChecked
+                                  ? prev.filter((studentId) => studentId !== student._id)
+                                  : [...prev, student._id]
+                              )
+                            }
+                            className="mt-1 h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900">
+                              {student.name}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500">
+                              {student.enrollmentNo || "No enrollment"} | Year{" "}
+                              {student.year || "-"}
+                            </p>
+                            {student.activeEvent && (
+                              <p className="mt-2 text-xs font-medium text-amber-800">
+                                Active on {selectedDate}:{" "}
+                                {student.activeEvent.title ||
+                                  getEventTypeLabel(student.activeEvent.eventType)}
+                              </p>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 type="button"
@@ -1120,13 +1448,27 @@ export default function MarkAttendancePage() {
                 {holidaySaving ? "Saving Event..." : "Save Event Range"}
               </button>
 
+              <button
+                type="button"
+                onClick={removeConfiguredHoliday}
+                disabled={!eventFromDate || !eventToDate || holidaySaving}
+                className="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+              >
+                {holidaySaving ? "Removing..." : "Remove This Range"}
+              </button>
+
+              <span className="text-xs text-gray-500">
+                Use the same dates, scope, year, and students to delete a wrong event.
+              </span>
+
               {holidayInfo && (
                 <span
                   className={`rounded-full border px-3 py-1 text-sm font-medium ${getEventTypeClasses(
                     holidayInfo.eventType
                   )}`}
                 >
-                  Active on {selectedDate}: {holidayInfo.title || getEventTypeLabel(holidayInfo.eventType)}
+                  Active on {holidayInfo.date || selectedDate}:{" "}
+                  {holidayInfo.title || getEventTypeLabel(holidayInfo.eventType)}
                 </span>
               )}
               {holidayInfo && (
@@ -1153,7 +1495,8 @@ export default function MarkAttendancePage() {
           {holidayInfo && (
             <div className={`border-b px-6 py-4 ${getEventTypeClasses(holidayInfo.eventType)}`}>
               <p className="text-sm font-semibold">
-                Event active on {selectedDate} for {getAppliedEventLabel(holidayInfo)}
+                Event active on {holidayInfo.date || selectedDate} for{" "}
+                {getAppliedEventLabel(holidayInfo)}
               </p>
               <p className="mt-1 text-sm">
                 {getEventTypeLabel(holidayInfo.eventType)}:{" "}
@@ -1173,6 +1516,15 @@ export default function MarkAttendancePage() {
               Only students enrolled in {course}, year {selectedYear} are shown.
             </p>
           </div>
+
+          {blockedStudents.length > 0 && (
+            <div className="border-b border-cyan-200 bg-cyan-50 px-6 py-4 text-sm font-medium text-cyan-800">
+              {blockedStudents.length} student
+              {blockedStudents.length === 1 ? "" : "s"} already have an active
+              event on {selectedDate}. Those students are excluded from attendance
+              submission for this date.
+            </div>
+          )}
 
           {studentsLoading ? (
             <div className="p-6 text-sm text-gray-600">Loading students...</div>
@@ -1204,7 +1556,8 @@ export default function MarkAttendancePage() {
 
                 <tbody className="divide-y divide-gray-100">
                   {students.map((student) => {
-                    const status = attendance[student._id] || "absent";
+                    const status = attendance[student._id] || "not_marked";
+                    const activeEvent = student.activeEvent;
 
                     return (
                       <tr key={student._id} className="hover:bg-gray-50">
@@ -1227,6 +1580,24 @@ export default function MarkAttendancePage() {
                               {student.name}
                             </button>
                           </div>
+                          {activeEvent && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <span
+                                className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getEventTypeClasses(
+                                  activeEvent.eventType
+                                )}`}
+                              >
+                                {getEventTypeLabel(activeEvent.eventType)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {activeEvent.title ||
+                                  getEventTypeLabel(activeEvent.eventType)}
+                                {activeEvent.fromDate && activeEvent.toDate
+                                  ? ` | ${activeEvent.fromDate} to ${activeEvent.toDate}`
+                                  : ""}
+                              </span>
+                            </div>
+                          )}
                         </td>
 
                         <td className="py-4 px-6 text-sm text-gray-700">
@@ -1234,24 +1605,39 @@ export default function MarkAttendancePage() {
                         </td>
 
                         <td className="py-4 px-6 text-center">
-                          <button
-                            type="button"
-                            onClick={() => toggleAttendance(student._id)}
-                            disabled={!!actionBlockMessage}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition disabled:opacity-50 ${
-                              status === "present"
-                                ? "bg-green-100 text-green-700 hover:bg-green-200"
+                          {activeEvent ? (
+                            <div className="inline-flex flex-col items-center gap-1">
+                              <span
+                                className={`rounded-full border px-3 py-1 text-xs font-semibold ${getEventTypeClasses(
+                                  activeEvent.eventType
+                                )}`}
+                              >
+                                {getEventTypeLabel(activeEvent.eventType)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                Attendance skipped
+                              </span>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => toggleAttendance(student._id)}
+                              disabled={!!actionBlockMessage}
+                              className={`px-4 py-2 text-sm font-medium rounded-lg transition disabled:opacity-50 ${
+                                status === "present"
+                                  ? "bg-green-100 text-green-700 hover:bg-green-200"
+                                  : status === "absent"
+                                  ? "bg-red-100 text-red-700 hover:bg-red-200"
+                                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                              }`}
+                            >
+                              {status === "present"
+                                ? "Present"
                                 : status === "absent"
-                                ? "bg-red-100 text-red-700 hover:bg-red-200"
-                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                            }`}
-                          >
-                            {status === "present"
-                              ? "Present"
-                              : status === "absent"
-                              ? "Absent"
-                              : "Not Marked"}
-                          </button>
+                                ? "Absent"
+                                : "Not Marked"}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1267,6 +1653,10 @@ export default function MarkAttendancePage() {
               <span className="font-semibold text-green-600">{presentCount}</span>
               {" "} | Absent:{" "}
               <span className="font-semibold text-red-600">{absentCount}</span>
+              {" "} | Event:{" "}
+              <span className="font-semibold text-cyan-700">
+                {blockedStudents.length}
+              </span>
               {" "} | Not Marked:{" "}
               <span className="font-semibold text-slate-700">{notMarkedCount}</span>
               {" "} | Total: {students.length}
@@ -1278,6 +1668,7 @@ export default function MarkAttendancePage() {
               disabled={
                 studentsLoading ||
                 students.length === 0 ||
+                markableStudents.length === 0 ||
                 submitLoading ||
                 !!actionBlockMessage
               }

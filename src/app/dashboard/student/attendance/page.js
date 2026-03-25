@@ -41,6 +41,8 @@ function getMonthStartDay(monthKey) {
 
 function getStatusClasses(status) {
   switch (status) {
+    case "future":
+      return "border-sky-200 bg-sky-50 text-sky-800";
     case "present":
       return "border-green-200 bg-green-50 text-green-800";
     case "absent":
@@ -60,6 +62,8 @@ function getStatusClasses(status) {
 
 function getStatusLabel(status) {
   switch (status) {
+    case "future":
+      return "Upcoming";
     case "present":
       return "Present";
     case "absent":
@@ -82,6 +86,10 @@ export default function StudentAttendancePage() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const maxMonthKey = useMemo(() => {
+    const endDate = summary?.calendarEndDate || summary?.currentDate;
+    return endDate ? endDate.slice(0, 7) : getCurrentMonthKey();
+  }, [summary]);
 
   useEffect(() => {
     async function fetchSummary() {
@@ -101,8 +109,12 @@ export default function StudentAttendancePage() {
 
         setSummary(data);
 
-        if (monthKey < ATTENDANCE_START_MONTH || monthKey > getCurrentMonthKey()) {
-          setMonthKey(getCurrentMonthKey());
+        const latestMonthKey = data?.calendarEndDate
+          ? data.calendarEndDate.slice(0, 7)
+          : getCurrentMonthKey();
+
+        if (monthKey < ATTENDANCE_START_MONTH || monthKey > latestMonthKey) {
+          setMonthKey(latestMonthKey);
         }
       } catch (error) {
         setErr(error.message || "Error");
@@ -175,8 +187,8 @@ export default function StudentAttendancePage() {
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-600 md:text-base">
             Attendance is tracked from January 1, 2026 to today. Winter vacation
-            from January 1 to January 18, 2026 is excluded, and Sundays are
-            treated as holidays.
+            from January 1 to January 18, 2026 is excluded, Sundays are
+            treated as holidays, and saved future events appear in upcoming months.
           </p>
         </div>
       </div>
@@ -204,7 +216,7 @@ export default function StudentAttendancePage() {
               <input
                 type="month"
                 min={ATTENDANCE_START_MONTH}
-                max={getCurrentMonthKey()}
+                max={maxMonthKey}
                 value={monthKey}
                 onChange={(e) => setMonthKey(e.target.value)}
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -308,6 +320,9 @@ export default function StudentAttendancePage() {
                   <div className="flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full bg-green-50 px-3 py-1 font-medium text-green-700">
                       Present
+                    </span>
+                    <span className="rounded-full bg-sky-50 px-3 py-1 font-medium text-sky-700">
+                      Upcoming
                     </span>
                     <span className="rounded-full bg-red-50 px-3 py-1 font-medium text-red-700">
                       Absent

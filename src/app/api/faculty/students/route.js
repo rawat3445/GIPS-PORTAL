@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connectDB from "../../../lib/db";
 import User from "../../../models/User";
 import jwt from "jsonwebtoken";
+import { getHolidayMapForStudentsOnDate } from "../../../lib/attendanceEvents";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const course = (searchParams.get("course") || "").toUpperCase();
     const year = Number(searchParams.get("year"));
+    const date = searchParams.get("date");
 
     if (!course) {
       return NextResponse.json({ message: "course required" }, { status: 400 });
@@ -70,7 +72,38 @@ export async function GET(request) {
       .select("name email enrollmentNo year course")
       .sort({ name: 1 });
 
-    return NextResponse.json(students, { status: 200 });
+    if (!date || !Number.isFinite(year) || year <= 0 || !students.length) {
+      return NextResponse.json(students, { status: 200 });
+    }
+
+    const holidayMap = await getHolidayMapForStudentsOnDate({
+      date,
+      course,
+      year,
+      studentIds: students.map((student) => student._id.toString()),
+    });
+
+    const studentsWithEvents = students.map((student) => {
+      const eventInfo = holidayMap.get(student._id.toString());
+
+      return {
+        ...student.toObject(),
+        activeEvent: eventInfo
+          ? {
+              title: eventInfo.title,
+              eventType: eventInfo.eventType || "holiday",
+              scopeType: eventInfo.scopeType,
+              fromDate: eventInfo.fromDate,
+              toDate: eventInfo.toDate,
+              course: eventInfo.course || "",
+              year: eventInfo.year ?? null,
+              studentId: eventInfo.studentId ?? null,
+            }
+          : null,
+      };
+    });
+
+    return NextResponse.json(studentsWithEvents, { status: 200 });
   } catch (e) {
     console.error("STUDENTS API ERROR:", e);
     return NextResponse.json({ message: e.message }, { status: 500 });

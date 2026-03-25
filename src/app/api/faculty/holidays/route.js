@@ -4,8 +4,7 @@ import Holiday, { ensureHolidayIndexes } from "../../../models/Holiday";
 import {
   buildHolidayBulkOperations,
   findApplicableHoliday,
-  getDateRange,
-  getEventRangeValidationMessage,
+  getProcessableEventRange,
   getScopeLabel,
   normalizeCourse,
   normalizeEventScope,
@@ -35,6 +34,7 @@ export async function GET(request) {
     const date = searchParams.get("date");
     const year = searchParams.get("year");
     const course = normalizeCourse(searchParams.get("course") || me.assignedCourse);
+    const studentId = searchParams.get("studentId");
 
     if (!date) {
       return NextResponse.json(
@@ -43,7 +43,7 @@ export async function GET(request) {
       );
     }
 
-    const holiday = await findApplicableHoliday({ date, course, year });
+    const holiday = await findApplicableHoliday({ date, course, year, studentId });
     return NextResponse.json(holiday || null);
   } catch (error) {
     return NextResponse.json(
@@ -82,9 +82,10 @@ export async function POST(request) {
         ? "event"
         : "holiday";
 
-    const validationMessage = getEventRangeValidationMessage(fromDate, toDate, {
+    const { validationMessage, validDates, skippedDates, skippedReasons } =
+      getProcessableEventRange(fromDate, toDate, {
       allowFuture: true,
-    });
+      });
     if (validationMessage) {
       return NextResponse.json({ message: validationMessage }, { status: 400 });
     }
@@ -92,15 +93,21 @@ export async function POST(request) {
     let scope;
     try {
       scope = normalizeEventScope({
-        scopeType: body?.scopeType === "courseYear" ? "courseYear" : "course",
+        scopeType:
+          body?.scopeType === "student"
+            ? "student"
+            : body?.scopeType === "courseYear"
+            ? "courseYear"
+            : "course",
         course: assignedCourse,
         year: body?.year,
+        studentIds: body?.studentIds,
       });
     } catch (error) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
 
-    const dates = getDateRange(fromDate, toDate);
+    const dates = validDates;
 
     await Holiday.bulkWrite(
       buildHolidayBulkOperations({
@@ -111,6 +118,7 @@ export async function POST(request) {
         scopeType: scope.scopeType,
         course: scope.course,
         year: scope.year,
+        studentIds: scope.studentIds,
         fromDate,
         toDate,
       })
@@ -120,12 +128,27 @@ export async function POST(request) {
       date: fromDate,
       course: scope.course,
       year: scope.year,
+      studentId: scope.studentIds?.[0],
     });
 
+    const skippedParts = [];
+    if (skippedReasons.sunday) {
+      skippedParts.push(
+        `${skippedReasons.sunday} Sunday${skippedReasons.sunday === 1 ? "" : "s"}`
+      );
+    }
+    if (skippedReasons.winterVacation) {
+      skippedParts.push(
+        `${skippedReasons.winterVacation} winter vacation day${skippedReasons.winterVacation === 1 ? "" : "s"}`
+      );
+    }
+
     return NextResponse.json({
-      message: `${title} saved for ${getScopeLabel(scope)} from ${fromDate} to ${toDate} (${dates.length} day${dates.length === 1 ? "" : "s"})`,
+      message: `${title} saved for ${getScopeLabel(scope)} from ${fromDate} to ${toDate} (${dates.length} working day${dates.length === 1 ? "" : "s"}${skippedParts.length ? `, skipped ${skippedParts.join(" and ")}` : ""})`,
       holiday,
       savedDays: dates.length,
+      skippedDays: skippedDates.length,
+      skippedDates,
       scopeLabel: getScopeLabel(scope),
     });
   } catch (error) {
@@ -168,9 +191,15 @@ export async function DELETE(request) {
     let scope;
     try {
       scope = normalizeEventScope({
-        scopeType: body?.scopeType === "courseYear" ? "courseYear" : "course",
+        scopeType:
+          body?.scopeType === "student"
+            ? "student"
+            : body?.scopeType === "courseYear"
+            ? "courseYear"
+            : "course",
         course: assignedCourse,
         year: body?.year,
+        studentIds: body?.studentIds,
       });
     } catch (error) {
       return NextResponse.json({ message: error.message }, { status: 400 });
@@ -181,6 +210,9 @@ export async function DELETE(request) {
       scopeType: scope.scopeType,
       course: scope.course,
       year: scope.year,
+      ...(scope.scopeType === "student"
+        ? { studentId: { $in: scope.studentIds } }
+        : { studentId: null }),
     });
 
     return NextResponse.json({

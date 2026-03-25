@@ -43,7 +43,7 @@ export function isWinterVacation(dateString) {
 
 export function getEventDateValidationMessage(
   dateString,
-  { allowFuture = true } = {}
+  { allowFuture = true, allowAutoExcludedDays = false } = {}
 ) {
   const todayISO = toISODate(new Date());
 
@@ -51,10 +51,10 @@ export function getEventDateValidationMessage(
   if (dateString < ATTENDANCE_START_DATE) {
     return "Event cannot be marked before January 1, 2026";
   }
-  if (isWinterVacation(dateString)) {
+  if (!allowAutoExcludedDays && isWinterVacation(dateString)) {
     return "Winter vacation is already excluded";
   }
-  if (isSunday(dateString)) {
+  if (!allowAutoExcludedDays && isSunday(dateString)) {
     return "Sundays are already treated as holidays";
   }
   if (!allowFuture && dateString > todayISO) {
@@ -64,44 +64,132 @@ export function getEventDateValidationMessage(
   return "";
 }
 
-export function getEventRangeValidationMessage(
+export function getProcessableEventRange(
   fromDate,
   toDate,
   { allowFuture = true } = {}
 ) {
   if (!fromDate || !toDate) {
-    return "Start date and end date are required";
+    return {
+      validationMessage: "Start date and end date are required",
+      validDates: [],
+      skippedDates: [],
+      skippedReasons: {
+        sunday: 0,
+        winterVacation: 0,
+      },
+    };
   }
 
   if (toDate < fromDate) {
-    return "End date cannot be earlier than start date";
+    return {
+      validationMessage: "End date cannot be earlier than start date",
+      validDates: [],
+      skippedDates: [],
+      skippedReasons: {
+        sunday: 0,
+        winterVacation: 0,
+      },
+    };
   }
+
+  const validDates = [];
+  const skippedDates = [];
+  const skippedReasons = {
+    sunday: 0,
+    winterVacation: 0,
+  };
 
   const dates = getDateRange(fromDate, toDate);
   for (const date of dates) {
     const validationMessage = getEventDateValidationMessage(date, {
       allowFuture,
+      allowAutoExcludedDays: true,
     });
-    if (validationMessage) return validationMessage;
+    if (validationMessage) {
+      return {
+        validationMessage,
+        validDates: [],
+        skippedDates: [],
+        skippedReasons,
+      };
+    }
+
+    if (isWinterVacation(date)) {
+      skippedDates.push(date);
+      skippedReasons.winterVacation += 1;
+      continue;
+    }
+
+    if (isSunday(date)) {
+      skippedDates.push(date);
+      skippedReasons.sunday += 1;
+      continue;
+    }
+
+    validDates.push(date);
   }
 
-  return "";
+  if (!validDates.length) {
+    let validationMessage =
+      "Selected range only covers Sundays or winter vacation dates, so nothing can be marked";
+
+    if (skippedReasons.sunday && !skippedReasons.winterVacation) {
+      validationMessage = "Selected range only covers Sundays, so nothing can be marked";
+    } else if (skippedReasons.winterVacation && !skippedReasons.sunday) {
+      validationMessage =
+        "Selected range only covers winter vacation dates, so nothing can be marked";
+    }
+
+    return {
+      validationMessage,
+      validDates,
+      skippedDates,
+      skippedReasons,
+    };
+  }
+
+  return {
+    validationMessage: "",
+    validDates,
+    skippedDates,
+    skippedReasons,
+  };
+}
+
+export function getEventRangeValidationMessage(
+  fromDate,
+  toDate,
+  { allowFuture = true } = {}
+) {
+  return getProcessableEventRange(fromDate, toDate, {
+    allowFuture,
+  }).validationMessage;
 }
 
 export function normalizeCourse(course) {
   return String(course || "").trim().toUpperCase();
 }
 
-export function normalizeEventScope({ scopeType, course, year }) {
+export function normalizeStudentIds(studentIds) {
+  const values = Array.isArray(studentIds) ? studentIds : [];
+  return Array.from(
+    new Set(values.map((value) => String(value || "").trim()).filter(Boolean))
+  );
+}
+
+export function normalizeEventScope({ scopeType, course, year, studentIds }) {
   const nextScope = String(scopeType || "global").trim() || "global";
   const normalizedCourse = normalizeCourse(course);
   const normalizedYear = Number(year);
+  const normalizedStudentIds = normalizeStudentIds(studentIds);
 
   if (nextScope === "global") {
     return {
       scopeType: "global",
       course: "",
       year: null,
+      studentIds: [],
     };
   }
 
@@ -114,6 +202,7 @@ export function normalizeEventScope({ scopeType, course, year }) {
       scopeType: "course",
       course: normalizedCourse,
       year: null,
+      studentIds: [],
     };
   }
 
@@ -130,6 +219,28 @@ export function normalizeEventScope({ scopeType, course, year }) {
       scopeType: "courseYear",
       course: normalizedCourse,
       year: normalizedYear,
+      studentIds: [],
+    };
+  }
+
+  if (nextScope === "student") {
+    if (!normalizedCourse) {
+      throw new Error("Course is required for a student event");
+    }
+
+    if (!Number.isFinite(normalizedYear) || normalizedYear <= 0) {
+      throw new Error("Valid year is required for a student event");
+    }
+
+    if (!normalizedStudentIds.length) {
+      throw new Error("Select at least one student for a student event");
+    }
+
+    return {
+      scopeType: "student",
+      course: normalizedCourse,
+      year: normalizedYear,
+      studentIds: normalizedStudentIds,
     };
   }
 
@@ -137,6 +248,13 @@ export function normalizeEventScope({ scopeType, course, year }) {
 }
 
 export function getScopeLabel(scope) {
+  if (scope?.scopeType === "student") {
+    const studentCount = Array.isArray(scope?.studentIds)
+      ? scope.studentIds.length
+      : 0;
+    return `${scope.course} Year ${scope.year} (${studentCount} selected student${studentCount === 1 ? "" : "s"})`;
+  }
+
   if (scope?.scopeType === "courseYear") {
     return `${scope.course} Year ${scope.year}`;
   }
@@ -149,14 +267,16 @@ export function getScopeLabel(scope) {
 }
 
 function getScopePriority(scopeType) {
+  if (scopeType === "student") return 4;
   if (scopeType === "courseYear") return 3;
   if (scopeType === "course") return 2;
   return 1;
 }
 
-function buildApplicableScopeConditions(course, year) {
+function buildApplicableScopeConditions(course, year, studentId) {
   const normalizedCourse = normalizeCourse(course);
   const normalizedYear = Number(year);
+  const normalizedStudentId = String(studentId || "").trim();
   const conditions = [{ scopeType: "global" }];
 
   if (normalizedCourse) {
@@ -171,15 +291,29 @@ function buildApplicableScopeConditions(course, year) {
     });
   }
 
+  if (
+    normalizedCourse &&
+    Number.isFinite(normalizedYear) &&
+    normalizedYear > 0 &&
+    normalizedStudentId
+  ) {
+    conditions.push({
+      scopeType: "student",
+      course: normalizedCourse,
+      year: normalizedYear,
+      studentId: normalizedStudentId,
+    });
+  }
+
   return conditions;
 }
 
-export async function findApplicableHoliday({ date, course, year }) {
+export async function findApplicableHoliday({ date, course, year, studentId }) {
   if (!date) return null;
 
   const holidays = await Holiday.find({
     date,
-    $or: buildApplicableScopeConditions(course, year),
+    $or: buildApplicableScopeConditions(course, year, studentId),
   })
     .select({
       date: 1,
@@ -190,6 +324,7 @@ export async function findApplicableHoliday({ date, course, year }) {
       scopeType: 1,
       course: 1,
       year: 1,
+      studentId: 1,
     })
     .lean();
 
@@ -205,10 +340,11 @@ export async function getHolidayMapForContext({
   toDate,
   course,
   year,
+  studentId,
 }) {
   const holidays = await Holiday.find({
     date: { $gte: fromDate, $lte: toDate },
-    $or: buildApplicableScopeConditions(course, year),
+    $or: buildApplicableScopeConditions(course, year, studentId),
   })
     .select({
       date: 1,
@@ -219,6 +355,7 @@ export async function getHolidayMapForContext({
       scopeType: 1,
       course: 1,
       year: 1,
+      studentId: 1,
     })
     .lean();
 
@@ -237,6 +374,28 @@ export async function getHolidayMapForContext({
   return holidayMap;
 }
 
+export async function getCalendarEndDateForContext({
+  course,
+  year,
+  studentId,
+}) {
+  const todayISO = toISODate(new Date());
+
+  const latestHoliday = await Holiday.findOne({
+    date: { $gte: ATTENDANCE_START_DATE },
+    $or: buildApplicableScopeConditions(course, year, studentId),
+  })
+    .sort({ date: -1 })
+    .select({ date: 1 })
+    .lean();
+
+  if (latestHoliday?.date && latestHoliday.date > todayISO) {
+    return latestHoliday.date;
+  }
+
+  return todayISO;
+}
+
 export function buildHolidayBulkOperations({
   dates,
   title,
@@ -245,33 +404,117 @@ export function buildHolidayBulkOperations({
   scopeType,
   course,
   year,
+  studentIds = [],
   fromDate,
   toDate,
 }) {
-  return dates.map((date) => ({
-    updateOne: {
-      filter: {
-        date,
-        scopeType,
-        course: course || "",
-        year: year ?? null,
-      },
-      update: {
-        $set: {
+  const normalizedStudentIds =
+    scopeType === "student" ? normalizeStudentIds(studentIds) : [null];
+
+  return dates.flatMap((date) =>
+    normalizedStudentIds.map((studentId) => ({
+      updateOne: {
+        filter: {
           date,
-          fromDate,
-          toDate,
-          title,
-          eventType: ["holiday", "internship", "event"].includes(eventType)
-            ? eventType
-            : "holiday",
           scopeType,
           course: course || "",
           year: year ?? null,
-          markedBy,
+          studentId,
         },
+        update: {
+          $set: {
+            date,
+            fromDate,
+            toDate,
+            title,
+            eventType: ["holiday", "internship", "event"].includes(eventType)
+              ? eventType
+              : "holiday",
+            scopeType,
+            course: course || "",
+            year: year ?? null,
+            studentId,
+            markedBy,
+          },
+        },
+        upsert: true,
       },
-      upsert: true,
-    },
-  }));
+    }))
+  );
+}
+
+export async function getHolidayMapForStudentsOnDate({
+  date,
+  course,
+  year,
+  studentIds,
+}) {
+  const normalizedCourse = normalizeCourse(course);
+  const normalizedYear = Number(year);
+  const normalizedStudentIds = normalizeStudentIds(studentIds);
+
+  const studentHolidayMap = new Map();
+  if (!date || !normalizedCourse || !normalizedStudentIds.length) {
+    return studentHolidayMap;
+  }
+
+  const holidays = await Holiday.find({
+    date,
+    $or: [
+      { scopeType: "global" },
+      { scopeType: "course", course: normalizedCourse },
+      { scopeType: "courseYear", course: normalizedCourse, year: normalizedYear },
+      {
+        scopeType: "student",
+        course: normalizedCourse,
+        year: normalizedYear,
+        studentId: { $in: normalizedStudentIds },
+      },
+    ],
+  })
+    .select({
+      date: 1,
+      fromDate: 1,
+      toDate: 1,
+      title: 1,
+      eventType: 1,
+      scopeType: 1,
+      course: 1,
+      year: 1,
+      studentId: 1,
+    })
+    .lean();
+
+  let genericHoliday = null;
+
+  holidays.forEach((holiday) => {
+    if (holiday.scopeType === "student" && holiday.studentId) {
+      const key = String(holiday.studentId);
+      const existing = studentHolidayMap.get(key);
+      if (
+        !existing ||
+        getScopePriority(holiday.scopeType) > getScopePriority(existing.scopeType)
+      ) {
+        studentHolidayMap.set(key, holiday);
+      }
+      return;
+    }
+
+    if (
+      !genericHoliday ||
+      getScopePriority(holiday.scopeType) > getScopePriority(genericHoliday.scopeType)
+    ) {
+      genericHoliday = holiday;
+    }
+  });
+
+  if (genericHoliday) {
+    normalizedStudentIds.forEach((studentId) => {
+      if (!studentHolidayMap.has(studentId)) {
+        studentHolidayMap.set(studentId, genericHoliday);
+      }
+    });
+  }
+
+  return studentHolidayMap;
 }

@@ -37,6 +37,8 @@ function getMonthStartDay(monthKey) {
 
 function getStatusClasses(status) {
   switch (status) {
+    case "future":
+      return "border-sky-200 bg-sky-50 text-sky-800";
     case "present":
       return "border-green-200 bg-green-50 text-green-800";
     case "absent":
@@ -56,6 +58,8 @@ function getStatusClasses(status) {
 
 function getStatusLabel(status) {
   switch (status) {
+    case "future":
+      return "Upcoming";
     case "present":
       return "Present";
     case "absent":
@@ -73,7 +77,14 @@ function getStatusLabel(status) {
   }
 }
 
-function getScopeLabel(scopeType, course, year) {
+function getScopeLabel(scopeType, course, year, studentCount = 0) {
+  if (scopeType === "student") {
+    if (course && year) {
+      return `${course} Year ${year} (${studentCount} selected student${studentCount === 1 ? "" : "s"})`;
+    }
+    return "selected students";
+  }
+
   if (scopeType === "courseYear") {
     return course && year ? `${course} Year ${year}` : "selected course and year";
   }
@@ -87,7 +98,7 @@ function getScopeLabel(scopeType, course, year) {
 
 function getAppliedEventLabel(eventInfo) {
   if (!eventInfo) return "";
-  return getScopeLabel(eventInfo.scopeType, eventInfo.course, eventInfo.year);
+  return getScopeLabel(eventInfo.scopeType, eventInfo.course, eventInfo.year, eventInfo.scopeType === "student" ? 1 : 0);
 }
 
 function getEventTypeLabel(eventType) {
@@ -116,6 +127,11 @@ function AttendanceSummaryModal({
   onMonthChange,
   onClose,
 }) {
+  const maxMonthKey = useMemo(() => {
+    const endDate = summary?.calendarEndDate || summary?.currentDate;
+    return endDate ? endDate.slice(0, 7) : getCurrentMonthKey();
+  }, [summary]);
+
   const selectedMonthStats = useMemo(() => {
     return (
       summary?.months?.find((item) => item.monthKey === monthKey) || {
@@ -182,7 +198,7 @@ function AttendanceSummaryModal({
             onClick={onClose}
             className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
           >
-            ✕
+            X
           </button>
         </div>
 
@@ -201,7 +217,7 @@ function AttendanceSummaryModal({
               <input
                 type="month"
                 min={ATTENDANCE_START_MONTH}
-                max={getCurrentMonthKey()}
+                max={maxMonthKey}
                 value={monthKey}
                 onChange={(e) => onMonthChange(e.target.value)}
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -266,6 +282,9 @@ function AttendanceSummaryModal({
                     <div className="flex flex-wrap gap-2 text-xs">
                       <span className="rounded-full bg-green-50 px-3 py-1 font-medium text-green-700">
                         Present
+                      </span>
+                      <span className="rounded-full bg-sky-50 px-3 py-1 font-medium text-sky-700">
+                        Upcoming
                       </span>
                       <span className="rounded-full bg-red-50 px-3 py-1 font-medium text-red-700">
                         Absent
@@ -404,6 +423,10 @@ export default function AdminAttendancePage() {
   const [eventType, setEventType] = useState("holiday");
   const [eventCourse, setEventCourse] = useState("");
   const [eventYear, setEventYear] = useState("");
+  const [eventStudentIds, setEventStudentIds] = useState([]);
+  const [eventStudents, setEventStudents] = useState([]);
+  const [eventStudentsLoading, setEventStudentsLoading] = useState(false);
+  const [eventStudentsError, setEventStudentsError] = useState("");
   const [holidayTitle, setHolidayTitle] = useState("");
   const [holidayInfo, setHolidayInfo] = useState(null);
   const [holidayLoading, setHolidayLoading] = useState(false);
@@ -427,6 +450,75 @@ export default function AdminAttendancePage() {
     : holidayInfo
     ? `An event already applies on ${date} for ${getAppliedEventLabel(holidayInfo)}: ${holidayInfo.title || getEventTypeLabel(holidayInfo.eventType)}`
     : "Pick an attendance date to preview active events, then create a new event range below.";
+
+  useEffect(() => {
+    if (eventScopeType !== "student") {
+      setEventStudents([]);
+      setEventStudentsLoading(false);
+      setEventStudentsError("");
+      return;
+    }
+
+    if (!eventCourse || !eventYear) {
+      setEventStudents([]);
+      setEventStudentsLoading(false);
+      setEventStudentsError("");
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadEventStudents() {
+      try {
+        setEventStudentsLoading(true);
+        setEventStudentsError("");
+
+        const params = new URLSearchParams({
+          course: eventCourse,
+          year: eventYear,
+        });
+        if (date) params.append("date", date);
+
+        const res = await fetch(`/api/faculty/students?${params.toString()}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message || `Failed (HTTP ${res.status})`);
+        }
+
+        if (!Array.isArray(data)) {
+          throw new Error("Students API did not return an array");
+        }
+
+        if (!cancelled) {
+          setEventStudents(data);
+          setEventStudentIds((prev) =>
+            prev.filter((studentId) =>
+              data.some((student) => student._id === studentId)
+            )
+          );
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setEventStudents([]);
+          setEventStudentsError(err.message || "Failed to load students");
+        }
+      } finally {
+        if (!cancelled) {
+          setEventStudentsLoading(false);
+        }
+      }
+    }
+
+    loadEventStudents();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [date, eventCourse, eventScopeType, eventYear]);
 
   const fetchAttendance = useCallback(async () => {
     try {
@@ -504,8 +596,13 @@ export default function AdminAttendancePage() {
       return;
     }
 
-    if (eventScopeType === "courseYear" && !eventYear) {
+    if ((eventScopeType === "courseYear" || eventScopeType === "student") && !eventYear) {
       setHolidayError("Choose a year for the selected event scope.");
+      return;
+    }
+
+    if (eventScopeType === "student" && eventStudentIds.length === 0) {
+      setHolidayError("Choose at least one student for this event range.");
       return;
     }
 
@@ -525,7 +622,12 @@ export default function AdminAttendancePage() {
           eventType,
           scopeType: eventScopeType,
           course: eventCourse,
-          year: eventScopeType === "courseYear" ? Number(eventYear) : undefined,
+          year:
+            eventScopeType === "courseYear" || eventScopeType === "student"
+              ? Number(eventYear)
+              : undefined,
+          studentIds:
+            eventScopeType === "student" ? eventStudentIds : undefined,
         }),
       });
 
@@ -542,14 +644,82 @@ export default function AdminAttendancePage() {
         `${holidayTitle.trim() || "Holiday"} saved for ${getScopeLabel(
           eventScopeType,
           eventCourse,
-          eventYear
+          eventYear,
+          eventStudentIds.length
         )} from ${eventFromDate} to ${eventToDate}`;
       setHolidayMessage(successMessage);
-      await fetchHolidayInfo(date);
+      if (eventScopeType !== "student") {
+        await fetchHolidayInfo(date);
+      }
       fetchAttendance();
       window.alert(successMessage);
     } catch (err) {
       const errorMessage = err.message || "Failed to save holiday";
+      setHolidayError(errorMessage);
+      window.alert(errorMessage);
+    } finally {
+      setHolidaySaving(false);
+    }
+  }
+
+  async function removeConfiguredHoliday() {
+    if (!eventFromDate || !eventToDate) {
+      setHolidayError("Choose a start date and end date for the event.");
+      return;
+    }
+
+    if (eventScopeType !== "global" && !eventCourse) {
+      setHolidayError("Choose a course for the selected event scope.");
+      return;
+    }
+
+    if ((eventScopeType === "courseYear" || eventScopeType === "student") && !eventYear) {
+      setHolidayError("Choose a year for the selected event scope.");
+      return;
+    }
+
+    if (eventScopeType === "student" && eventStudentIds.length === 0) {
+      setHolidayError("Choose at least one student for this event range.");
+      return;
+    }
+
+    try {
+      setHolidaySaving(true);
+      setHolidayMessage("");
+      setHolidayError("");
+
+      const res = await fetch("/api/admin/holidays", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          fromDate: eventFromDate,
+          toDate: eventToDate,
+          scopeType: eventScopeType,
+          course: eventCourse,
+          year:
+            eventScopeType === "courseYear" || eventScopeType === "student"
+              ? Number(eventYear)
+              : undefined,
+          studentIds:
+            eventScopeType === "student" ? eventStudentIds : undefined,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to remove event");
+      }
+
+      setHolidayInfo(null);
+      setHolidayMessage(data.message || "Event removed successfully");
+      if (eventScopeType !== "student") {
+        await fetchHolidayInfo(date);
+      }
+      fetchAttendance();
+      window.alert(data.message || "Event removed successfully");
+    } catch (err) {
+      const errorMessage = err.message || "Failed to remove event";
       setHolidayError(errorMessage);
       window.alert(errorMessage);
     } finally {
@@ -614,6 +784,14 @@ export default function AdminAttendancePage() {
           scopeType: holidayInfo.scopeType || "global",
           course: holidayInfo.course || "",
           year: holidayInfo.year ?? undefined,
+          studentIds:
+            holidayInfo.scopeType === "student"
+              ? eventStudentIds.length
+                ? eventStudentIds
+                : holidayInfo.studentId
+                ? [holidayInfo.studentId]
+                : []
+              : undefined,
         }),
       });
 
@@ -624,7 +802,9 @@ export default function AdminAttendancePage() {
 
       setHolidayMessage(data.message || "Event removed successfully");
       setHolidayInfo(null);
-      await fetchHolidayInfo(date);
+      if (holidayInfo.scopeType !== "student") {
+        await fetchHolidayInfo(date);
+      }
       fetchAttendance();
     } catch (err) {
       setHolidayError(err.message || "Failed to remove event");
@@ -711,7 +891,8 @@ export default function AdminAttendancePage() {
               <p className="mt-2 max-w-2xl text-sm text-gray-700">
                 Create one event for a full date range, like internship days,
                 college off, training, workshop, or department leave. You can
-                apply it to all courses, one course, or one specific course-year batch.
+                apply it to all courses, one course, one specific course-year
+                batch, or only selected students inside that batch.
               </p>
             </div>
           </div>
@@ -766,6 +947,7 @@ export default function AdminAttendancePage() {
                 <option value="global">All Courses</option>
                 <option value="course">Selected Course</option>
                 <option value="courseYear">Selected Course + Year</option>
+                <option value="student">Selected Students</option>
               </select>
             </div>
 
@@ -812,7 +994,10 @@ export default function AdminAttendancePage() {
               <select
                 value={eventYear}
                 onChange={(e) => setEventYear(e.target.value)}
-                disabled={eventScopeType !== "courseYear"}
+                disabled={
+                  eventScopeType !== "courseYear" &&
+                  eventScopeType !== "student"
+                }
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100 disabled:text-gray-400"
               >
                 <option value="">Select Year</option>
@@ -830,6 +1015,112 @@ export default function AdminAttendancePage() {
             </div>
           </div>
 
+          {eventScopeType === "student" && (
+            <div className="mt-4 rounded-xl border border-amber-100 bg-white/85 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">
+                    Select Students
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Choose the students who should get this event range for the
+                    selected course and year.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEventStudentIds(
+                        eventStudents.map((student) => student._id)
+                      )
+                    }
+                    disabled={eventStudents.length === 0}
+                    className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+                  >
+                    Select All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEventStudentIds([])}
+                    disabled={eventStudentIds.length === 0}
+                    className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-lg border border-dashed border-amber-200 bg-amber-50/60 px-3 py-2 text-xs font-medium text-amber-800">
+                Selected students: {eventStudentIds.length}
+              </div>
+
+              {eventStudentsLoading ? (
+                <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+                  Loading students for event selection...
+                </div>
+              ) : eventStudentsError ? (
+                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {eventStudentsError}
+                </div>
+              ) : !eventCourse || !eventYear ? (
+                <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+                  Choose the event course and year first.
+                </div>
+              ) : eventStudents.length === 0 ? (
+                <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+                  No students found for {eventCourse} year {eventYear}.
+                </div>
+              ) : (
+                <div className="mt-4 grid max-h-72 grid-cols-1 gap-3 overflow-y-auto pr-1 md:grid-cols-2">
+                  {eventStudents.map((student) => {
+                    const isChecked = eventStudentIds.includes(student._id);
+
+                    return (
+                      <label
+                        key={`event-student-${student._id}`}
+                        className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${
+                          isChecked
+                            ? "border-amber-300 bg-amber-50"
+                            : "border-gray-200 bg-white hover:border-amber-200 hover:bg-amber-50/40"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() =>
+                            setEventStudentIds((prev) =>
+                              isChecked
+                                ? prev.filter((studentId) => studentId !== student._id)
+                                : [...prev, student._id]
+                            )
+                          }
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {student.name}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {student.enrollmentNo || "No enrollment"} | Year{" "}
+                            {student.year || "-"}
+                          </p>
+                          {student.activeEvent && (
+                            <p className="mt-2 text-xs font-medium text-amber-800">
+                              Active on {date}:{" "}
+                              {student.activeEvent.title ||
+                                getEventTypeLabel(student.activeEvent.eventType)}
+                            </p>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
@@ -839,6 +1130,17 @@ export default function AdminAttendancePage() {
             >
               {holidaySaving ? "Saving Event..." : "Save Event Range"}
             </button>
+            <button
+              type="button"
+              onClick={removeConfiguredHoliday}
+              disabled={!eventFromDate || !eventToDate || holidaySaving}
+              className="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              {holidaySaving ? "Removing..." : "Remove This Range"}
+            </button>
+            <span className="text-xs text-gray-500">
+              Use the same dates, scope, course, year, and students to delete a wrong event.
+            </span>
             {holidayLoading && (
               <span className="text-sm font-medium text-gray-600">
                 Checking event status...
@@ -850,7 +1152,8 @@ export default function AdminAttendancePage() {
                   holidayInfo.eventType
                 )}`}
               >
-                Active on {date}: {holidayInfo.title || getEventTypeLabel(holidayInfo.eventType)}
+                Active on {holidayInfo.date || date}:{" "}
+                {holidayInfo.title || getEventTypeLabel(holidayInfo.eventType)}
               </span>
             )}
             {holidayMessage && (
@@ -888,7 +1191,8 @@ export default function AdminAttendancePage() {
         {holidayInfo && (
           <div className={`border-b px-6 py-4 ${getEventTypeClasses(holidayInfo.eventType)}`}>
             <p className="text-sm font-semibold">
-              Event active on {date} for {getAppliedEventLabel(holidayInfo)}
+              Event active on {holidayInfo.date || date} for{" "}
+              {getAppliedEventLabel(holidayInfo)}
             </p>
             <p className="mt-1 text-sm">
               {getEventTypeLabel(holidayInfo.eventType)}:{" "}

@@ -26,7 +26,7 @@ const HolidaySchema = new mongoose.Schema(
     },
     scopeType: {
       type: String,
-      enum: ["global", "course", "courseYear"],
+      enum: ["global", "course", "courseYear", "student"],
       default: "global",
     },
     course: {
@@ -39,6 +39,11 @@ const HolidaySchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     markedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -49,7 +54,7 @@ const HolidaySchema = new mongoose.Schema(
 );
 
 HolidaySchema.index(
-  { date: 1, scopeType: 1, course: 1, year: 1 },
+  { date: 1, scopeType: 1, course: 1, year: 1, studentId: 1 },
   { unique: true, name: "holiday_scope_unique" }
 );
 
@@ -83,6 +88,17 @@ export async function ensureHolidayIndexes() {
           error?.codeName !== "NamespaceNotFound"
         ) {
           console.error("Failed to drop old holiday compound index:", error);
+        }
+      }
+
+      try {
+        await Holiday.collection.dropIndex("holiday_scope_unique");
+      } catch (error) {
+        if (
+          error?.codeName !== "IndexNotFound" &&
+          error?.codeName !== "NamespaceNotFound"
+        ) {
+          console.error("Failed to drop named holiday scope index:", error);
         }
       }
 

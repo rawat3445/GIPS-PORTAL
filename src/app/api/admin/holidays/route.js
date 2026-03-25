@@ -5,8 +5,7 @@ import Holiday, { ensureHolidayIndexes } from "../../../models/Holiday";
 import {
   buildHolidayBulkOperations,
   findApplicableHoliday,
-  getDateRange,
-  getEventRangeValidationMessage,
+  getProcessableEventRange,
   getScopeLabel,
   normalizeEventScope,
 } from "../../../lib/attendanceEvents";
@@ -35,6 +34,7 @@ export async function GET(req) {
     const date = searchParams.get("date");
     const course = searchParams.get("course");
     const year = searchParams.get("year");
+    const studentId = searchParams.get("studentId");
 
     if (!date) {
       return NextResponse.json(
@@ -43,7 +43,7 @@ export async function GET(req) {
       );
     }
 
-    const holiday = await findApplicableHoliday({ date, course, year });
+    const holiday = await findApplicableHoliday({ date, course, year, studentId });
     return NextResponse.json(holiday || null);
   } catch (error) {
     const status =
@@ -77,9 +77,10 @@ export async function POST(req) {
         ? "event"
         : "holiday";
 
-    const validationMessage = getEventRangeValidationMessage(fromDate, toDate, {
+    const { validationMessage, validDates, skippedDates, skippedReasons } =
+      getProcessableEventRange(fromDate, toDate, {
       allowFuture: true,
-    });
+      });
     if (validationMessage) {
       return NextResponse.json({ message: validationMessage }, { status: 400 });
     }
@@ -90,12 +91,13 @@ export async function POST(req) {
         scopeType: body?.scopeType || "global",
         course: body?.course,
         year: body?.year,
+        studentIds: body?.studentIds,
       });
     } catch (error) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
 
-    const dates = getDateRange(fromDate, toDate);
+    const dates = validDates;
 
     await Holiday.bulkWrite(
       buildHolidayBulkOperations({
@@ -106,6 +108,7 @@ export async function POST(req) {
         scopeType: scope.scopeType,
         course: scope.course,
         year: scope.year,
+        studentIds: scope.studentIds,
         fromDate,
         toDate,
       })
@@ -115,12 +118,27 @@ export async function POST(req) {
       date: fromDate,
       course: scope.course,
       year: scope.year,
+      studentId: scope.studentIds?.[0],
     });
 
+    const skippedParts = [];
+    if (skippedReasons.sunday) {
+      skippedParts.push(
+        `${skippedReasons.sunday} Sunday${skippedReasons.sunday === 1 ? "" : "s"}`
+      );
+    }
+    if (skippedReasons.winterVacation) {
+      skippedParts.push(
+        `${skippedReasons.winterVacation} winter vacation day${skippedReasons.winterVacation === 1 ? "" : "s"}`
+      );
+    }
+
     return NextResponse.json({
-      message: `${title} saved for ${getScopeLabel(scope)} from ${fromDate} to ${toDate} (${dates.length} day${dates.length === 1 ? "" : "s"})`,
+      message: `${title} saved for ${getScopeLabel(scope)} from ${fromDate} to ${toDate} (${dates.length} working day${dates.length === 1 ? "" : "s"}${skippedParts.length ? `, skipped ${skippedParts.join(" and ")}` : ""})`,
       holiday,
       savedDays: dates.length,
+      skippedDays: skippedDates.length,
+      skippedDates,
       scopeLabel: getScopeLabel(scope),
     });
   } catch (error) {
@@ -154,6 +172,7 @@ export async function DELETE(req) {
         scopeType: body?.scopeType || "global",
         course: body?.course,
         year: body?.year,
+        studentIds: body?.studentIds,
       });
     } catch (error) {
       return NextResponse.json({ message: error.message }, { status: 400 });
@@ -171,6 +190,9 @@ export async function DELETE(req) {
       scopeType: scope.scopeType,
       course: scope.course,
       year: scope.year,
+      ...(scope.scopeType === "student"
+        ? { studentId: { $in: scope.studentIds } }
+        : { studentId: null }),
     });
 
     return NextResponse.json({

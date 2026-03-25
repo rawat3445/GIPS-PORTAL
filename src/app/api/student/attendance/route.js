@@ -5,6 +5,8 @@ import {
   addDays,
   ATTENDANCE_START_DATE,
   COLLEGE_RESUME_DATE,
+  findApplicableHoliday,
+  getCalendarEndDateForContext,
   getHolidayMapForContext,
   isSunday,
   isWinterVacation,
@@ -80,11 +82,18 @@ export async function GET(request) {
     }
 
     if (view === "summary") {
-      const holidayMap = await getHolidayMapForContext({
-        fromDate: ATTENDANCE_START_DATE,
-        toDate: todayISO,
+      const calendarEndDate = await getCalendarEndDateForContext({
         course,
         year,
+        studentId: me._id,
+      });
+
+      const holidayMap = await getHolidayMapForContext({
+        fromDate: ATTENDANCE_START_DATE,
+        toDate: calendarEndDate,
+        course,
+        year,
+        studentId: me._id,
       });
       const docs = await Attendance.find({
         course,
@@ -109,7 +118,7 @@ export async function GET(request) {
       const calendar = [];
       let cursor = ATTENDANCE_START_DATE;
 
-      while (cursor <= todayISO) {
+      while (cursor <= calendarEndDate) {
         const monthKey = cursor.slice(0, 7);
         if (!monthsMap.has(monthKey)) {
           monthsMap.set(monthKey, {
@@ -149,6 +158,10 @@ export async function GET(request) {
           status = "holiday";
           dayType = "holiday";
           note = "Sunday holiday";
+        } else if (cursor > todayISO) {
+          status = "future";
+          dayType = "future";
+          note = "Upcoming day";
         } else {
           monthStats.workingDays += 1;
 
@@ -216,6 +229,7 @@ export async function GET(request) {
         year,
         startDate: ATTENDANCE_START_DATE,
         currentDate: todayISO,
+        calendarEndDate,
         vacation: {
           from: WINTER_VACATION_FROM,
           to: WINTER_VACATION_TO,
@@ -229,6 +243,7 @@ export async function GET(request) {
           scopeType: holiday.scopeType,
           course: holiday.course || "",
           year: holiday.year ?? null,
+          studentId: holiday.studentId ?? null,
         })),
         resumeDate: COLLEGE_RESUME_DATE,
         rules: {
@@ -243,6 +258,35 @@ export async function GET(request) {
     }
 
     if (date) {
+      const eventInfo = await findApplicableHoliday({
+        date,
+        course,
+        year,
+        studentId: me._id,
+      });
+
+      if (eventInfo) {
+        return NextResponse.json({
+          course,
+          year,
+          date,
+          status:
+            eventInfo.eventType === "internship"
+              ? "internship"
+              : eventInfo.eventType === "event"
+              ? "event"
+              : "holiday",
+          event: {
+            title: eventInfo.title,
+            eventType: eventInfo.eventType || "holiday",
+            scopeType: eventInfo.scopeType,
+            course: eventInfo.course || "",
+            year: eventInfo.year ?? null,
+            studentId: eventInfo.studentId ?? null,
+          },
+        });
+      }
+
       const doc = await Attendance.findOne({
         course,
         year,
