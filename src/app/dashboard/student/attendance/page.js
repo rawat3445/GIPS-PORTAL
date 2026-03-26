@@ -10,6 +10,7 @@ import {
   Sparkles,
   TrendingUp,
 } from "lucide-react";
+import AttendancePerformanceChart from "../../_components/AttendancePerformanceChart";
 
 const ATTENDANCE_START_MONTH = "2026-01";
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -306,6 +307,13 @@ export default function StudentAttendancePage() {
               </div>
             </div>
 
+            <AttendancePerformanceChart
+              months={summary?.months || []}
+              selectedMonthKey={monthKey}
+              title="Attendance Performance Graph"
+              subtitle="See how your attendance percentage is moving month by month and quickly understand your best and weakest periods."
+            />
+
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr]">
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
                 <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -358,7 +366,7 @@ export default function StudentAttendancePage() {
                         item ? (
                           <div
                             key={`${monthKey}-${item.day}-${index}`}
-                            className={`min-h-80 rounded-xl border p-2.5 md:min-h-[88px] md:p-3 ${getStatusClasses(
+                            className={`min-h-[80px] rounded-xl border p-2.5 md:min-h-[88px] md:p-3 ${getStatusClasses(
                               item.status
                             )}`}
                           >
@@ -377,7 +385,7 @@ export default function StudentAttendancePage() {
                         ) : (
                           <div
                             key={`${monthKey}-empty-${index}`}
-                            className="min-h-80 rounded-xl border border-transparent md:min-h-[88px]"
+                            className="min-h-[80px] rounded-xl border border-transparent md:min-h-[88px]"
                           />
                         )
                       )}

@@ -67,6 +67,11 @@ function AttendanceSummaryModal({
   onMonthChange,
   onClose,
 }) {
+  const maxMonthKey = useMemo(() => {
+    const endDate = summary?.calendarEndDate || summary?.currentDate;
+    return endDate ? endDate.slice(0, 7) : getCurrentMonthKey();
+  }, [summary]);
+
   const selectedMonthStats = useMemo(() => {
     return (
       summary?.months?.find((item) => item.monthKey === monthKey) || {
@@ -113,14 +118,14 @@ function AttendanceSummaryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4 py-6">
-      <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+    <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/50 px-3 py-3 md:items-center md:px-4 md:py-6">
+      <div className="max-h-[96vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white shadow-2xl md:max-h-[92vh]">
+        <div className="flex flex-col gap-4 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between md:px-6 md:py-5">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-gray-900 md:text-2xl">
               Student Attendance Summary
             </h2>
-            <p className="mt-1 text-sm text-gray-600">
+            <p className="mt-1 text-sm leading-6 text-gray-600">
               {summary?.student?.name || "Loading..."} | {summary?.student?.course || "-"} | Year{" "}
               {summary?.student?.year || "-"}
             </p>
@@ -128,15 +133,15 @@ function AttendanceSummaryModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            className="self-end rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 sm:self-auto"
           >
             x
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="space-y-5 p-4 md:space-y-6 md:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <p className="text-sm font-medium text-gray-600">
+            <p className="text-sm leading-6 text-gray-600">
               Full attendance record with calendar view, monthly percentage, and overall percentage.
             </p>
             <div className="w-full max-w-xs">
@@ -146,7 +151,7 @@ function AttendanceSummaryModal({
               <input
                 type="month"
                 min={ATTENDANCE_START_MONTH}
-                max={getCurrentMonthKey()}
+                max={maxMonthKey}
                 value={monthKey}
                 onChange={(e) => onMonthChange(e.target.value)}
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -164,7 +169,7 @@ function AttendanceSummaryModal({
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
                 <div className="rounded-xl border border-gray-200 bg-white p-4">
                   <p className="text-sm font-medium text-gray-600">Monthly %</p>
                   <p className="mt-2 text-2xl font-bold text-gray-900">
@@ -197,41 +202,45 @@ function AttendanceSummaryModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-7 gap-3">
-                {WEEK_DAYS.map((day) => (
-                  <div
-                    key={day}
-                    className="pb-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500"
-                  >
-                    {day}
-                  </div>
-                ))}
-
-                {monthGrid.map((item, index) =>
-                  item ? (
-                    <div
-                      key={`${monthKey}-${item.day}-${index}`}
-                      className={`min-h-[84px] rounded-xl border p-3 ${getStatusClasses(
-                        item.status
-                      )}`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-sm font-bold">{item.day}</span>
-                        <span className="text-[10px] font-semibold uppercase tracking-wide">
-                          {getStatusLabel(item.status)}
-                        </span>
+              <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+                <div className="min-w-[720px]">
+                  <div className="grid grid-cols-7 gap-2 md:gap-3">
+                    {WEEK_DAYS.map((day) => (
+                      <div
+                        key={day}
+                        className="pb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:text-xs"
+                      >
+                        {day}
                       </div>
-                      {item.note && (
-                        <p className="mt-3 text-[11px] leading-4">{item.note}</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div
-                      key={`${monthKey}-empty-${index}`}
-                      className="min-h-[84px] rounded-xl border border-transparent"
-                    />
-                  )
-                )}
+                    ))}
+
+                    {monthGrid.map((item, index) =>
+                      item ? (
+                        <div
+                          key={`${monthKey}-${item.day}-${index}`}
+                          className={`min-h-[80px] rounded-xl border p-2.5 md:min-h-[88px] md:p-3 ${getStatusClasses(
+                            item.status
+                          )}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-sm font-bold">{item.day}</span>
+                            <span className="text-[9px] font-semibold uppercase tracking-wide md:text-[10px]">
+                              {getStatusLabel(item.status)}
+                            </span>
+                          </div>
+                          {item.note && (
+                            <p className="mt-2 text-[10px] leading-4 md:mt-3 md:text-[11px]">{item.note}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          key={`${monthKey}-empty-${index}`}
+                          className="min-h-[80px] rounded-xl border border-transparent md:min-h-[88px]"
+                        />
+                      )
+                    )}
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -417,9 +426,9 @@ export default function StudentsPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Students</h1>
           <p className="text-sm text-gray-600">Manage registered students</p>
@@ -427,7 +436,7 @@ export default function StudentsPage() {
 
         <Link
           href="/dashboard/admin/students/add"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+          className="inline-flex items-center justify-center rounded bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700"
         >
           + Add Student
         </Link>
@@ -469,7 +478,7 @@ export default function StudentsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         {loading ? (
           <p className="p-6 text-gray-500">Loading students...</p>
         ) : error ? (
@@ -479,59 +488,61 @@ export default function StudentsPage() {
         ) : filteredStudents.length === 0 ? (
           <p className="p-6 text-gray-500">No students match your search.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-6 py-3 text-left font-medium text-gray-600">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left font-medium text-gray-600">
-                  Email
-                </th>
-                <th className="px-6 py-3 text-left font-medium text-gray-600">
-                  Registered On
-                </th>
-                <th className="px-6 py-3 text-left font-medium text-gray-600">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y">
-              {filteredStudents.map((student) => (
-                <tr key={student._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-medium text-gray-900">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedStudent(student)}
-                      className="text-left text-blue-700 hover:text-blue-900 hover:underline"
-                    >
-                      {student.name}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600">{student.email}</td>
-                  <td className="px-6 py-4 text-gray-500">
-                    {new Date(student.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => handleDelete(student._id)}
-                      className="text-red-600 hover:text-red-800 font-medium"
-                    >
-                      Delete
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="min-w-[720px] w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-6 py-3 text-left font-medium text-gray-600">
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left font-medium text-gray-600">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left font-medium text-gray-600">
+                    Registered On
+                  </th>
+                  <th className="px-6 py-3 text-left font-medium text-gray-600">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+
+              <tbody className="divide-y">
+                {filteredStudents.map((student) => (
+                  <tr key={student._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 font-medium text-gray-900">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStudent(student)}
+                        className="text-left text-blue-700 hover:text-blue-900 hover:underline"
+                      >
+                        {student.name}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">{student.email}</td>
+                    <td className="px-6 py-4 text-gray-500">
+                      {new Date(student.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => handleDelete(student._id)}
+                        className="font-medium text-red-600 hover:text-red-800"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {selectedStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-3 py-3 md:items-center md:px-4">
+          <div className="max-h-[96vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl md:max-h-[92vh]">
+            <div className="flex flex-col gap-4 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between md:px-6 md:py-5">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">
                   Student Details
@@ -543,7 +554,7 @@ export default function StudentsPage() {
               <button
                 type="button"
                 onClick={() => setSelectedStudent(null)}
-                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                className="self-end rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 sm:self-auto"
               >
                 <svg
                   className="h-5 w-5"
@@ -561,7 +572,7 @@ export default function StudentsPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 px-6 py-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 px-4 py-4 sm:grid-cols-2 md:px-6 md:py-6">
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Full Name
@@ -637,18 +648,18 @@ export default function StudentsPage() {
               </div>
             </div>
 
-            <div className="flex justify-end border-t border-gray-200 px-6 py-4">
+            <div className="flex flex-col gap-3 border-t border-gray-200 px-4 py-4 sm:flex-row sm:flex-wrap sm:justify-end md:px-6">
               <button
                 type="button"
                 onClick={() => openEditStudent(selectedStudent)}
-                className="mr-3 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 Edit Details
               </button>
               <button
                 type="button"
                 onClick={() => openStudentSummary(selectedStudent._id)}
-                className="mr-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
               >
                 View Attendance Record
               </button>
@@ -665,9 +676,9 @@ export default function StudentsPage() {
       )}
 
       {editingStudent && (
-        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 px-4 py-6">
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+        <div className="fixed inset-0 z-[55] flex items-start justify-center bg-black/50 px-3 py-3 md:items-center md:px-4 md:py-6">
+          <div className="max-h-[96vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl md:max-h-[92vh]">
+            <div className="flex flex-col gap-4 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between md:px-6 md:py-5">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Edit Student</h2>
                 <p className="mt-1 text-sm text-gray-600">
@@ -680,7 +691,7 @@ export default function StudentsPage() {
                   setEditingStudent(null);
                   setEditError("");
                 }}
-                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                className="self-end rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 sm:self-auto"
               >
                 <svg
                   className="h-5 w-5"
@@ -698,7 +709,7 @@ export default function StudentsPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 px-6 py-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 px-4 py-4 md:grid-cols-2 md:px-6 md:py-6">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
                   Name

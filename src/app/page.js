@@ -98,8 +98,11 @@ export default async function Home() {
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">
                 GIPS Portal
               </p>
-              <p className="text-sm font-medium text-slate-600">
+              <p className="text-sm font-bold text-slate-700">
                 Garhwal Institute of Paramedical Sciences
+              </p>
+              <p className="text-sm font-medium text-red-400">
+                Affiliated To: HNB Uttarakhand Medical Education University, Dehradun
               </p>
             </div>
           </div>
@@ -139,15 +142,16 @@ export default async function Home() {
                   fontFamily: "var(--font-display)",
                 }}
               >
-                A smarter home for attendance, academics, and everyday campus flow.
+                A smarter home for attendance, academics, and everyday campus
+                flow.
               </h1>
 
               <p
                 className="mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg"
                 style={{ animation: "liftIn 0.95s ease-out both 0.16s" }}
               >
-                Step into a polished college workspace where students stay on top
-                of attendance, faculty manage daily operations smoothly, and
+                Step into a polished college workspace where students stay on
+                top of attendance, faculty manage daily operations smoothly, and
                 administrators oversee the entire academic system with clarity.
               </p>
 
@@ -279,7 +283,10 @@ export default async function Home() {
         </section>
 
         <footer className="mt-8 flex flex-col gap-3 border-t border-white/70 pt-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>Built for a smoother campus experience across students, faculty, and admin.</p>
+          <p>
+            Built for a smoother campus experience across students, faculty, and
+            admin.
+          </p>
           <p>Need support? Contact the college IT department.</p>
         </footer>
       </div>

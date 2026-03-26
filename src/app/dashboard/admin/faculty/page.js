@@ -245,16 +245,16 @@ export default function FacultyPage() {
       </div>
 
       {editingFaculty && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
-          <div className="w-full max-w-xl rounded-xl bg-white shadow-xl">
-            <div className="border-b border-slate-200 px-6 py-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/50 px-3 py-3 md:items-center md:px-4">
+          <div className="max-h-[96vh] w-full max-w-xl overflow-y-auto rounded-xl bg-white shadow-xl md:max-h-[92vh]">
+            <div className="border-b border-slate-200 px-4 py-4 md:px-6">
               <h2 className="text-lg font-semibold text-slate-900">Edit Faculty</h2>
               <p className="mt-1 text-sm text-slate-500">
                 Update only the fields you want to change. Leaving password blank keeps it unchanged.
               </p>
             </div>
 
-            <form onSubmit={handleEditSubmit} className="space-y-5 px-6 py-6">
+            <form onSubmit={handleEditSubmit} className="space-y-5 px-4 py-4 md:px-6 md:py-6">
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-slate-700">
                   Full name
@@ -313,7 +313,7 @@ export default function FacultyPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-end">
                 <button
                   type="button"
                   onClick={closeEditModal}

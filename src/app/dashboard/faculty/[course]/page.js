@@ -68,6 +68,11 @@ function AttendanceSummaryModal({
   onMonthChange,
   onClose,
 }) {
+  const maxMonthKey = useMemo(() => {
+    const endDate = summary?.calendarEndDate || summary?.currentDate;
+    return endDate ? endDate.slice(0, 7) : getCurrentMonthKey();
+  }, [summary]);
+
   const selectedMonthStats = useMemo(() => {
     return (
       summary?.months?.find((item) => item.monthKey === monthKey) || {
@@ -114,14 +119,14 @@ function AttendanceSummaryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4 py-6">
-      <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+    <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/50 px-3 py-3 md:items-center md:px-4 md:py-6">
+      <div className="max-h-[96vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white shadow-2xl md:max-h-[92vh]">
+        <div className="flex flex-col gap-4 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between md:px-6 md:py-5">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-gray-900 md:text-2xl">
               Student Attendance Summary
             </h2>
-            <p className="mt-1 text-sm text-gray-600">
+            <p className="mt-1 text-sm leading-6 text-gray-600">
               {summary?.student?.name || "Loading..."} | {summary?.student?.course || "-"} | Year{" "}
               {summary?.student?.year || "-"}
             </p>
@@ -129,7 +134,7 @@ function AttendanceSummaryModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            className="self-end rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 sm:self-auto"
           >
             <svg
               className="h-5 w-5"
@@ -147,9 +152,9 @@ function AttendanceSummaryModal({
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="space-y-5 p-4 md:space-y-6 md:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <p className="text-sm font-medium text-gray-600">
+            <p className="text-sm leading-6 text-gray-600">
               Full attendance record with calendar view, monthly percentage, and overall percentage.
             </p>
             <div className="w-full max-w-xs">
@@ -159,7 +164,7 @@ function AttendanceSummaryModal({
               <input
                 type="month"
                 min={ATTENDANCE_START_MONTH}
-                max={getCurrentMonthKey()}
+                max={maxMonthKey}
                 value={monthKey}
                 onChange={(e) => onMonthChange(e.target.value)}
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -177,7 +182,7 @@ function AttendanceSummaryModal({
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
                 <div className="rounded-xl border border-gray-200 bg-white p-4">
                   <p className="text-sm font-medium text-gray-600">Monthly %</p>
                   <p className="mt-2 text-2xl font-bold text-gray-900">
@@ -210,41 +215,45 @@ function AttendanceSummaryModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-7 gap-3">
-                {WEEK_DAYS.map((day) => (
-                  <div
-                    key={day}
-                    className="pb-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500"
-                  >
-                    {day}
-                  </div>
-                ))}
-
-                {monthGrid.map((item, index) =>
-                  item ? (
-                    <div
-                      key={`${monthKey}-${item.day}-${index}`}
-                      className={`min-h-[84px] rounded-xl border p-3 ${getStatusClasses(
-                        item.status
-                      )}`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-sm font-bold">{item.day}</span>
-                        <span className="text-[10px] font-semibold uppercase tracking-wide">
-                          {getStatusLabel(item.status)}
-                        </span>
+              <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+                <div className="min-w-[720px]">
+                  <div className="grid grid-cols-7 gap-2 md:gap-3">
+                    {WEEK_DAYS.map((day) => (
+                      <div
+                        key={day}
+                        className="pb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:text-xs"
+                      >
+                        {day}
                       </div>
-                      {item.note && (
-                        <p className="mt-3 text-[11px] leading-4">{item.note}</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div
-                      key={`${monthKey}-empty-${index}`}
-                      className="min-h-[84px] rounded-xl border border-transparent"
-                    />
-                  )
-                )}
+                    ))}
+
+                    {monthGrid.map((item, index) =>
+                      item ? (
+                        <div
+                          key={`${monthKey}-${item.day}-${index}`}
+                          className={`min-h-[80px] rounded-xl border p-2.5 md:min-h-[88px] md:p-3 ${getStatusClasses(
+                            item.status
+                          )}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-sm font-bold">{item.day}</span>
+                            <span className="text-[9px] font-semibold uppercase tracking-wide md:text-[10px]">
+                              {getStatusLabel(item.status)}
+                            </span>
+                          </div>
+                          {item.note && (
+                            <p className="mt-2 text-[10px] leading-4 md:mt-3 md:text-[11px]">{item.note}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          key={`${monthKey}-empty-${index}`}
+                          className="min-h-[80px] rounded-xl border border-transparent md:min-h-[88px]"
+                        />
+                      )
+                    )}
+                  </div>
+                </div>
               </div>
             </>
           )}

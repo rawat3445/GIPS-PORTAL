@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import AttendancePerformanceChart from "../../_components/AttendancePerformanceChart";
 
 const ATTENDANCE_START_MONTH = "2026-01";
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -119,6 +120,63 @@ function getEventTypeClasses(eventType) {
   return "border-amber-200 bg-amber-50 text-amber-800";
 }
 
+function getBuilderScopeLabel(scopeType) {
+  if (scopeType === "student") return "Only Selected Students";
+  if (scopeType === "courseYear") return "One Year of Selected Course";
+  if (scopeType === "course") return "Whole Selected Course (All Years)";
+  return "All Courses and Years";
+}
+
+function getBuilderScopeHelpText(scopeType, course, year, studentCount = 0) {
+  const courseLabel = course || "the selected course";
+  const classLabel =
+    course && year
+      ? `${course} year ${year}`
+      : course
+      ? `${course} for the selected year`
+      : year
+      ? `the selected course year ${year}`
+      : "the selected course and year";
+
+  if (scopeType === "global") {
+    return "Every student in every course and every year will get this same range.";
+  }
+
+  if (scopeType === "student") {
+    if (studentCount > 0) {
+      return `Only the ${studentCount} selected student${studentCount === 1 ? "" : "s"} in ${classLabel} will get this range.`;
+    }
+
+    if (course && year) {
+      return `Choose the exact students in ${classLabel} who should get this range.`;
+    }
+
+    return "Choose the course and year first, then pick the exact students who should get this range.";
+  }
+
+  if (scopeType === "course") {
+    if (course) {
+      return `Every student in ${courseLabel}, across all years, will get this same range.`;
+    }
+
+    return "Choose a course first. Everyone in that course, across all years, will get this same range.";
+  }
+
+  return `Every student in ${classLabel} will get this same range.`;
+}
+
+function getBuilderEventTypeHelpText(eventType) {
+  if (eventType === "internship") {
+    return "Use this when students are on internship instead of normal class attendance.";
+  }
+
+  if (eventType === "event") {
+    return "Use this for workshops, training, camps, seminars, or any non-holiday activity.";
+  }
+
+  return "Use this for college off, leave, public holidays, or any day that should count as a holiday.";
+}
+
 function AttendanceSummaryModal({
   summary,
   loading,
@@ -181,14 +239,14 @@ function AttendanceSummaryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
-      <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-3 py-3 md:items-center md:px-4 md:py-6">
+      <div className="max-h-[96vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white shadow-2xl md:max-h-[92vh]">
+        <div className="flex flex-col gap-4 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between md:px-6 md:py-5">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-gray-900 md:text-2xl">
               Student Attendance Summary
             </h2>
-            <p className="mt-1 text-sm text-gray-600">
+            <p className="mt-1 text-sm leading-6 text-gray-600">
               {summary?.student?.name || "Loading..."} | {summary?.student?.course || "-"} |
               {" "}Year {summary?.student?.year || "-"}
             </p>
@@ -196,16 +254,16 @@ function AttendanceSummaryModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            className="self-end rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 sm:self-auto"
           >
             X
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="space-y-5 p-4 md:space-y-6 md:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">
+              <p className="text-sm leading-6 text-gray-600">
                 Attendance from {summary?.startDate || "2026-01-01"} with winter
                 vacation and Sundays excluded from working-day rules.
               </p>
@@ -235,7 +293,7 @@ function AttendanceSummaryModal({
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
                 <div className="rounded-xl border border-gray-200 bg-white p-4">
                   <p className="text-sm font-medium text-gray-600">Monthly %</p>
                   <p className="mt-2 text-2xl font-bold text-gray-900">
@@ -268,9 +326,16 @@ function AttendanceSummaryModal({
                 </div>
               </div>
 
+              <AttendancePerformanceChart
+                months={summary?.months || []}
+                selectedMonthKey={monthKey}
+                title="Student Performance Graph"
+                subtitle="Track this student's attendance performance across months before reviewing the detailed calendar."
+              />
+
               <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.7fr_1fr]">
-                <div className="rounded-2xl border border-gray-200 bg-white p-6">
-                  <div className="mb-5 flex items-center justify-between">
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
+                  <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
                         Attendance Calendar
@@ -289,61 +354,67 @@ function AttendanceSummaryModal({
                       <span className="rounded-full bg-red-50 px-3 py-1 font-medium text-red-700">
                         Absent
                       </span>
-                    <span className="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-700">
-                      Vacation
-                    </span>
-                    <span className="rounded-full bg-cyan-50 px-3 py-1 font-medium text-cyan-700">
-                      Internship
-                    </span>
-                    <span className="rounded-full bg-violet-50 px-3 py-1 font-medium text-violet-700">
-                      Event
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
-                      Sunday
-                    </span>
+                      <span className="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-700">
+                        Vacation
+                      </span>
+                      <span className="rounded-full bg-cyan-50 px-3 py-1 font-medium text-cyan-700">
+                        Internship
+                      </span>
+                      <span className="rounded-full bg-violet-50 px-3 py-1 font-medium text-violet-700">
+                        Event
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+                        Sunday
+                      </span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-7 gap-3">
-                    {WEEK_DAYS.map((day) => (
-                      <div
-                        key={day}
-                        className="pb-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500"
-                      >
-                        {day}
-                      </div>
-                    ))}
-
-                    {monthGrid.map((item, index) =>
-                      item ? (
-                        <div
-                          key={`${monthKey}-${item.day}-${index}`}
-                          className={`min-h-[84px] rounded-xl border p-3 ${getStatusClasses(
-                            item.status
-                          )}`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-sm font-bold">{item.day}</span>
-                            <span className="text-[10px] font-semibold uppercase tracking-wide">
-                              {getStatusLabel(item.status)}
-                            </span>
+                  <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+                    <div className="min-w-[720px]">
+                      <div className="grid grid-cols-7 gap-2 md:gap-3">
+                        {WEEK_DAYS.map((day) => (
+                          <div
+                            key={day}
+                            className="pb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:text-xs"
+                          >
+                            {day}
                           </div>
-                          {item.note && (
-                            <p className="mt-3 text-[11px] leading-4">{item.note}</p>
-                          )}
-                        </div>
-                      ) : (
-                        <div
-                          key={`${monthKey}-empty-${index}`}
-                          className="min-h-[84px] rounded-xl border border-transparent"
-                        />
-                      )
-                    )}
+                        ))}
+
+                        {monthGrid.map((item, index) =>
+                          item ? (
+                            <div
+                              key={`${monthKey}-${item.day}-${index}`}
+                              className={`min-h-[80px] rounded-xl border p-2.5 md:min-h-[88px] md:p-3 ${getStatusClasses(
+                                item.status
+                              )}`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="text-sm font-bold">{item.day}</span>
+                                <span className="text-[9px] font-semibold uppercase tracking-wide md:text-[10px]">
+                                  {getStatusLabel(item.status)}
+                                </span>
+                              </div>
+                              {item.note && (
+                                <p className="mt-2 text-[10px] leading-4 md:mt-3 md:text-[11px]">
+                                  {item.note}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <div
+                              key={`${monthKey}-empty-${index}`}
+                              className="min-h-[80px] rounded-xl border border-transparent md:min-h-[88px]"
+                            />
+                          )
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 <div className="space-y-6">
-                  <div className="rounded-2xl border border-gray-200 bg-white p-6">
+                  <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
                     <h3 className="text-lg font-semibold text-gray-900">
                       Overall Summary
                     </h3>
@@ -375,7 +446,7 @@ function AttendanceSummaryModal({
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-gray-200 bg-white p-6">
+                  <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
                     <h3 className="text-lg font-semibold text-gray-900">
                       Monthly Percentages
                     </h3>
@@ -944,10 +1015,10 @@ export default function AdminAttendancePage() {
                 onChange={(e) => setEventScopeType(e.target.value)}
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
               >
-                <option value="global">All Courses</option>
-                <option value="course">Selected Course</option>
-                <option value="courseYear">Selected Course + Year</option>
-                <option value="student">Selected Students</option>
+                <option value="global">All Courses and Years</option>
+                <option value="course">Whole Selected Course (All Years)</option>
+                <option value="courseYear">One Year of Selected Course</option>
+                <option value="student">Only Selected Students</option>
               </select>
             </div>
 
@@ -960,9 +1031,9 @@ export default function AdminAttendancePage() {
                 onChange={(e) => setEventType(e.target.value)}
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
               >
-                <option value="holiday">Holiday</option>
+                <option value="holiday">Holiday / Leave</option>
                 <option value="internship">Internship</option>
-                <option value="event">Other Event</option>
+                <option value="event">Other Event / Workshop</option>
               </select>
             </div>
           </div>
@@ -1010,8 +1081,28 @@ export default function AdminAttendancePage() {
             </div>
 
             <div className="md:col-span-2 rounded-xl border border-amber-100 bg-white/80 px-4 py-3 text-sm text-gray-700">
-              Preview date above checks which event affects the currently viewed
-              attendance table. The range builder below creates a new event in one step.
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
+                Builder Guide
+              </p>
+              <p className="mt-2">
+                <span className="font-semibold text-gray-900">Applies To:</span>{" "}
+                {getBuilderScopeLabel(eventScopeType)}.{" "}
+                {getBuilderScopeHelpText(
+                  eventScopeType,
+                  eventCourse,
+                  eventYear,
+                  eventStudentIds.length
+                )}
+              </p>
+              <p className="mt-2">
+                <span className="font-semibold text-gray-900">Event Type:</span>{" "}
+                {getEventTypeLabel(eventType)}. {getBuilderEventTypeHelpText(eventType)}
+              </p>
+              <p className="mt-2">
+                The preview date above only checks which event affects the
+                currently viewed attendance table. This event builder saves a
+                separate date range for the selected scope.
+              </p>
             </div>
           </div>
 
@@ -1229,59 +1320,61 @@ export default function AdminAttendancePage() {
                   </p>
                 </div>
 
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-300">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
-                        Enrollment
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
-                        Name
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
-                        Email
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {item.records.map((record, index) => (
-                      <tr
-                        key={index}
-                        className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50"
-                      >
-                        <td className="px-4 py-3 font-medium text-gray-900">
-                          {record.studentId?.enrollmentNo || "-"}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-gray-950">
-                          <button
-                            type="button"
-                            onClick={() => openStudentSummary(record.studentId?._id)}
-                            className="text-left text-blue-700 hover:text-blue-900 hover:underline"
-                          >
-                            {record.studentId?.name || "-"}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 text-gray-800">
-                          {record.studentId?.email || "-"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex min-w-20 justify-center rounded-full px-3 py-1 text-xs font-semibold ${
-                              record.status === "present"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {record.status}
-                          </span>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="min-w-[720px] w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-300">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
+                          Enrollment
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
+                          Name
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
+                          Email
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
+                          Status
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {item.records.map((record, index) => (
+                        <tr
+                          key={index}
+                          className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50"
+                        >
+                          <td className="px-4 py-3 font-medium text-gray-900">
+                            {record.studentId?.enrollmentNo || "-"}
+                          </td>
+                          <td className="px-4 py-3 font-medium text-gray-950">
+                            <button
+                              type="button"
+                              onClick={() => openStudentSummary(record.studentId?._id)}
+                              className="text-left text-blue-700 hover:text-blue-900 hover:underline"
+                            >
+                              {record.studentId?.name || "-"}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 text-gray-800">
+                            {record.studentId?.email || "-"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex min-w-20 justify-center rounded-full px-3 py-1 text-xs font-semibold ${
+                                record.status === "present"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {record.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ))}
           </div>
