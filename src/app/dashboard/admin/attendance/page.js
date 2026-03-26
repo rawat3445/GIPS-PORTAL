@@ -177,6 +177,30 @@ function getBuilderEventTypeHelpText(eventType) {
   return "Use this for college off, leave, public holidays, or any day that should count as a holiday.";
 }
 
+function getAdminBuilderPreset(scopeType, eventType) {
+  if (scopeType === "global" && eventType === "holiday") {
+    return "globalHoliday";
+  }
+
+  if (scopeType === "course" && eventType === "holiday") {
+    return "courseHoliday";
+  }
+
+  if (scopeType === "courseYear" && eventType === "holiday") {
+    return "yearHoliday";
+  }
+
+  if (scopeType === "student" && eventType === "internship") {
+    return "studentInternship";
+  }
+
+  if (scopeType === "student" && eventType === "event") {
+    return "studentEvent";
+  }
+
+  return "custom";
+}
+
 function AttendanceSummaryModal({
   summary,
   loading,
@@ -503,9 +527,68 @@ export default function AdminAttendancePage() {
   const [holidayLoading, setHolidayLoading] = useState(false);
   const [holidaySaving, setHolidaySaving] = useState(false);
   const [holidayMessage, setHolidayMessage] = useState("");
+  const [showEventBuilder, setShowEventBuilder] = useState(false);
   const [holidayError, setHolidayError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const eventBuilderPreset = getAdminBuilderPreset(eventScopeType, eventType);
+
+  const handleEventBuilderPresetChange = (preset) => {
+    if (preset === "custom") return;
+
+    if (preset === "globalHoliday") {
+      setEventScopeType("global");
+      setEventType("holiday");
+      setEventStudentIds([]);
+      return;
+    }
+
+    if (preset === "courseHoliday") {
+      setEventScopeType("course");
+      setEventType("holiday");
+      setEventStudentIds([]);
+      if (!eventCourse && course) {
+        setEventCourse(course);
+      }
+      return;
+    }
+
+    if (preset === "yearHoliday") {
+      setEventScopeType("courseYear");
+      setEventType("holiday");
+      setEventStudentIds([]);
+      if (!eventCourse && course) {
+        setEventCourse(course);
+      }
+      if (!eventYear && year) {
+        setEventYear(year);
+      }
+      return;
+    }
+
+    if (preset === "studentInternship") {
+      setEventScopeType("student");
+      setEventType("internship");
+      if (!eventCourse && course) {
+        setEventCourse(course);
+      }
+      if (!eventYear && year) {
+        setEventYear(year);
+      }
+      return;
+    }
+
+    if (preset === "studentEvent") {
+      setEventScopeType("student");
+      setEventType("event");
+      if (!eventCourse && course) {
+        setEventCourse(course);
+      }
+      if (!eventYear && year) {
+        setEventYear(year);
+      }
+    }
+  };
 
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [studentSummary, setStudentSummary] = useState(null);
@@ -966,9 +1049,41 @@ export default function AdminAttendancePage() {
                 batch, or only selected students inside that batch.
               </p>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowEventBuilder((prev) => !prev)}
+              aria-expanded={showEventBuilder}
+              className="rounded-lg border border-amber-200 bg-white px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50"
+            >
+              {showEventBuilder ? "Hide Builder" : "Show Builder"}
+            </button>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+          {showEventBuilder ? (
+            <>
+          <div className="mt-5 rounded-xl border border-amber-100 bg-white/85 p-4">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Quick Setup
+            </label>
+            <select
+              value={eventBuilderPreset}
+              onChange={(e) => handleEventBuilderPresetChange(e.target.value)}
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            >
+              <option value="globalHoliday">Holiday for All Courses</option>
+              <option value="courseHoliday">Holiday for Whole Selected Course</option>
+              <option value="yearHoliday">Holiday for One Year of Selected Course</option>
+              <option value="studentInternship">Student-wise Internship</option>
+              <option value="studentEvent">Student-wise Event / Workshop</option>
+              <option value="custom">Custom Setup</option>
+            </select>
+            <p className="mt-2 text-xs text-gray-600">
+              Pick the closest preset first. You can still adjust the course,
+              year, dates, title, and students below.
+            </p>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
             <div className="xl:col-span-2">
               <label className="mb-2 block text-sm font-medium text-gray-700">
                 Event Title
@@ -1263,6 +1378,12 @@ export default function AdminAttendancePage() {
               </button>
             )}
           </div>
+            </>
+          ) : (
+            <div className="mt-4 rounded-xl border border-dashed border-amber-200 bg-white/80 px-4 py-3 text-sm text-gray-700">
+              Event builder is hidden. Click <span className="font-semibold text-amber-800">Show Builder</span> when you want to add, edit, or delete an event range.
+            </div>
+          )}
         </div>
 
         {holidayMessage && (

@@ -197,6 +197,26 @@ function getBuilderEventTypeHelpText(eventType) {
   return "Use this for college off, leave, public holidays, or any day that should count as a holiday.";
 }
 
+function getFacultyBuilderPreset(scopeType, eventType) {
+  if (scopeType === "courseYear" && eventType === "holiday") {
+    return "classHoliday";
+  }
+
+  if (scopeType === "course" && eventType === "holiday") {
+    return "courseHoliday";
+  }
+
+  if (scopeType === "student" && eventType === "internship") {
+    return "studentInternship";
+  }
+
+  if (scopeType === "student" && eventType === "event") {
+    return "studentEvent";
+  }
+
+  return "custom";
+}
+
 function createUnmarkedAttendance(students) {
   const initial = {};
   students.forEach((student) => {
@@ -533,11 +553,42 @@ export default function MarkAttendancePage() {
   const [holidayLoading, setHolidayLoading] = useState(false);
   const [holidaySaving, setHolidaySaving] = useState(false);
   const [holidayMessage, setHolidayMessage] = useState("");
+  const [showEventBuilder, setShowEventBuilder] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [studentSummary, setStudentSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState("");
   const [summaryMonthKey, setSummaryMonthKey] = useState(getCurrentMonthKey());
+  const eventBuilderPreset = getFacultyBuilderPreset(eventScopeType, eventType);
+
+  const handleEventBuilderPresetChange = (preset) => {
+    if (preset === "custom") return;
+
+    if (preset === "classHoliday") {
+      setEventScopeType("courseYear");
+      setEventType("holiday");
+      setEventStudentIds([]);
+      return;
+    }
+
+    if (preset === "courseHoliday") {
+      setEventScopeType("course");
+      setEventType("holiday");
+      setEventStudentIds([]);
+      return;
+    }
+
+    if (preset === "studentInternship") {
+      setEventScopeType("student");
+      setEventType("internship");
+      return;
+    }
+
+    if (preset === "studentEvent") {
+      setEventScopeType("student");
+      setEventType("event");
+    }
+  };
 
   const dateValidationMessage = useMemo(
     () => getDateValidationMessage(selectedDate),
@@ -1267,14 +1318,47 @@ export default function MarkAttendancePage() {
                 </p>
               </div>
 
-              {holidayLoading && (
-                <span className="text-sm font-medium text-gray-600">
-                  Checking event status...
-                </span>
-              )}
+              <div className="flex flex-wrap items-center gap-3">
+                {holidayLoading && (
+                  <span className="text-sm font-medium text-gray-600">
+                    Checking event status...
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowEventBuilder((prev) => !prev)}
+                  aria-expanded={showEventBuilder}
+                  className="rounded-lg border border-amber-200 bg-white px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50"
+                >
+                  {showEventBuilder ? "Hide Builder" : "Show Builder"}
+                </button>
+              </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+            {showEventBuilder ? (
+              <>
+            <div className="mt-5 rounded-xl border border-amber-100 bg-white/85 p-4">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Quick Setup
+              </label>
+              <select
+                value={eventBuilderPreset}
+                onChange={(e) => handleEventBuilderPresetChange(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                <option value="classHoliday">Class Holiday for One Year</option>
+                <option value="courseHoliday">Holiday for Whole Course</option>
+                <option value="studentInternship">Student-wise Internship</option>
+                <option value="studentEvent">Student-wise Event / Workshop</option>
+                <option value="custom">Custom Setup</option>
+              </select>
+              <p className="mt-2 text-xs text-gray-600">
+                Pick the closest preset first. You can still adjust the title,
+                dates, year, and students below.
+              </p>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
               <div className="xl:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-gray-700">
                   Event Title
@@ -1549,6 +1633,12 @@ export default function MarkAttendancePage() {
                 </button>
               )}
             </div>
+              </>
+            ) : (
+              <div className="mt-4 rounded-xl border border-dashed border-amber-200 bg-white/80 px-4 py-3 text-sm text-gray-700">
+                Event builder is hidden. Click <span className="font-semibold text-amber-800">Show Builder</span> when you want to add, edit, or delete an event range.
+              </div>
+            )}
           </div>
         </div>
 
