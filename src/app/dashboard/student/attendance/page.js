@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
+  Award,
   CalendarDays,
   CalendarRange,
   CheckCircle2,
   Clock3,
+  Flame,
   Sparkles,
   TrendingUp,
+  Trophy,
 } from "lucide-react";
 import AttendancePerformanceChart from "../../_components/AttendancePerformanceChart";
 
@@ -80,6 +83,62 @@ function getStatusLabel(status) {
     default:
       return "Not Marked";
   }
+}
+
+function getBadgeStyles(tone, unlocked) {
+  if (!unlocked) {
+    return {
+      card: "border-gray-200 bg-white text-gray-500",
+      chip: "bg-gray-100 text-gray-500",
+      icon: "bg-gray-100 text-gray-400",
+    };
+  }
+
+  if (tone === "emerald") {
+    return {
+      card: "border-emerald-200 bg-emerald-50 text-emerald-900",
+      chip: "bg-emerald-100 text-emerald-700",
+      icon: "bg-emerald-100 text-emerald-700",
+    };
+  }
+
+  if (tone === "amber") {
+    return {
+      card: "border-amber-200 bg-amber-50 text-amber-900",
+      chip: "bg-amber-100 text-amber-700",
+      icon: "bg-amber-100 text-amber-700",
+    };
+  }
+
+  if (tone === "rose") {
+    return {
+      card: "border-rose-200 bg-rose-50 text-rose-900",
+      chip: "bg-rose-100 text-rose-700",
+      icon: "bg-rose-100 text-rose-700",
+    };
+  }
+
+  if (tone === "violet") {
+    return {
+      card: "border-violet-200 bg-violet-50 text-violet-900",
+      chip: "bg-violet-100 text-violet-700",
+      icon: "bg-violet-100 text-violet-700",
+    };
+  }
+
+  return {
+    card: "border-sky-200 bg-sky-50 text-sky-900",
+    chip: "bg-sky-100 text-sky-700",
+    icon: "bg-sky-100 text-sky-700",
+  };
+}
+
+function formatBadgeProgress(badge) {
+  if (badge.key.startsWith("attendance")) {
+    return `${badge.progress}% of ${badge.target}%`;
+  }
+
+  return `${Math.min(badge.progress, badge.target)}/${badge.target} days`;
 }
 
 export default function StudentAttendancePage() {
@@ -174,6 +233,22 @@ export default function StudentAttendancePage() {
     absent: 0,
     percentage: 0,
   };
+  const streaks = summary?.streaks || {
+    current: 0,
+    best: 0,
+  };
+  const streakProgress = summary?.streakProgress || {
+    current: 0,
+    previousTarget: 0,
+    target: 3,
+    nextTarget: 3,
+    percent: 0,
+    message: "Start attending regularly to build your first streak.",
+    resetsOnAbsent: true,
+  };
+  const badges = summary?.badges || [];
+  const earnedBadgeCount = badges.filter((badge) => badge.unlocked).length;
+  const nextBadge = badges.find((badge) => !badge.unlocked);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0%,#eef2ff_22%,#f8fafc_56%,#f8fafc_100%)]">
@@ -313,6 +388,179 @@ export default function StudentAttendancePage() {
               title="Attendance Performance Graph"
               subtitle="See how your attendance percentage is moving month by month and quickly understand your best and weakest periods."
             />
+
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.25fr]">
+              <div className="rounded-[28px] border border-orange-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(255,247,237,0.96),rgba(254,242,242,0.95))] p-5 shadow-[0_20px_44px_-34px_rgba(249,115,22,0.45)] md:p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-orange-700">
+                      Attendance Streak
+                    </p>
+                    <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                      Keep the chain alive
+                    </h2>
+                    <p className="mt-2 text-sm leading-7 text-gray-600">
+                      Only working days count. Sundays, vacations, holidays,
+                      internships, and approved off-days are skipped automatically.
+                    </p>
+                  </div>
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-orange-700">
+                    <Flame className="h-5 w-5" />
+                  </span>
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="rounded-[24px] border border-white/80 bg-white/85 p-5 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+                      Current Streak
+                    </p>
+                    <p className="mt-3 text-4xl font-bold text-orange-600">
+                      {streaks.current}
+                    </p>
+                    <p className="mt-2 text-xs text-gray-500">
+                      present working days in a row
+                    </p>
+                  </div>
+
+                  <div className="rounded-[24px] border border-white/80 bg-white/85 p-5 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+                      Best Streak
+                    </p>
+                    <p className="mt-3 text-4xl font-bold text-violet-700">
+                      {streaks.best}
+                    </p>
+                    <p className="mt-2 text-xs text-gray-500">
+                      best attendance run so far
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-[24px] border border-white/80 bg-white/80 p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {streakProgress.nextTarget
+                        ? `Progress to ${streakProgress.nextTarget}-day streak`
+                        : "Top streak milestone"}
+                    </p>
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-700">
+                      {streakProgress.percent}%
+                    </span>
+                  </div>
+                  <div className="relative mt-3 h-12">
+                    <div className="absolute inset-x-0 top-1/2 h-5 -translate-y-1/2 rounded-full bg-orange-100" />
+                    <div
+                      className="absolute left-0 top-1/2 h-5 -translate-y-1/2 rounded-full bg-gradient-to-r from-orange-400 via-amber-400 to-rose-400 transition-all duration-500"
+                      style={{ width: `${Math.max(0, Math.min(100, streakProgress.percent))}%` }}
+                    >
+                      {streakProgress.percent > 0 && (
+                        <span className="absolute right-[-14px] top-1/2 z-10 -translate-y-1/2">
+                          <span className="absolute left-1/2 top-1/2 h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full bg-orange-300/75 blur-md animate-pulse" />
+                          <span className="relative block animate-pulse text-[34px] leading-none drop-shadow-[0_6px_16px_rgba(249,115,22,0.95)]">
+                            🔥
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-slate-950">
+                    {streakProgress.message}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-gray-500">
+                    Only a working-day absence resets the live streak. Holidays,
+                    Sundays, vacations, internships, and other off-days are skipped.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(239,246,255,0.95),rgba(243,232,255,0.92))] p-5 shadow-[0_24px_50px_-38px_rgba(37,99,235,0.45)] md:p-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+                      Badge Cabinet
+                    </p>
+                    <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                      Attendance rewards
+                    </h2>
+                    <p className="mt-2 text-sm leading-7 text-gray-600">
+                      Your streaks and overall attendance unlock new badges over time.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+                      Unlocked
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-slate-950">
+                      {earnedBadgeCount}
+                      <span className="ml-1 text-sm font-medium text-gray-500">
+                        / {badges.length || 5}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {badges.map((badge) => {
+                    const styles = getBadgeStyles(badge.tone, badge.unlocked);
+
+                    return (
+                      <div
+                        key={badge.key}
+                        className={`rounded-[24px] border p-4 shadow-sm ${styles.card}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <span
+                            className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${styles.icon}`}
+                          >
+                            {badge.key.startsWith("attendance") ? (
+                              <Award className="h-4 w-4" />
+                            ) : badge.key.includes("iron") ? (
+                              <Trophy className="h-4 w-4" />
+                            ) : (
+                              <Flame className="h-4 w-4" />
+                            )}
+                          </span>
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${styles.chip}`}
+                          >
+                            {badge.unlocked ? "Unlocked" : "In Progress"}
+                          </span>
+                        </div>
+
+                        <p className="mt-4 text-base font-semibold text-gray-900">
+                          {badge.title}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-gray-600">
+                          {badge.description}
+                        </p>
+                        <p className="mt-3 text-[11px] font-semibold text-gray-500">
+                          {formatBadgeProgress(badge)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {nextBadge ? (
+                  <div className="mt-4 rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-sm">
+                    <p className="text-sm font-semibold text-gray-900">
+                      Next badge: {nextBadge.title}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-gray-500">
+                      {nextBadge.description} Progress: {formatBadgeProgress(nextBadge)}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
+                    <p className="text-sm font-semibold text-emerald-800">
+                      You have unlocked every attendance badge for now.
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-emerald-700">
+                      Keep your current streak active and protect that record.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr]">
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">

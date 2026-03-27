@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import ProfileAvatar from "../../../../components/ProfileAvatar";
 
 const COURSE_MAP = {
   BPT: "Bachelor of Physiotherapy",
@@ -1724,11 +1725,11 @@ export default function MarkAttendancePage() {
 
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                              <span className="text-sm font-medium text-indigo-600">
-                                {(student.name || "S").charAt(0)}
-                              </span>
-                            </div>
+                            <ProfileAvatar
+                              src={student.profileImage}
+                              name={student.name}
+                              sizeClass="h-8 w-8"
+                            />
                             <button
                               type="button"
                               onClick={() => openStudentSummary(student._id)}

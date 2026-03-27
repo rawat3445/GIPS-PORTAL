@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ProfileAvatar from "./ProfileAvatar";
+import { resizeImageToAvatarDataUrl } from "../lib/avatarUpload";
 
 const COURSES = [
   { value: "BPT", label: "Bachelor of Physiotherapy (BPT)" },
@@ -26,15 +28,34 @@ export default function StudentForm({
     course: "",
     year: "",
     phone: "",
+    profileImage: "",
   });
 
   const [loading, setLoading] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  async function handleImageChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setImageLoading(true);
+      setError("");
+      const profileImage = await resizeImageToAvatarDataUrl(file);
+      setForm((prev) => ({ ...prev, profileImage }));
+    } catch (uploadError) {
+      setError(uploadError.message || "Failed to process image");
+    } finally {
+      setImageLoading(false);
+      e.target.value = "";
+    }
   }
 
   async function handleSubmit(e) {
@@ -159,12 +180,54 @@ export default function StudentForm({
           required
         />
 
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <ProfileAvatar
+              src={form.profileImage}
+              name={form.name}
+              sizeClass="h-20 w-20"
+              textClassName="text-lg"
+            />
+
+            <div className="flex-1">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Student Profile Picture
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="block w-full text-sm text-gray-700 file:mr-4 file:rounded-full file:border-0 file:bg-blue-100 file:px-4 file:py-2 file:font-medium file:text-blue-700 hover:file:bg-blue-200"
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                Admin can upload a square student photo here. It will be shown as a circular avatar.
+              </p>
+              {form.profileImage && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm((prev) => ({ ...prev, profileImage: "" }))
+                  }
+                  className="mt-2 text-xs font-semibold text-red-600 hover:text-red-700"
+                >
+                  Remove photo
+                </button>
+              )}
+              {imageLoading && (
+                <p className="mt-2 text-xs font-medium text-blue-600">
+                  Processing image...
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
         {error && <p className="text-red-600">{error}</p>}
         {success && <p className="text-green-600">{success}</p>}
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || imageLoading}
           className="bg-blue-600 text-white px-4 py-2 rounded"
         >
           {loading ? "Creating..." : "Add Student"}

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import ProfileAvatar from "../../../components/ProfileAvatar";
+import { resizeImageToAvatarDataUrl } from "../../../lib/avatarUpload";
 
 const COURSE_NAMES = {
   BPT: "Bachelor of Physiotherapy",
@@ -265,8 +267,10 @@ export default function StudentsPage() {
     course: "",
     year: "",
     password: "",
+    profileImage: "",
   });
   const [editLoading, setEditLoading] = useState(false);
+  const [editImageLoading, setEditImageLoading] = useState(false);
   const [editError, setEditError] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [studentSummary, setStudentSummary] = useState(null);
@@ -365,7 +369,25 @@ export default function StudentsPage() {
       course: student.course || "",
       year: student.year ? String(student.year) : "",
       password: "",
+      profileImage: student.profileImage || "",
     });
+  }
+
+  async function handleEditImageChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setEditImageLoading(true);
+      setEditError("");
+      const profileImage = await resizeImageToAvatarDataUrl(file);
+      setEditForm((prev) => ({ ...prev, profileImage }));
+    } catch (uploadError) {
+      setEditError(uploadError.message || "Failed to process image");
+    } finally {
+      setEditImageLoading(false);
+      e.target.value = "";
+    }
   }
 
   async function handleUpdateStudent() {
@@ -374,6 +396,9 @@ export default function StudentsPage() {
     try {
       setEditLoading(true);
       setEditError("");
+      const photoChanged =
+        editForm.profileImage !== (editingStudent.profileImage || "");
+      const removingPhoto = photoChanged && !editForm.profileImage;
 
       const payload = {
         name: editForm.name,
@@ -383,6 +408,14 @@ export default function StudentsPage() {
         course: editForm.course,
         year: editForm.year,
       };
+
+      if (editForm.profileImage !== (editingStudent.profileImage || "")) {
+        if (editForm.profileImage) {
+          payload.profileImage = editForm.profileImage;
+        } else {
+          payload.removeProfileImage = true;
+        }
+      }
 
       if (editForm.password.trim()) {
         payload.password = editForm.password;
@@ -397,6 +430,18 @@ export default function StudentsPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data.message || "Failed to update student");
+      }
+
+      if (photoChanged) {
+        const savedProfileImage = String(data?.user?.profileImage || "").trim();
+
+        if (removingPhoto) {
+          if (savedProfileImage) {
+            throw new Error("Student photo was not removed. Please try again.");
+          }
+        } else if (!savedProfileImage) {
+          throw new Error("Student photo was not saved. Please try uploading it again.");
+        }
       }
 
       setStudents((prev) =>
@@ -416,8 +461,13 @@ export default function StudentsPage() {
         course: "",
         year: "",
         password: "",
+        profileImage: "",
       });
-      alert("Student updated successfully");
+      alert(
+        photoChanged && !removingPhoto
+          ? "Student updated successfully and photo saved."
+          : "Student updated successfully"
+      );
     } catch (err) {
       setEditError(err.message || "Failed to update student");
     } finally {
@@ -511,13 +561,20 @@ export default function StudentsPage() {
                 {filteredStudents.map((student) => (
                   <tr key={student._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 font-medium text-gray-900">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedStudent(student)}
-                        className="text-left text-blue-700 hover:text-blue-900 hover:underline"
-                      >
-                        {student.name}
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <ProfileAvatar
+                          src={student.profileImage}
+                          name={student.name}
+                          sizeClass="h-11 w-11"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStudent(student)}
+                          className="text-left text-blue-700 hover:text-blue-900 hover:underline"
+                        >
+                          {student.name}
+                        </button>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-gray-600">{student.email}</td>
                     <td className="px-6 py-4 text-gray-500">
@@ -543,13 +600,21 @@ export default function StudentsPage() {
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-3 py-3 md:items-center md:px-4">
           <div className="max-h-[96vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl md:max-h-[92vh]">
             <div className="flex flex-col gap-4 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between md:px-6 md:py-5">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  Student Details
-                </h2>
-                <p className="mt-1 text-sm text-gray-600">
-                  Complete profile for {selectedStudent.name}
-                </p>
+              <div className="flex items-center gap-4">
+                <ProfileAvatar
+                  src={selectedStudent.profileImage}
+                  name={selectedStudent.name}
+                  sizeClass="h-16 w-16"
+                  textClassName="text-xl"
+                />
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    Student Details
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Complete profile for {selectedStudent.name}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
@@ -710,6 +775,48 @@ export default function StudentsPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 px-4 py-4 md:grid-cols-2 md:px-6 md:py-6">
+              <div className="md:col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <ProfileAvatar
+                    src={editForm.profileImage}
+                    name={editForm.name}
+                    sizeClass="h-20 w-20"
+                    textClassName="text-xl"
+                  />
+
+                  <div className="flex-1">
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Student Profile Picture
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditImageChange}
+                      className="block w-full text-sm text-gray-700 file:mr-4 file:rounded-full file:border-0 file:bg-blue-100 file:px-4 file:py-2 file:font-medium file:text-blue-700 hover:file:bg-blue-200"
+                    />
+                    <p className="mt-2 text-xs text-gray-500">
+                      Upload a student photo to show a circular profile icon in the student panel.
+                    </p>
+                    {editForm.profileImage && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditForm((prev) => ({ ...prev, profileImage: "" }))
+                        }
+                        className="mt-2 text-xs font-semibold text-red-600 hover:text-red-700"
+                      >
+                        Remove photo
+                      </button>
+                    )}
+                    {editImageLoading && (
+                      <p className="mt-2 text-xs font-medium text-blue-600">
+                        Processing image...
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
                   Name
@@ -847,7 +954,7 @@ export default function StudentsPage() {
               <button
                 type="button"
                 onClick={handleUpdateStudent}
-                disabled={editLoading}
+                disabled={editLoading || editImageLoading}
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
               >
                 {editLoading ? "Saving..." : "Save Changes"}

@@ -2,62 +2,13 @@ import { NextResponse } from "next/server";
 import connectDB from "../../../lib/db";
 import User from "../../../models/User";
 import Attendance from "../../../models/Attendance";
-import Holiday from "../../../models/Holiday";
+import { buildStudentAttendancePerformanceList } from "../../../lib/attendancePerformance";
 import { requireAdmin } from "../../../lib/auth";
-
-const ATTENDANCE_START_DATE = "2026-01-01";
-const WINTER_VACATION_FROM = "2026-01-01";
-const WINTER_VACATION_TO = "2026-01-18";
 
 function isoDateDaysAgo(days) {
   const date = new Date();
   date.setDate(date.getDate() - days);
   return date.toISOString().slice(0, 10);
-}
-
-function toISODate(date) {
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 10);
-}
-
-function parseISODate(dateString) {
-  return new Date(`${dateString}T00:00:00`);
-}
-
-function addDays(dateString, days) {
-  const date = parseISODate(dateString);
-  date.setDate(date.getDate() + days);
-  return toISODate(date);
-}
-
-function isSunday(dateString) {
-  return parseISODate(dateString).getDay() === 0;
-}
-
-function isWinterVacation(dateString) {
-  return dateString >= WINTER_VACATION_FROM && dateString <= WINTER_VACATION_TO;
-}
-
-function countWorkingDays(fromDate, toDate, holidaySet) {
-  if (!fromDate || fromDate > toDate) return 0;
-
-  let total = 0;
-  let cursor = fromDate;
-
-  while (cursor <= toDate) {
-    if (
-      !isWinterVacation(cursor) &&
-      !isSunday(cursor) &&
-      !holidaySet.has(cursor)
-    ) {
-      total += 1;
-    }
-
-    cursor = addDays(cursor, 1);
-  }
-
-  return total;
 }
 
 function formatStudent(student) {
@@ -99,7 +50,6 @@ export async function GET() {
       studentsByYearRaw,
       facultyByCourseRaw,
       newlyRegisteredDocs,
-      attendancePerformanceRaw,
       recentlyActiveGroups,
       allStudentDocs,
     ] = await Promise.all([
@@ -128,21 +78,6 @@ export async function GET() {
         .sort({ createdAt: -1 })
         .lean(),
       Attendance.aggregate([
-        { $unwind: "$records" },
-        {
-          $group: {
-            _id: "$records.studentId",
-            marked: { $sum: 1 },
-            present: {
-              $sum: {
-                $cond: [{ $eq: ["$records.status", "present"] }, 1, 0],
-              },
-            },
-          },
-        },
-        { $sort: { _id: 1 } },
-      ]),
-      Attendance.aggregate([
         { $match: { date: { $gte: recentSince } } },
         { $unwind: "$records" },
         { $group: { _id: "$records.studentId" } },
@@ -152,78 +87,16 @@ export async function GET() {
         .lean(),
     ]);
 
-    const attendanceByCourseRaw = await Attendance.aggregate([
-      { $unwind: "$records" },
-      {
-        $group: {
-          _id: "$course",
-          totalMarked: { $sum: 1 },
-          presentCount: {
-            $sum: {
-              $cond: [{ $eq: ["$records.status", "present"] }, 1, 0],
-            },
-          },
-        },
-      },
-      {
-        $project: {
-          attendanceRate: {
-            $multiply: [
-              {
-                $cond: [
-                  { $eq: ["$totalMarked", 0] },
-                  0,
-                  { $divide: ["$presentCount", "$totalMarked"] },
-                ],
-              },
-              100,
-            ],
-          },
-        },
-      },
-      { $sort: { _id: 1 } },
-    ]);
-
-    const todayISO = toISODate(new Date());
-    const holidayDocs = await Holiday.find({
-      date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
-    })
-      .select("date")
-      .lean();
-    const holidaySet = new Set(holidayDocs.map((holiday) => holiday.date));
-
-    const attendancePerformanceMap = new Map(
-      attendancePerformanceRaw.map((item) => [
-        String(item._id),
-        { present: item.present || 0, marked: item.marked || 0 },
-      ])
+    const attendanceStudentsRaw = await buildStudentAttendancePerformanceList(
+      allStudentDocs
     );
-
-    const attendanceStudents = allStudentDocs.map((student) => {
-      const performance = attendancePerformanceMap.get(String(student._id)) || {
-        present: 0,
-        marked: 0,
-      };
-      const workingDays = countWorkingDays(
-        ATTENDANCE_START_DATE,
-        todayISO,
-        holidaySet
-      );
-      const attendancePercentage =
-        performance.marked === 0
-          ? 0
-          : Number(
-              ((performance.present / performance.marked) * 100).toFixed(1)
-            );
-
-      return {
-        ...formatStudent(student),
-        attendancePercentage,
-        markedDays: performance.marked,
-        presentDays: performance.present,
-        workingDays,
-      };
-    });
+    const attendanceStudents = attendanceStudentsRaw.map((student) => ({
+      ...formatStudent(student),
+      attendancePercentage: student.attendancePercentage,
+      markedDays: student.markedDays,
+      presentDays: student.presentDays,
+      workingDays: student.workingDays,
+    }));
 
     const lowAttendanceStudents = attendanceStudents
       .filter(
@@ -319,32 +192,47 @@ export async function GET() {
       })
     );
 
-    const attendanceRateMap = new Map(
-      attendanceByCourseRaw.map((item) => [
-        item._id || "Unassigned",
-        Number(item.attendanceRate.toFixed(1)),
-      ])
-    );
+    const courseAttendanceMap = new Map();
+    let overallPresentDays = 0;
+    let overallWorkingDays = 0;
+
+    attendanceStudents.forEach((student) => {
+      const courseKey = student.course || "Unassigned";
+      const current = courseAttendanceMap.get(courseKey) || {
+        presentDays: 0,
+        workingDays: 0,
+      };
+
+      current.presentDays += Number(student.presentDays || 0);
+      current.workingDays += Number(student.workingDays || 0);
+
+      courseAttendanceMap.set(courseKey, current);
+
+      overallPresentDays += Number(student.presentDays || 0);
+      overallWorkingDays += Number(student.workingDays || 0);
+    });
 
     const coursePerformance = studentsByCourse.map((item) => ({
       course: item.course,
       students: item.count,
       faculty: item.facultyCount || 0,
       facultyNames: item.faculty || [],
-      attendanceRate: attendanceRateMap.get(item.course) || 0,
+      attendanceRate:
+        (courseAttendanceMap.get(item.course)?.workingDays || 0) === 0
+          ? 0
+          : Number(
+              (
+                ((courseAttendanceMap.get(item.course)?.presentDays || 0) /
+                  (courseAttendanceMap.get(item.course)?.workingDays || 1)) *
+                100
+              ).toFixed(1)
+            ),
     }));
 
     const overallAttendanceRate =
-      attendanceByCourseRaw.length === 0
+      overallWorkingDays === 0
         ? 0
-        : Number(
-            (
-              attendanceByCourseRaw.reduce(
-                (sum, item) => sum + Number(item.attendanceRate || 0),
-                0
-              ) / attendanceByCourseRaw.length
-            ).toFixed(1)
-          );
+        : Number(((overallPresentDays / overallWorkingDays) * 100).toFixed(1));
 
     return NextResponse.json({
       totalStudents,

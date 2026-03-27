@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import ProfileAvatar from "../../components/ProfileAvatar";
 import {
   BarChart3,
   BookOpen,
@@ -289,9 +290,13 @@ export default function StudentLayoutClient({ children }) {
           {sidebarOpen && (
             <div className="mb-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-4 shadow-inner shadow-white/5">
               <div className="flex items-start gap-3">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-300/20 text-sm font-bold text-cyan-100">
-                  {(me?.name || "S").charAt(0)}
-                </span>
+                <ProfileAvatar
+                  src={me?.profileImage}
+                  name={me?.name}
+                  sizeClass="h-11 w-11"
+                  className="border-white/10 bg-cyan-300/20"
+                  textClassName="text-sm text-cyan-100"
+                />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-white">
                     {me?.name || "Student"}

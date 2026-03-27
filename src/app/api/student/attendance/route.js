@@ -32,6 +32,127 @@ function monthLabel(monthKey) {
   }).format(new Date(year, month - 1, 1));
 }
 
+function calculateStreaks(timeline) {
+  let current = 0;
+  let best = 0;
+  let running = 0;
+
+  for (const day of timeline) {
+    if (day.status === "present") {
+      running += 1;
+      if (running > best) best = running;
+    } else {
+      running = 0;
+    }
+  }
+
+  for (let index = timeline.length - 1; index >= 0; index -= 1) {
+    if (timeline[index].status === "present") {
+      current += 1;
+    } else {
+      break;
+    }
+  }
+
+  return {
+    current,
+    best,
+    lastWorkingDay: timeline.at(-1)?.date || null,
+    lastWorkingStatus: timeline.at(-1)?.status || null,
+    currentStartDate: current ? timeline[timeline.length - current]?.date : null,
+    currentEndDate: current ? timeline.at(-1)?.date : null,
+  };
+}
+
+function buildStreakProgress(streaks) {
+  const milestones = [3, 7, 15, 30];
+  const current = Number(streaks?.current || 0);
+  const nextTarget = milestones.find((target) => current < target) || null;
+  const previousTarget =
+    milestones.filter((target) => target <= current).at(-1) || 0;
+  const target = nextTarget || milestones.at(-1);
+  const percent = target
+    ? Number(((Math.min(current, target) / target) * 100).toFixed(1))
+    : 0;
+
+  let message = "Start attending regularly to build your first streak.";
+
+  if (nextTarget) {
+    message = `${nextTarget - current} more working day${
+      nextTarget - current === 1 ? "" : "s"
+    } to unlock the ${nextTarget}-day streak level.`;
+  } else {
+    message = "Top streak milestone reached. Keep going to protect your run.";
+  }
+
+  if (current === 0 && streaks?.lastWorkingStatus === "absent") {
+    message = "An absence on the last working day reset the live streak to zero.";
+  } else if (current === 0 && streaks?.lastWorkingStatus === "not_marked") {
+    message = "Your live streak is waiting for the next marked present day.";
+  }
+
+  return {
+    current,
+    previousTarget,
+    target,
+    nextTarget,
+    percent,
+    message,
+    resetsOnAbsent: true,
+  };
+}
+
+function buildAttendanceBadges({ bestStreak, overallPercentage }) {
+  const definitions = [
+    {
+      key: "spark-start",
+      title: "Spark Start",
+      description: "Reach a 3-day attendance streak.",
+      tone: "sky",
+      metric: bestStreak,
+      target: 3,
+    },
+    {
+      key: "weekly-rhythm",
+      title: "Weekly Rhythm",
+      description: "Complete a 7-day streak without breaking it.",
+      tone: "violet",
+      metric: bestStreak,
+      target: 7,
+    },
+    {
+      key: "iron-routine",
+      title: "Iron Routine",
+      description: "Build a 15-day streak across working days.",
+      tone: "emerald",
+      metric: bestStreak,
+      target: 15,
+    },
+    {
+      key: "attendance-keeper",
+      title: "Attendance Keeper",
+      description: "Stay at 75% overall attendance or better.",
+      tone: "amber",
+      metric: overallPercentage,
+      target: 75,
+    },
+    {
+      key: "attendance-ace",
+      title: "Attendance Ace",
+      description: "Cross 90% overall attendance.",
+      tone: "rose",
+      metric: overallPercentage,
+      target: 90,
+    },
+  ];
+
+  return definitions.map((badge) => ({
+    ...badge,
+    progress: Number(badge.metric.toFixed(1)),
+    unlocked: badge.metric >= badge.target,
+  }));
+}
+
 async function getMe(request) {
   const res = await fetch(new URL("/api/auth/me", request.url), {
     headers: {
@@ -116,6 +237,7 @@ export async function GET(request) {
 
       const monthsMap = new Map();
       const calendar = [];
+      const streakTimeline = [];
       let cursor = ATTENDANCE_START_DATE;
 
       while (cursor <= calendarEndDate) {
@@ -176,6 +298,11 @@ export async function GET(request) {
           } else {
             note = "Attendance not marked";
           }
+
+          streakTimeline.push({
+            date: cursor,
+            status,
+          });
         }
 
         monthStats.percentage =
@@ -224,6 +351,13 @@ export async function GET(request) {
           ? 0
           : Number(((overall.present / overall.workingDays) * 100).toFixed(1));
 
+      const streaks = calculateStreaks(streakTimeline);
+      const streakProgress = buildStreakProgress(streaks);
+      const badges = buildAttendanceBadges({
+        bestStreak: streaks.best,
+        overallPercentage: overall.percentage,
+      });
+
       return NextResponse.json({
         course,
         year,
@@ -252,6 +386,9 @@ export async function GET(request) {
           customHolidaysExcluded: true,
         },
         overall,
+        streaks,
+        streakProgress,
+        badges,
         months,
         calendar,
       });

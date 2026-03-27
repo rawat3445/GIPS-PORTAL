@@ -69,7 +69,7 @@ export async function GET(request) {
     }
 
     const students = await User.find(query)
-      .select("name email enrollmentNo year course")
+      .select("name email enrollmentNo year course profileImage")
       .sort({ name: 1 });
 
     if (!date || !Number.isFinite(year) || year <= 0 || !students.length) {

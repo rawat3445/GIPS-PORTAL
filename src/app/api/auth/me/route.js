@@ -16,7 +16,7 @@ export async function GET(req) {
     await connectDB();
 
     const user = await User.findById(decoded.id).select(
-      "name email role assignedCourse course year enrollmentNo",
+      "name email role assignedCourse course year enrollmentNo profileImage",
     );
 
     if (!user) {
@@ -33,6 +33,7 @@ export async function GET(req) {
         course: user.course || user.assignedCourse || "",
         year: user.year || null,
         enrollmentNo: user.enrollmentNo || "",
+        profileImage: user.profileImage || "",
       },
     });
   } catch (error) {

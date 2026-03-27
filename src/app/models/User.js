@@ -28,6 +28,18 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
+    profileImage: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    profileImagePublicId: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     // ================= FACULTY =================
     assignedCourse: {
       type: String,
@@ -75,5 +87,15 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+const existingUserModel = mongoose.models.User;
+
+if (
+  existingUserModel &&
+  (!existingUserModel.schema.path("profileImage") ||
+    !existingUserModel.schema.path("profileImagePublicId"))
+) {
+  delete mongoose.models.User;
+}
 
 export default mongoose.models.User || mongoose.model("User", userSchema);
