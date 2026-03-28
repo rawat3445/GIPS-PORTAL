@@ -36,21 +36,56 @@ function calculateStreaks(timeline) {
   let current = 0;
   let best = 0;
   let running = 0;
+  let lastRelevantDay = null;
+  let lastRelevantStatus = null;
+  let lastConfirmedDay = null;
+  let lastConfirmedStatus = null;
 
   for (const day of timeline) {
     if (day.status === "present") {
       running += 1;
       if (running > best) best = running;
-    } else {
+      lastRelevantDay = day.date;
+      lastRelevantStatus = "present";
+      lastConfirmedDay = day.date;
+      lastConfirmedStatus = "present";
+    } else if (day.status === "absent") {
       running = 0;
+      lastRelevantDay = day.date;
+      lastRelevantStatus = "absent";
+      lastConfirmedDay = day.date;
+      lastConfirmedStatus = "absent";
     }
   }
 
+  let currentEndDate = null;
+  let currentStartDate = null;
+  let lastConfirmedIndex = -1;
+
   for (let index = timeline.length - 1; index >= 0; index -= 1) {
-    if (timeline[index].status === "present") {
-      current += 1;
-    } else {
+    if (
+      timeline[index].status === "present" ||
+      timeline[index].status === "absent"
+    ) {
+      lastConfirmedIndex = index;
       break;
+    }
+  }
+
+  if (lastConfirmedIndex >= 0 && timeline[lastConfirmedIndex].status === "present") {
+    currentEndDate = timeline[lastConfirmedIndex].date;
+
+    for (let index = lastConfirmedIndex; index >= 0; index -= 1) {
+      if (timeline[index].status === "not_marked") {
+        continue;
+      }
+
+      if (timeline[index].status !== "present") {
+        break;
+      }
+
+      currentStartDate = timeline[index].date;
+      current += 1;
     }
   }
 
@@ -59,13 +94,17 @@ function calculateStreaks(timeline) {
     best,
     lastWorkingDay: timeline.at(-1)?.date || null,
     lastWorkingStatus: timeline.at(-1)?.status || null,
-    currentStartDate: current ? timeline[timeline.length - current]?.date : null,
-    currentEndDate: current ? timeline.at(-1)?.date : null,
+    lastRelevantDay,
+    lastRelevantStatus,
+    lastConfirmedDay,
+    lastConfirmedStatus,
+    currentStartDate: current ? currentStartDate : null,
+    currentEndDate: current ? currentEndDate : null,
   };
 }
 
 function buildStreakProgress(streaks) {
-  const milestones = [3, 7, 15, 30];
+  const milestones = [3, 6, 10, 15, 25];
   const current = Number(streaks?.current || 0);
   const nextTarget = milestones.find((target) => current < target) || null;
   const previousTarget =
@@ -75,20 +114,26 @@ function buildStreakProgress(streaks) {
     ? Number(((Math.min(current, target) / target) * 100).toFixed(1))
     : 0;
 
-  let message = "Start attending regularly to build your first streak.";
+  let message = "Start attending regularly this month to build your streak.";
 
   if (nextTarget) {
     message = `${nextTarget - current} more working day${
       nextTarget - current === 1 ? "" : "s"
-    } to unlock the ${nextTarget}-day streak level.`;
+    } to unlock the ${nextTarget}-day streak tier this month.`;
   } else {
-    message = "Top streak milestone reached. Keep going to protect your run.";
+    message = "Premium monthly streak tier reached. Keep going to protect your run.";
   }
 
-  if (current === 0 && streaks?.lastWorkingStatus === "absent") {
-    message = "An absence on the last working day reset the live streak to zero.";
-  } else if (current === 0 && streaks?.lastWorkingStatus === "not_marked") {
-    message = "Your live streak is waiting for the next marked present day.";
+  if (current === 0 && streaks?.lastRelevantStatus === "absent") {
+    message =
+      "An absence on the last confirmed working day reset this month's live streak to zero.";
+  } else if (!streaks?.lastRelevantStatus) {
+    message =
+      "This month's live streak is waiting for the next confirmed present day.";
+  } else if (current > 0 && streaks?.lastWorkingStatus === "not_marked") {
+    message = `${nextTarget ? `${nextTarget - current} more working day${
+      nextTarget - current === 1 ? "" : "s"
+    } to unlock the ${nextTarget}-day streak tier this month.` : "Premium monthly streak tier reached. Keep going to protect your run."} Recent working days are not marked yet, so your streak is still active.`;
   }
 
   return {
@@ -102,47 +147,61 @@ function buildStreakProgress(streaks) {
   };
 }
 
-function buildAttendanceBadges({ bestStreak, overallPercentage }) {
+function buildAttendanceBadges({ bestStreak }) {
   const definitions = [
     {
-      key: "spark-start",
-      title: "Spark Start",
-      description: "Reach a 3-day attendance streak.",
+      key: "amber-ember",
+      title: "Amber Ember",
+      description: "Build a 2-day streak in the current month.",
+      tone: "amber",
+      icon: "flame",
+      metric: bestStreak,
+      target: 2,
+    },
+    {
+      key: "sky-surge",
+      title: "Sky Surge",
+      description: "Reach a 3-day monthly streak.",
       tone: "sky",
+      icon: "flame",
       metric: bestStreak,
       target: 3,
     },
     {
-      key: "weekly-rhythm",
-      title: "Weekly Rhythm",
-      description: "Complete a 7-day streak without breaking it.",
+      key: "violet-rhythm",
+      title: "Violet Rhythm",
+      description: "Hold a 6-day streak in the current month.",
       tone: "violet",
+      icon: "flame",
       metric: bestStreak,
-      target: 7,
+      target: 6,
     },
     {
-      key: "iron-routine",
-      title: "Iron Routine",
-      description: "Build a 15-day streak across working days.",
+      key: "emerald-core",
+      title: "Emerald Core",
+      description: "Reach a 10-day streak in the current month.",
       tone: "emerald",
+      icon: "award",
+      metric: bestStreak,
+      target: 10,
+    },
+    {
+      key: "indigo-elite",
+      title: "Indigo Elite",
+      description: "Push your current month streak to 15 days.",
+      tone: "indigo",
+      icon: "award",
       metric: bestStreak,
       target: 15,
     },
     {
-      key: "attendance-keeper",
-      title: "Attendance Keeper",
-      description: "Stay at 75% overall attendance or better.",
-      tone: "amber",
-      metric: overallPercentage,
-      target: 75,
-    },
-    {
-      key: "attendance-ace",
-      title: "Attendance Ace",
-      description: "Cross 90% overall attendance.",
+      key: "rose-crown",
+      title: "Rose Crown",
+      description: "Reach the 25-day premium streak tier this month.",
       tone: "rose",
-      metric: overallPercentage,
-      target: 90,
+      icon: "trophy",
+      metric: bestStreak,
+      target: 25,
     },
   ];
 
@@ -187,6 +246,7 @@ export async function GET(request) {
     const course = String(me?.course || "").toUpperCase();
     const year = Number(me?.year);
     const todayISO = toISODate(new Date());
+    const currentMonthKey = todayISO.slice(0, 7);
 
     if (!course) {
       return NextResponse.json(
@@ -299,10 +359,12 @@ export async function GET(request) {
             note = "Attendance not marked";
           }
 
-          streakTimeline.push({
-            date: cursor,
-            status,
-          });
+          if (monthKey === currentMonthKey) {
+            streakTimeline.push({
+              date: cursor,
+              status,
+            });
+          }
         }
 
         monthStats.percentage =
@@ -355,12 +417,13 @@ export async function GET(request) {
       const streakProgress = buildStreakProgress(streaks);
       const badges = buildAttendanceBadges({
         bestStreak: streaks.best,
-        overallPercentage: overall.percentage,
       });
 
       return NextResponse.json({
         course,
         year,
+        streakMonthKey: currentMonthKey,
+        streakMonthLabel: monthLabel(currentMonthKey),
         startDate: ATTENDANCE_START_DATE,
         currentDate: todayISO,
         calendarEndDate,

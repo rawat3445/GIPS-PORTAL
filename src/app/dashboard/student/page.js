@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import ProfileAvatar from "../../components/ProfileAvatar";
+import FlameAvatar from "../../components/FlameAvatar";
 import {
   Activity,
   AlertCircle,
@@ -39,7 +39,12 @@ function getGreetingByTime() {
   return "Good evening";
 }
 
-function buildAssistantMessage({ me, todayStatus, monthSummary, overallPercentage }) {
+function buildAssistantMessage({
+  me,
+  todayStatus,
+  monthSummary,
+  overallPercentage,
+}) {
   const firstName = me?.name?.trim()?.split(" ")[0] || "Student";
 
   if (todayStatus === "absent") {
@@ -206,11 +211,19 @@ function getBadgeStyles(tone, unlocked) {
     };
   }
 
+  if (tone === "indigo") {
+    return {
+      card: "border-indigo-200 bg-indigo-50/95 text-indigo-900",
+      chip: "bg-indigo-100 text-indigo-700",
+      icon: "bg-indigo-100 text-indigo-700",
+    };
+  }
+
   if (tone === "rose") {
     return {
-      card: "border-rose-200 bg-rose-50/95 text-rose-900",
-      chip: "bg-rose-100 text-rose-700",
-      icon: "bg-rose-100 text-rose-700",
+      card: "border-rose-200 bg-[linear-gradient(135deg,rgba(255,241,242,0.98),rgba(255,255,255,0.96),rgba(254,243,199,0.94))] text-rose-900",
+      chip: "bg-gradient-to-r from-rose-100 to-amber-100 text-rose-700",
+      icon: "bg-gradient-to-br from-rose-100 to-amber-100 text-rose-700",
     };
   }
 
@@ -229,28 +242,163 @@ function getBadgeStyles(tone, unlocked) {
   };
 }
 
-function formatBadgeProgress(badge) {
-  if (badge.key.startsWith("attendance")) {
-    return `${badge.progress}% of ${badge.target}%`;
+function getBadgeIcon(icon) {
+  if (icon === "trophy") {
+    return Trophy;
   }
 
+  if (icon === "award") {
+    return Award;
+  }
+
+  return Flame;
+}
+
+function formatBadgeProgress(badge) {
   return `${Math.min(badge.progress, badge.target)}/${badge.target} days`;
 }
 
 function getStreakNote(currentStreak) {
-  if (currentStreak >= 15) {
-    return "You are in elite rhythm right now. Keep protecting this run.";
+  if (currentStreak >= 25) {
+    return "Rose Crown tier is live now. You are in the premium zone for this month.";
   }
 
-  if (currentStreak >= 7) {
-    return "A full week of consistent attendance is looking strong.";
+  if (currentStreak >= 15) {
+    return "Indigo Elite is active. One strong push can carry you into the premium tier.";
+  }
+
+  if (currentStreak >= 10) {
+    return "Emerald Core means this month is already looking seriously consistent.";
+  }
+
+  if (currentStreak >= 6) {
+    return "Violet Rhythm is unlocked. Keep stacking confirmed present days this month.";
   }
 
   if (currentStreak >= 3) {
-    return "Nice momentum. A few more present days will unlock bigger badges.";
+    return "Sky Surge has started. A little more consistency will move you into the stronger tiers.";
   }
 
-  return "Holidays, Sundays, internships, and off-days never break your streak.";
+  return "Amber Ember is your starting zone. Holidays, Sundays, internships, and off-days never break it.";
+}
+function getProfileThemeTone(currentStreak) {
+  if (currentStreak >= 25) {
+    return "rose";
+  }
+
+  if (currentStreak >= 15) {
+    return "indigo";
+  }
+
+  if (currentStreak >= 10) {
+    return "emerald";
+  }
+
+  if (currentStreak >= 6) {
+    return "violet";
+  }
+
+  if (currentStreak >= 3) {
+    return "sky";
+  }
+
+  return "amber";
+}
+
+function getProfileStreakTheme(tone) {
+  if (tone === "emerald") {
+    return {
+      key: "emerald",
+      shell: "from-emerald-100 via-white to-lime-100",
+      avatarClass:
+        "border-emerald-100 bg-gradient-to-br from-emerald-100 via-emerald-50 to-lime-100 text-emerald-700",
+      edge: "rgba(167, 243, 208, 0.92)",
+      halo: "rgba(4, 120, 87, 0.46)",
+      glow: "radial-gradient(circle, rgba(209,250,229,0.92) 0%, rgba(167,243,208,0.72) 34%, rgba(4,120,87,0.2) 58%, rgba(255,255,255,0) 78%)",
+      flameOuter: "#059669",
+      flameInner: "#34d399",
+      flameCore: "#d1fae5",
+      flameStroke: "#047857",
+    };
+  }
+
+  if (tone === "indigo") {
+    return {
+      key: "indigo",
+      shell: "from-indigo-100 via-white to-blue-100",
+      avatarClass:
+        "border-indigo-100 bg-gradient-to-br from-indigo-100 via-indigo-50 to-blue-100 text-indigo-700",
+      edge: "rgba(199, 210, 254, 0.94)",
+      halo: "rgba(67, 56, 202, 0.44)",
+      glow: "radial-gradient(circle, rgba(224,231,255,0.95) 0%, rgba(199,210,254,0.76) 34%, rgba(67,56,202,0.24) 58%, rgba(255,255,255,0) 78%)",
+      flameOuter: "#4338ca",
+      flameInner: "#818cf8",
+      flameCore: "#e0e7ff",
+      flameStroke: "#312e81",
+    };
+  }
+
+  if (tone === "rose") {
+    return {
+      key: "rose",
+      shell: "from-rose-100 via-amber-50 to-pink-100",
+      avatarClass:
+        "border-rose-100 bg-gradient-to-br from-rose-100 via-amber-50 to-pink-100 text-rose-700",
+      edge: "rgba(254, 205, 211, 0.94)",
+      halo: "rgba(190, 24, 93, 0.44)",
+      glow: "radial-gradient(circle, rgba(255,247,214,0.96) 0%, rgba(254,205,211,0.78) 34%, rgba(190,24,93,0.22) 58%, rgba(255,255,255,0) 78%)",
+      flameOuter: "#e11d48",
+      flameInner: "#fb7185",
+      flameCore: "#fff7d6",
+      flameStroke: "#be123c",
+    };
+  }
+
+  if (tone === "violet") {
+    return {
+      key: "violet",
+      shell: "from-violet-100 via-white to-fuchsia-100",
+      avatarClass:
+        "border-violet-100 bg-gradient-to-br from-violet-100 via-violet-50 to-fuchsia-100 text-violet-700",
+      edge: "rgba(221, 214, 254, 0.92)",
+      halo: "rgba(109, 40, 217, 0.46)",
+      glow: "radial-gradient(circle, rgba(237,233,254,0.94) 0%, rgba(221,214,254,0.74) 34%, rgba(109,40,217,0.22) 58%, rgba(255,255,255,0) 78%)",
+      flameOuter: "#7c3aed",
+      flameInner: "#a78bfa",
+      flameCore: "#ede9fe",
+      flameStroke: "#6d28d9",
+    };
+  }
+
+  if (tone === "sky") {
+    return {
+      key: "sky",
+      shell: "from-sky-100 via-white to-cyan-100",
+      avatarClass:
+        "border-sky-100 bg-gradient-to-br from-sky-100 via-sky-50 to-cyan-100 text-sky-700",
+      edge: "rgba(186, 230, 253, 0.94)",
+      halo: "rgba(3, 105, 161, 0.46)",
+      glow: "radial-gradient(circle, rgba(224,242,254,0.94) 0%, rgba(186,230,253,0.74) 34%, rgba(3,105,161,0.22) 58%, rgba(255,255,255,0) 78%)",
+      flameOuter: "#0284c7",
+      flameInner: "#38bdf8",
+      flameCore: "#e0f2fe",
+      flameStroke: "#0369a1",
+    };
+  }
+
+  return {
+    key: "amber",
+    shell: "from-amber-100 via-white to-orange-100",
+    avatarClass:
+      "border-amber-100 bg-gradient-to-br from-amber-100 via-amber-50 to-orange-100 text-amber-700",
+    edge: "rgba(253, 230, 138, 0.94)",
+    halo: "rgba(180, 83, 9, 0.46)",
+    glow: "radial-gradient(circle, rgba(254,243,199,0.94) 0%, rgba(253,230,138,0.76) 34%, rgba(180,83,9,0.2) 58%, rgba(255,255,255,0) 78%)",
+    flameOuter: "#b45309",
+    flameInner: "#f59e0b",
+    flameCore: "#fef3c7",
+    flameStroke: "#78350f",
+  };
 }
 
 function StudentAssistant({
@@ -266,7 +414,7 @@ function StudentAssistant({
         <div className="assistant-arrive pointer-events-none flex items-end gap-4">
           <div
             className={`pointer-events-auto relative mb-8 w-[210px] rounded-[22px] border px-3.5 py-3 shadow-[0_18px_42px_-22px_rgba(15,23,42,0.28)] backdrop-blur ${getAssistantClasses(
-              assistant.tone
+              assistant.tone,
             )}`}
           >
             <button
@@ -301,21 +449,62 @@ function StudentAssistant({
               aria-hidden="true"
             >
               <defs>
-                <linearGradient id="buddyHead" x1="0%" y1="0%" x2="100%" y2="100%">
+                <linearGradient
+                  id="buddyHead"
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="100%"
+                >
                   <stop offset="0%" stopColor="#7dd3fc" />
                   <stop offset="100%" stopColor="#3b82f6" />
                 </linearGradient>
-                <linearGradient id="buddyBody" x1="0%" y1="0%" x2="0%" y2="100%">
+                <linearGradient
+                  id="buddyBody"
+                  x1="0%"
+                  y1="0%"
+                  x2="0%"
+                  y2="100%"
+                >
                   <stop offset="0%" stopColor="#3b82f6" />
                   <stop offset="100%" stopColor="#1d4ed8" />
                 </linearGradient>
               </defs>
 
-              <ellipse cx="57" cy="129" rx="22" ry="5" fill="rgba(15,23,42,0.14)" />
+              <ellipse
+                cx="57"
+                cy="129"
+                rx="22"
+                ry="5"
+                fill="rgba(15,23,42,0.14)"
+              />
 
-              <rect x="43" y="58" width="28" height="36" rx="12" fill="url(#buddyBody)" />
-              <rect x="36" y="62" width="7" height="30" rx="4" fill="#3b82f6" transform="rotate(26 36 62)" />
-              <rect x="72" y="64" width="7" height="26" rx="4" fill="#2563eb" transform="rotate(-28 72 64)" />
+              <rect
+                x="43"
+                y="58"
+                width="28"
+                height="36"
+                rx="12"
+                fill="url(#buddyBody)"
+              />
+              <rect
+                x="36"
+                y="62"
+                width="7"
+                height="30"
+                rx="4"
+                fill="#3b82f6"
+                transform="rotate(26 36 62)"
+              />
+              <rect
+                x="72"
+                y="64"
+                width="7"
+                height="26"
+                rx="4"
+                fill="#2563eb"
+                transform="rotate(-28 72 64)"
+              />
 
               <circle cx="56" cy="39" r="26" fill="url(#buddyHead)" />
               <ellipse cx="53" cy="39" rx="20" ry="21" fill="#f8fbff" />
@@ -338,7 +527,14 @@ function StudentAssistant({
                 strokeWidth="3"
                 strokeLinecap="round"
               />
-              <ellipse cx="63" cy="37" rx="6" ry="12" fill="#dbeafe" opacity="0.75" />
+              <ellipse
+                cx="63"
+                cy="37"
+                rx="6"
+                ry="12"
+                fill="#dbeafe"
+                opacity="0.75"
+              />
             </svg>
             <div className="assistant-leg assistant-leg-left">
               <div className="assistant-thigh">
@@ -360,7 +556,7 @@ function StudentAssistant({
 
       <div
         className={`mt-4 overflow-hidden rounded-2xl border p-3 shadow-sm md:hidden ${getAssistantClasses(
-          assistant.tone
+          assistant.tone,
         )}`}
       >
         <div className="flex items-start justify-between gap-3">
@@ -371,7 +567,9 @@ function StudentAssistant({
                 Student Buddy
               </p>
             </div>
-            <p className="text-sm font-semibold text-gray-900">{assistant.title}</p>
+            <p className="text-sm font-semibold text-gray-900">
+              {assistant.title}
+            </p>
             <p className="mt-1.5 text-[11px] leading-5 text-gray-700">
               {assistant.message}
             </p>
@@ -386,8 +584,8 @@ function StudentAssistant({
                 {todayStatus === "present"
                   ? "Today Present"
                   : todayStatus === "absent"
-                  ? "Today Absent"
-                  : "Today Not Marked"}
+                    ? "Today Absent"
+                    : "Today Not Marked"}
               </span>
             </div>
           </div>
@@ -411,21 +609,67 @@ function StudentAssistant({
                     aria-hidden="true"
                   >
                     <defs>
-                      <linearGradient id="buddyHeadMobile" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <linearGradient
+                        id="buddyHeadMobile"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="100%"
+                      >
                         <stop offset="0%" stopColor="#7dd3fc" />
                         <stop offset="100%" stopColor="#3b82f6" />
                       </linearGradient>
-                      <linearGradient id="buddyBodyMobile" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <linearGradient
+                        id="buddyBodyMobile"
+                        x1="0%"
+                        y1="0%"
+                        x2="0%"
+                        y2="100%"
+                      >
                         <stop offset="0%" stopColor="#3b82f6" />
                         <stop offset="100%" stopColor="#1d4ed8" />
                       </linearGradient>
                     </defs>
 
-                    <ellipse cx="57" cy="129" rx="22" ry="5" fill="rgba(15,23,42,0.14)" />
-                    <rect x="43" y="58" width="28" height="36" rx="12" fill="url(#buddyBodyMobile)" />
-                    <rect x="36" y="62" width="7" height="30" rx="4" fill="#3b82f6" transform="rotate(26 36 62)" />
-                    <rect x="72" y="64" width="7" height="26" rx="4" fill="#2563eb" transform="rotate(-28 72 64)" />
-                    <circle cx="56" cy="39" r="26" fill="url(#buddyHeadMobile)" />
+                    <ellipse
+                      cx="57"
+                      cy="129"
+                      rx="22"
+                      ry="5"
+                      fill="rgba(15,23,42,0.14)"
+                    />
+                    <rect
+                      x="43"
+                      y="58"
+                      width="28"
+                      height="36"
+                      rx="12"
+                      fill="url(#buddyBodyMobile)"
+                    />
+                    <rect
+                      x="36"
+                      y="62"
+                      width="7"
+                      height="30"
+                      rx="4"
+                      fill="#3b82f6"
+                      transform="rotate(26 36 62)"
+                    />
+                    <rect
+                      x="72"
+                      y="64"
+                      width="7"
+                      height="26"
+                      rx="4"
+                      fill="#2563eb"
+                      transform="rotate(-28 72 64)"
+                    />
+                    <circle
+                      cx="56"
+                      cy="39"
+                      r="26"
+                      fill="url(#buddyHeadMobile)"
+                    />
                     <ellipse cx="53" cy="39" rx="20" ry="21" fill="#f8fbff" />
                     <path
                       d="M44 21c4-5 11-8 19-6 4 1 8 3 11 7-7-2-14 1-20 5-4 2-8 3-10 3 0-4 0-6 0-9Z"
@@ -446,7 +690,14 @@ function StudentAssistant({
                       strokeWidth="3"
                       strokeLinecap="round"
                     />
-                    <ellipse cx="63" cy="37" rx="6" ry="12" fill="#dbeafe" opacity="0.75" />
+                    <ellipse
+                      cx="63"
+                      cy="37"
+                      rx="6"
+                      ry="12"
+                      fill="#dbeafe"
+                      opacity="0.75"
+                    />
                   </svg>
                   <div className="mobile-assistant-leg mobile-assistant-leg-left">
                     <div className="mobile-assistant-thigh">
@@ -472,7 +723,8 @@ function StudentAssistant({
       <style jsx>{`
         .assistant-arrive {
           will-change: transform;
-          animation: buddy-arrive 2.4s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+          animation: buddy-arrive 2.4s cubic-bezier(0.22, 0.61, 0.36, 1)
+            forwards;
         }
 
         .assistant-figure {
@@ -920,7 +1172,6 @@ function StudentAssistant({
             transform: rotate(0deg);
           }
         }
-
       `}</style>
     </>
   );
@@ -952,10 +1203,11 @@ export default function StudentDashboard() {
     target: 3,
     nextTarget: 3,
     percent: 0,
-    message: "Start attending regularly to build your first streak.",
+    message: "Start attending regularly this month to build your streak.",
     resetsOnAbsent: true,
   });
   const [attendanceBadges, setAttendanceBadges] = useState([]);
+  const [streakMonthLabel, setStreakMonthLabel] = useState("");
 
   const today = useMemo(() => toISODate(new Date()), []);
   const monthRange = useMemo(() => getMonthRange(new Date()), []);
@@ -963,7 +1215,7 @@ export default function StudentDashboard() {
   useEffect(() => {
     try {
       const savedVisibility = window.localStorage.getItem(
-        "student-buddy-visible"
+        "student-buddy-visible",
       );
       const hasSeenMobileIntro =
         window.localStorage.getItem("student-buddy-mobile-seen") === "true";
@@ -1016,7 +1268,7 @@ export default function StudentDashboard() {
           {
             credentials: "include",
             cache: "no-store",
-          }
+          },
         );
         const mData = await mRes.json().catch(() => ({}));
 
@@ -1042,19 +1294,22 @@ export default function StudentDashboard() {
           });
           setStreakProgress({
             current: Number(summaryData?.streakProgress?.current || 0),
-            previousTarget: Number(summaryData?.streakProgress?.previousTarget || 0),
+            previousTarget: Number(
+              summaryData?.streakProgress?.previousTarget || 0,
+            ),
             target: Number(summaryData?.streakProgress?.target || 3),
             nextTarget: summaryData?.streakProgress?.nextTarget ?? 3,
             percent: Number(summaryData?.streakProgress?.percent || 0),
             message:
               summaryData?.streakProgress?.message ||
-              "Start attending regularly to build your first streak.",
+              "Start attending regularly this month to build your streak.",
             resetsOnAbsent:
               summaryData?.streakProgress?.resetsOnAbsent !== false,
           });
           setAttendanceBadges(
-            Array.isArray(summaryData?.badges) ? summaryData.badges : []
+            Array.isArray(summaryData?.badges) ? summaryData.badges : [],
           );
+          setStreakMonthLabel(String(summaryData?.streakMonthLabel || ""));
         }
       } catch (e) {
         setErr(e.message || "Failed to load dashboard");
@@ -1070,7 +1325,7 @@ export default function StudentDashboard() {
     try {
       window.localStorage.setItem(
         "student-buddy-visible",
-        assistantVisible ? "visible" : "hidden"
+        assistantVisible ? "visible" : "hidden",
       );
     } catch {}
   }, [assistantVisible]);
@@ -1088,18 +1343,26 @@ export default function StudentDashboard() {
     todayStatus === "present"
       ? "bg-green-100 text-green-700"
       : todayStatus === "absent"
-      ? "bg-red-100 text-red-700"
-      : "bg-gray-100 text-gray-700";
+        ? "bg-red-100 text-red-700"
+        : "bg-gray-100 text-gray-700";
 
   const todayStatusLabel =
     todayStatus === "present"
       ? "Present"
       : todayStatus === "absent"
-      ? "Absent"
-      : "Not Marked";
-  const earnedBadgeCount = attendanceBadges.filter((badge) => badge.unlocked).length;
+        ? "Absent"
+        : "Not Marked";
+  const earnedBadgeCount = attendanceBadges.filter(
+    (badge) => badge.unlocked,
+  ).length;
   const nextBadge = attendanceBadges.find((badge) => !badge.unlocked);
   const streakNote = getStreakNote(streaks.current);
+  const profileThemeTone = getProfileThemeTone(streaks.current);
+  const showProfileFire = !loading && !err;
+  const streakPeriodLabel = streakMonthLabel || "this month";
+  const profileStreakTheme = showProfileFire
+    ? getProfileStreakTheme(profileThemeTone)
+    : null;
 
   const snapshotCards = [
     {
@@ -1126,20 +1389,20 @@ export default function StudentDashboard() {
         todayStatus === "present"
           ? CheckCircle2
           : todayStatus === "absent"
-          ? AlertCircle
-          : Clock3,
+            ? AlertCircle
+            : Clock3,
       iconWrap:
         todayStatus === "present"
           ? "bg-green-100 text-green-700"
           : todayStatus === "absent"
-          ? "bg-red-100 text-red-700"
-          : "bg-slate-100 text-slate-700",
+            ? "bg-red-100 text-red-700"
+            : "bg-slate-100 text-slate-700",
       valueClass:
         todayStatus === "present"
           ? "text-green-700"
           : todayStatus === "absent"
-          ? "text-red-700"
-          : "text-slate-700",
+            ? "text-red-700"
+            : "text-slate-700",
     },
     {
       title: "Monthly Spread",
@@ -1152,337 +1415,348 @@ export default function StudentDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0%,#eef2ff_22%,#f8fafc_56%,#f8fafc_100%)]">
-      <div className="relative overflow-visible border-b border-white/60 bg-[radial-gradient(circle_at_top_left,#eff6ff_0%,#ffffff_42%,#eef2ff_100%)] px-4 py-6 md:min-h-[240px] md:px-6 md:pb-8 md:pr-[30rem]">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.22),transparent_48%)]" />
-        <div className="pointer-events-none absolute left-10 top-8 h-20 w-20 rounded-full bg-blue-200/30 blur-2xl" />
-        <div className="pointer-events-none absolute left-44 top-14 h-14 w-14 rounded-full bg-cyan-200/30 blur-2xl" />
-        <div className="relative max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/90 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-blue-700 shadow-sm">
-            <Sparkles className="h-3.5 w-3.5" />
-            Student Dashboard
-          </div>
-
-          <div className="mt-5 flex items-center gap-4 rounded-[28px] border border-white/80 bg-white/80 p-4 shadow-[0_22px_45px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
-            <ProfileAvatar
-              src={me?.profileImage}
-              name={me?.name}
-              sizeClass="h-20 w-20"
-              textClassName="text-2xl"
-            />
-
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
-                Student Profile
-              </p>
-              <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 md:text-4xl">
-                Welcome back, {me?.name || "Student"}
-              </h1>
-
-              {loading ? (
-                <p className="mt-2 text-sm text-gray-600">
-                  Loading your dashboard...
-                </p>
-              ) : err ? (
-                <p className="mt-2 text-sm text-red-600">{err}</p>
-              ) : (
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <span className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/95 px-4 py-2 text-xs font-semibold text-gray-700 shadow-sm">
-                    <BookOpen className="h-4 w-4 text-blue-600" />
-                    {course || "Course not set"}
-                  </span>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/95 px-4 py-2 text-xs font-semibold text-gray-700 shadow-sm">
-                    <Clock3 className="h-4 w-4 text-violet-600" />
-                    {me?.year ? `Year ${me.year}` : "Year not set"}
-                  </span>
-                  <span className={`inline-flex items-center gap-2 rounded-full border border-white/80 px-4 py-2 text-xs font-semibold shadow-sm ${todayBadge}`}>
-                    <Activity className="h-4 w-4" />
-                    Today {todayStatusLabel}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        {assistantReady &&
-          (assistantVisible ? (
-            <StudentAssistant
-              assistant={assistant}
-              todayStatus={todayStatus}
-              overallAttendance={overallAttendance}
-              monthSummary={monthSummary}
-              onClose={() => setAssistantVisible(false)}
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setAssistantVisible(true)}
-              className="absolute right-4 top-4 z-30 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 shadow-[0_18px_35px_-22px_rgba(37,99,235,0.9)] transition hover:-translate-y-0.5 hover:bg-blue-50"
-              aria-label="Show student buddy"
-            >
-              <Sparkles className="h-4 w-4" />
-              Show buddy
-            </button>
-          ))}
-      </div>
-
-      <div className="space-y-6 p-4 md:p-6 md:pb-8">
-        <div className="overflow-hidden rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(239,246,255,0.92),rgba(224,231,255,0.88))] p-5 shadow-[0_30px_80px_-44px_rgba(15,23,42,0.45)] backdrop-blur md:p-7">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
-                Attendance First
-              </p>
-              <h2 className="mt-3 text-2xl font-bold text-slate-950 md:text-[2rem]">
-                Attendance Snapshot
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-gray-600 md:text-base">
-                A cleaner academic overview with your live attendance, current
-                day status, streak progress, and badge rewards all in one
-                premium card.
-              </p>
+    <>
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0%,#eef2ff_22%,#f8fafc_56%,#f8fafc_100%)]">
+        <div className="relative overflow-visible border-b border-white/60 bg-[radial-gradient(circle_at_top_left,#eff6ff_0%,#ffffff_42%,#eef2ff_100%)] px-4 py-6 md:min-h-[240px] md:px-6 md:pb-8 md:pr-[30rem]">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.22),transparent_48%)]" />
+          <div className="pointer-events-none absolute left-10 top-8 h-20 w-20 rounded-full bg-blue-200/30 blur-2xl" />
+          <div className="pointer-events-none absolute left-44 top-14 h-14 w-14 rounded-full bg-cyan-200/30 blur-2xl" />
+          <div className="relative max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/90 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-blue-700 shadow-sm">
+              <Sparkles className="h-3.5 w-3.5" />
+              Student Dashboard
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/dashboard/student/attendance"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-              >
-                Open Attendance
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
-                  Focus
-                </p>
-                <p className="mt-1 font-semibold text-gray-900">
-                  Protect your streak and stay above 75%
-                </p>
-              </div>
-            </div>
-          </div>
+            <div className="mt-5 flex items-center gap-4 rounded-[28px] border border-white/80 bg-white/80 p-4 shadow-[0_22px_45px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+              <FlameAvatar
+                src={me?.profileImage}
+                name={me?.name}
+                theme={profileStreakTheme}
+                size={208}
+              />
 
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {snapshotCards.map((card) => (
-              <div
-                key={card.title}
-                className="rounded-[26px] border border-white/80 bg-white/88 p-4 shadow-[0_18px_36px_-30px_rgba(15,23,42,0.38)] backdrop-blur md:p-5"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">
-                      {card.title}
-                    </p>
-                    <p className={`mt-3 text-3xl font-bold ${card.valueClass}`}>
-                      {card.value}
-                    </p>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
+                  Student Profile
+                </p>
+                <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 md:text-4xl">
+                  Welcome back, {me?.name || "Student"}
+                </h1>
+
+                {loading ? (
+                  <p className="mt-2 text-sm text-gray-600">
+                    Loading your dashboard...
+                  </p>
+                ) : err ? (
+                  <p className="mt-2 text-sm text-red-600">{err}</p>
+                ) : (
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/95 px-4 py-2 text-xs font-semibold text-gray-700 shadow-sm">
+                      <BookOpen className="h-4 w-4 text-blue-600" />
+                      {course || "Course not set"}
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/95 px-4 py-2 text-xs font-semibold text-gray-700 shadow-sm">
+                      <Clock3 className="h-4 w-4 text-violet-600" />
+                      {me?.year ? `Year ${me.year}` : "Year not set"}
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-2 rounded-full border border-white/80 px-4 py-2 text-xs font-semibold shadow-sm ${todayBadge}`}
+                    >
+                      <Activity className="h-4 w-4" />
+                      Today {todayStatusLabel}
+                    </span>
                   </div>
-                  <span
-                    className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${card.iconWrap}`}
-                  >
-                    <card.icon className="h-5 w-5" />
-                  </span>
-                </div>
-                <p className="mt-3 text-xs leading-5 text-gray-500">{card.note}</p>
+                )}
               </div>
+            </div>
+          </div>
+          {assistantReady &&
+            (assistantVisible ? (
+              <StudentAssistant
+                assistant={assistant}
+                todayStatus={todayStatus}
+                overallAttendance={overallAttendance}
+                monthSummary={monthSummary}
+                onClose={() => setAssistantVisible(false)}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAssistantVisible(true)}
+                className="absolute right-4 top-4 z-30 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 shadow-[0_18px_35px_-22px_rgba(37,99,235,0.9)] transition hover:-translate-y-0.5 hover:bg-blue-50"
+                aria-label="Show student buddy"
+              >
+                <Sparkles className="h-4 w-4" />
+                Show buddy
+              </button>
             ))}
-          </div>
+        </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.35fr]">
-            <div className="rounded-[28px] border border-orange-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(255,247,237,0.96),rgba(254,242,242,0.95))] p-5 shadow-[0_20px_44px_-34px_rgba(249,115,22,0.5)]">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-orange-700">
-                    Streak Meter
-                  </p>
-                  <h3 className="mt-2 text-xl font-bold text-slate-950">
-                    Show up. Stack days. Unlock more.
-                  </h3>
-                </div>
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-orange-700">
-                  <Flame className="h-5 w-5" />
-                </span>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
-                    Current
-                  </p>
-                  <p className="mt-3 text-4xl font-bold text-orange-600">
-                    {streaks.current}
-                  </p>
-                  <p className="mt-2 text-xs text-gray-500">
-                    consecutive working days
-                  </p>
-                </div>
-
-                <div className="rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
-                    Best Run
-                  </p>
-                  <p className="mt-3 text-4xl font-bold text-violet-700">
-                    {streaks.best}
-                  </p>
-                  <p className="mt-2 text-xs text-gray-500">
-                    longest streak so far
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-white/80 bg-white/75 px-4 py-3 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-gray-900">
-                    {streakProgress.nextTarget
-                      ? `Progress to ${streakProgress.nextTarget}-day streak`
-                      : "Top streak milestone"}
-                  </p>
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-700">
-                    {streakProgress.percent}%
-                  </span>
-                </div>
-                <div className="relative mt-3 h-12">
-                  <div className="absolute inset-x-0 top-1/2 h-5 -translate-y-1/2 rounded-full bg-white/90" />
-                  <div
-                    className="absolute left-0 top-1/2 h-5 -translate-y-1/2 rounded-full bg-gradient-to-r from-orange-400 via-amber-400 to-rose-400 transition-all duration-500"
-                    style={{ width: `${Math.max(0, Math.min(100, streakProgress.percent))}%` }}
-                  >
-                    {streakProgress.percent > 0 && (
-                      <span className="absolute right-[-14px] top-1/2 z-10 -translate-y-1/2">
-                        <span className="absolute left-1/2 top-1/2 h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full bg-orange-300/75 blur-md animate-pulse" />
-                        <span className="relative block animate-pulse text-[34px] leading-none drop-shadow-[0_6px_16px_rgba(249,115,22,0.95)]">
-                          ðŸ”¥
-                        </span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <p className="mt-3 text-sm font-semibold text-gray-900">{streakNote}</p>
-                <p className="mt-1 text-xs leading-5 text-orange-800">
-                  {streakProgress.message}
+        <div className="space-y-6 p-4 md:p-6 md:pb-8">
+          <div className="overflow-hidden rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(239,246,255,0.92),rgba(224,231,255,0.88))] p-5 shadow-[0_30px_80px_-44px_rgba(15,23,42,0.45)] backdrop-blur md:p-7">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
+                  Attendance First
                 </p>
-                <p className="mt-1 text-xs leading-5 text-gray-500">
-                  Holidays, Sundays, internships, and approved off-days are skipped,
-                  so they never reduce your streak. A working-day absence resets
-                  the live streak bar.
+                <h2 className="mt-3 text-2xl font-bold text-slate-950 md:text-[2rem]">
+                  Attendance Snapshot
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-gray-600 md:text-base">
+                  A cleaner academic overview with your live attendance, current
+                  day status, current-month streak progress, and monthly tier
+                  badges all in one premium card.
                 </p>
               </div>
-            </div>
 
-            <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(239,246,255,0.95),rgba(243,232,255,0.92))] p-5 shadow-[0_24px_50px_-38px_rgba(37,99,235,0.45)]">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
-                    Attendance Badges
-                  </p>
-                  <h3 className="mt-2 text-xl font-bold text-slate-950">
-                    Your consistency rewards
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-gray-600">
-                    Earn streak badges and attendance badges as your presence keeps
-                    climbing.
-                  </p>
-                </div>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/dashboard/student/attendance"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                >
+                  Open Attendance
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
                 <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
-                    Unlocked
+                    Focus
                   </p>
-                  <p className="mt-1 text-2xl font-bold text-slate-950">
-                    {earnedBadgeCount}
-                    <span className="ml-1 text-sm font-medium text-gray-500">
-                      / {attendanceBadges.length || 5}
-                    </span>
+                  <p className="mt-1 font-semibold text-gray-900">
+                    Protect your monthly streak and climb the next tier
                   </p>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {attendanceBadges.map((badge) => {
-                  const styles = getBadgeStyles(badge.tone, badge.unlocked);
-
-                  return (
-                    <div
-                      key={badge.key}
-                      className={`rounded-[24px] border p-4 shadow-sm transition ${styles.card}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <span
-                          className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${styles.icon}`}
-                        >
-                          {badge.key.startsWith("attendance") ? (
-                            <Award className="h-4 w-4" />
-                          ) : badge.key.includes("iron") ? (
-                            <Trophy className="h-4 w-4" />
-                          ) : (
-                            <Flame className="h-4 w-4" />
-                          )}
-                        </span>
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${styles.chip}`}
-                        >
-                          {badge.unlocked ? "Unlocked" : "In Progress"}
-                        </span>
-                      </div>
-
-                      <p className="mt-4 text-base font-semibold text-gray-900">
-                        {badge.title}
+            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {snapshotCards.map((card) => (
+                <div
+                  key={card.title}
+                  className="rounded-[26px] border border-white/80 bg-white/88 p-4 shadow-[0_18px_36px_-30px_rgba(15,23,42,0.38)] backdrop-blur md:p-5"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">
+                        {card.title}
                       </p>
-                      <p className="mt-1 text-xs leading-5 text-gray-600">
-                        {badge.description}
-                      </p>
-                      <p className="mt-3 text-[11px] font-semibold text-gray-500">
-                        {formatBadgeProgress(badge)}
+                      <p
+                        className={`mt-3 text-3xl font-bold ${card.valueClass}`}
+                      >
+                        {card.value}
                       </p>
                     </div>
-                  );
-                })}
-              </div>
+                    <span
+                      className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${card.iconWrap}`}
+                    >
+                      <card.icon className="h-5 w-5" />
+                    </span>
+                  </div>
+                  <p className="mt-3 text-xs leading-5 text-gray-500">
+                    {card.note}
+                  </p>
+                </div>
+              ))}
+            </div>
 
-              {nextBadge ? (
-                <div className="mt-4 rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm">
-                  <p className="font-semibold text-gray-900">
-                    Next badge: {nextBadge.title}
+            <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.35fr]">
+              <div className="rounded-[28px] border border-orange-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(255,247,237,0.96),rgba(254,242,242,0.95))] p-5 shadow-[0_20px_44px_-34px_rgba(249,115,22,0.5)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-orange-700">
+                      Streak Meter
+                    </p>
+                    <h3 className="mt-2 text-xl font-bold text-slate-950">
+                      Show up. Stack this month. Unlock more.
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-gray-600">
+                      Live streak colors and badges are tied to{" "}
+                      {streakPeriodLabel}.
+                    </p>
+                  </div>
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-orange-700">
+                    <Flame className="h-5 w-5" />
+                  </span>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+                      This Month
+                    </p>
+                    <p className="mt-3 text-4xl font-bold text-orange-600">
+                      {streaks.current}
+                    </p>
+                    <p className="mt-2 text-xs text-gray-500">
+                      present working days in a row
+                    </p>
+                  </div>
+
+                  <div className="rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+                      Best This Month
+                    </p>
+                    <p className="mt-3 text-4xl font-bold text-violet-700">
+                      {streaks.best}
+                    </p>
+                    <p className="mt-2 text-xs text-gray-500">
+                      highest run in {streakPeriodLabel}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-white/80 bg-white/75 px-4 py-3 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {streakProgress.nextTarget
+                        ? `Progress to ${streakProgress.nextTarget}-day tier`
+                        : "Premium streak tier"}
+                    </p>
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-700">
+                      {streakProgress.percent}%
+                    </span>
+                  </div>
+                  <div className="relative mt-3 h-12">
+                    <div className="absolute inset-x-0 top-1/2 h-5 -translate-y-1/2 rounded-full bg-white/90" />
+                    <div
+                      className="absolute left-0 top-1/2 h-5 -translate-y-1/2 rounded-full bg-gradient-to-r from-orange-400 via-amber-400 to-rose-400 transition-all duration-500"
+                      style={{
+                        width: `${Math.max(0, Math.min(100, streakProgress.percent))}%`,
+                      }}
+                    >
+                      {streakProgress.percent > 0 && (
+                        <span className="pointer-events-none absolute right-[-18px] top-1/2 z-10 flex h-14 w-14 -translate-y-1/2 items-center justify-center">
+                          <span className="absolute inset-[8px] rounded-full bg-orange-300/75 blur-lg animate-pulse" />
+                          <Flame className="relative h-10 w-10 animate-pulse fill-orange-500 text-orange-500 drop-shadow-[0_10px_22px_rgba(15,23,42,0.18)]" />
+                          <span className="hidden">ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¥</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-gray-900">
+                    {streakNote}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-orange-800">
+                    {streakProgress.message}
                   </p>
                   <p className="mt-1 text-xs leading-5 text-gray-500">
-                    {nextBadge.description} Progress: {formatBadgeProgress(nextBadge)}
+                    Holidays, Sundays, internships, and approved off-days are
+                    skipped, so they never reduce your streak. A working-day
+                    absence resets the live streak bar for {streakPeriodLabel}.
                   </p>
                 </div>
-              ) : (
-                <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm shadow-sm">
-                  <p className="font-semibold text-emerald-800">
-                    Every attendance badge is unlocked right now.
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-emerald-700">
-                    Keep the streak alive and protect that momentum.
-                  </p>
+              </div>
+
+              <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(239,246,255,0.95),rgba(243,232,255,0.92))] p-5 shadow-[0_24px_50px_-38px_rgba(37,99,235,0.45)]">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
+                      Monthly Streak Badges
+                    </p>
+                    <h3 className="mt-2 text-xl font-bold text-slate-950">
+                      Your tier ladder
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-gray-600">
+                      Each badge follows your confirmed attendance streak in{" "}
+                      {streakPeriodLabel}.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+                      Unlocked
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-slate-950">
+                      {earnedBadgeCount}
+                      <span className="ml-1 text-sm font-medium text-gray-500">
+                        / {attendanceBadges.length || 6}
+                      </span>
+                    </p>
+                  </div>
                 </div>
-              )}
+
+                <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {attendanceBadges.map((badge) => {
+                    const styles = getBadgeStyles(badge.tone, badge.unlocked);
+                    const BadgeIcon = getBadgeIcon(badge.icon);
+
+                    return (
+                      <div
+                        key={badge.key}
+                        className={`rounded-[24px] border p-4 shadow-sm transition ${styles.card}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <span
+                            className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${styles.icon}`}
+                          >
+                            <BadgeIcon className="h-4 w-4" />
+                          </span>
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${styles.chip}`}
+                          >
+                            {badge.unlocked ? "Unlocked" : "In Progress"}
+                          </span>
+                        </div>
+
+                        <p className="mt-4 text-base font-semibold text-gray-900">
+                          {badge.title}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-gray-600">
+                          {badge.description}
+                        </p>
+                        <p className="mt-3 text-[11px] font-semibold text-gray-500">
+                          {formatBadgeProgress(badge)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {nextBadge ? (
+                  <div className="mt-4 rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm">
+                    <p className="font-semibold text-gray-900">
+                      Next badge: {nextBadge.title}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-gray-500">
+                      {nextBadge.description} Progress:{" "}
+                      {formatBadgeProgress(nextBadge)}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm shadow-sm">
+                    <p className="font-semibold text-emerald-800">
+                      Every monthly streak badge is unlocked right now.
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-emerald-700">
+                      Keep protecting {streakPeriodLabel} and hold that premium
+                      momentum.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <ComingSoonCard
-            title="Results Module"
-            description="Marks, semester result summaries, and performance insights are being polished for your dashboard."
-            icon={TrendingUp}
-            accent="blue"
-          />
-          <ComingSoonCard
-            title="Fees Module"
-            description="A smoother fees experience is on the way with payment history, dues, and reminders in one place."
-            icon={Receipt}
-            accent="amber"
-          />
-          <ComingSoonCard
-            title="Assignments Module"
-            description="Upcoming assignment tracking and submission progress are being prepared for this section."
-            icon={FileClock}
-            accent="emerald"
-          />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <ComingSoonCard
+              title="Results Module"
+              description="Marks, semester result summaries, and performance insights are being polished for your dashboard."
+              icon={TrendingUp}
+              accent="blue"
+            />
+            <ComingSoonCard
+              title="Fees Module"
+              description="A smoother fees experience is on the way with payment history, dues, and reminders in one place."
+              icon={Receipt}
+              accent="amber"
+            />
+            <ComingSoonCard
+              title="Assignments Module"
+              description="Upcoming assignment tracking and submission progress are being prepared for this section."
+              icon={FileClock}
+              accent="emerald"
+            />
+          </div>
         </div>
       </div>
-
-    </div>
+    </>
   );
 }

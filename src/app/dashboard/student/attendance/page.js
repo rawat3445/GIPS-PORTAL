@@ -110,11 +110,20 @@ function getBadgeStyles(tone, unlocked) {
     };
   }
 
+  if (tone === "indigo") {
+    return {
+      card: "border-indigo-200 bg-indigo-50 text-indigo-900",
+      chip: "bg-indigo-100 text-indigo-700",
+      icon: "bg-indigo-100 text-indigo-700",
+    };
+  }
+
   if (tone === "rose") {
     return {
-      card: "border-rose-200 bg-rose-50 text-rose-900",
-      chip: "bg-rose-100 text-rose-700",
-      icon: "bg-rose-100 text-rose-700",
+      card:
+        "border-rose-200 bg-[linear-gradient(135deg,rgba(255,241,242,0.98),rgba(255,255,255,0.96),rgba(254,243,199,0.94))] text-rose-900",
+      chip: "bg-gradient-to-r from-rose-100 to-amber-100 text-rose-700",
+      icon: "bg-gradient-to-br from-rose-100 to-amber-100 text-rose-700",
     };
   }
 
@@ -133,11 +142,19 @@ function getBadgeStyles(tone, unlocked) {
   };
 }
 
-function formatBadgeProgress(badge) {
-  if (badge.key.startsWith("attendance")) {
-    return `${badge.progress}% of ${badge.target}%`;
+function getBadgeIcon(icon) {
+  if (icon === "trophy") {
+    return Trophy;
   }
 
+  if (icon === "award") {
+    return Award;
+  }
+
+  return Flame;
+}
+
+function formatBadgeProgress(badge) {
   return `${Math.min(badge.progress, badge.target)}/${badge.target} days`;
 }
 
@@ -243,12 +260,13 @@ export default function StudentAttendancePage() {
     target: 3,
     nextTarget: 3,
     percent: 0,
-    message: "Start attending regularly to build your first streak.",
+    message: "Start attending regularly this month to build your streak.",
     resetsOnAbsent: true,
   };
   const badges = summary?.badges || [];
   const earnedBadgeCount = badges.filter((badge) => badge.unlocked).length;
   const nextBadge = badges.find((badge) => !badge.unlocked);
+  const streakMonthLabel = summary?.streakMonthLabel || getMonthLabel(getCurrentMonthKey());
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0%,#eef2ff_22%,#f8fafc_56%,#f8fafc_100%)]">
@@ -397,10 +415,11 @@ export default function StudentAttendancePage() {
                       Attendance Streak
                     </p>
                     <h2 className="mt-2 text-2xl font-bold text-slate-950">
-                      Keep the chain alive
+                      Keep the monthly chain alive
                     </h2>
                     <p className="mt-2 text-sm leading-7 text-gray-600">
-                      Only working days count. Sundays, vacations, holidays,
+                      This streak ladder always follows {streakMonthLabel}. Only
+                      working days count, while Sundays, vacations, holidays,
                       internships, and approved off-days are skipped automatically.
                     </p>
                   </div>
@@ -412,7 +431,7 @@ export default function StudentAttendancePage() {
                 <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="rounded-[24px] border border-white/80 bg-white/85 p-5 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
-                      Current Streak
+                      Live This Month
                     </p>
                     <p className="mt-3 text-4xl font-bold text-orange-600">
                       {streaks.current}
@@ -424,13 +443,13 @@ export default function StudentAttendancePage() {
 
                   <div className="rounded-[24px] border border-white/80 bg-white/85 p-5 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
-                      Best Streak
+                      Best This Month
                     </p>
                     <p className="mt-3 text-4xl font-bold text-violet-700">
                       {streaks.best}
                     </p>
                     <p className="mt-2 text-xs text-gray-500">
-                      best attendance run so far
+                      highest run in {streakMonthLabel}
                     </p>
                   </div>
                 </div>
@@ -439,8 +458,8 @@ export default function StudentAttendancePage() {
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-gray-900">
                       {streakProgress.nextTarget
-                        ? `Progress to ${streakProgress.nextTarget}-day streak`
-                        : "Top streak milestone"}
+                        ? `Progress to ${streakProgress.nextTarget}-day tier`
+                        : "Premium streak tier"}
                     </p>
                     <span className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-700">
                       {streakProgress.percent}%
@@ -453,9 +472,10 @@ export default function StudentAttendancePage() {
                       style={{ width: `${Math.max(0, Math.min(100, streakProgress.percent))}%` }}
                     >
                       {streakProgress.percent > 0 && (
-                        <span className="absolute right-[-14px] top-1/2 z-10 -translate-y-1/2">
-                          <span className="absolute left-1/2 top-1/2 h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full bg-orange-300/75 blur-md animate-pulse" />
-                          <span className="relative block animate-pulse text-[34px] leading-none drop-shadow-[0_6px_16px_rgba(249,115,22,0.95)]">
+                        <span className="pointer-events-none absolute right-[-18px] top-1/2 z-10 flex h-14 w-14 -translate-y-1/2 items-center justify-center">
+                          <span className="absolute inset-[8px] rounded-full bg-orange-300/75 blur-lg animate-pulse" />
+                          <Flame className="relative h-10 w-10 animate-pulse fill-orange-500 text-orange-500 drop-shadow-[0_10px_22px_rgba(15,23,42,0.18)]" />
+                          <span className="hidden">
                             🔥
                           </span>
                         </span>
@@ -468,6 +488,8 @@ export default function StudentAttendancePage() {
                   <p className="mt-1 text-xs leading-5 text-gray-500">
                     Only a working-day absence resets the live streak. Holidays,
                     Sundays, vacations, internships, and other off-days are skipped.
+                    This card stays tied to {streakMonthLabel} even when you browse
+                    another month in the calendar.
                   </p>
                 </div>
               </div>
@@ -479,10 +501,11 @@ export default function StudentAttendancePage() {
                       Badge Cabinet
                     </p>
                     <h2 className="mt-2 text-2xl font-bold text-slate-950">
-                      Attendance rewards
+                      Monthly streak rewards
                     </h2>
                     <p className="mt-2 text-sm leading-7 text-gray-600">
-                      Your streaks and overall attendance unlock new badges over time.
+                      The badge order follows the current-month tier ladder from
+                      Amber Ember to Rose Crown.
                     </p>
                   </div>
                   <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm">
@@ -492,7 +515,7 @@ export default function StudentAttendancePage() {
                     <p className="mt-1 text-2xl font-bold text-slate-950">
                       {earnedBadgeCount}
                       <span className="ml-1 text-sm font-medium text-gray-500">
-                        / {badges.length || 5}
+                        / {badges.length || 6}
                       </span>
                     </p>
                   </div>
@@ -501,6 +524,7 @@ export default function StudentAttendancePage() {
                 <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {badges.map((badge) => {
                     const styles = getBadgeStyles(badge.tone, badge.unlocked);
+                    const BadgeIcon = getBadgeIcon(badge.icon);
 
                     return (
                       <div
@@ -511,13 +535,7 @@ export default function StudentAttendancePage() {
                           <span
                             className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${styles.icon}`}
                           >
-                            {badge.key.startsWith("attendance") ? (
-                              <Award className="h-4 w-4" />
-                            ) : badge.key.includes("iron") ? (
-                              <Trophy className="h-4 w-4" />
-                            ) : (
-                              <Flame className="h-4 w-4" />
-                            )}
+                            <BadgeIcon className="h-4 w-4" />
                           </span>
                           <span
                             className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${styles.chip}`}
@@ -552,10 +570,10 @@ export default function StudentAttendancePage() {
                 ) : (
                   <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
                     <p className="text-sm font-semibold text-emerald-800">
-                      You have unlocked every attendance badge for now.
+                      You have unlocked every monthly streak badge for now.
                     </p>
                     <p className="mt-1 text-xs leading-5 text-emerald-700">
-                      Keep your current streak active and protect that record.
+                      Keep your current streak active and protect that premium tier.
                     </p>
                   </div>
                 )}
