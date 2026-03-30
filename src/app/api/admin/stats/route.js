@@ -29,6 +29,8 @@ function formatFaculty(faculty) {
     name: faculty.name,
     email: faculty.email,
     assignedCourse: faculty.assignedCourse || "",
+    facultyType: faculty.facultyType || "teaching",
+    designation: faculty.designation || "",
   };
 }
 
@@ -66,7 +68,7 @@ export async function GET() {
         { $sort: { _id: 1 } },
       ]),
       User.aggregate([
-        { $match: { role: "faculty" } },
+        { $match: { role: "faculty", facultyType: { $ne: "nonTeaching" } } },
         { $group: { _id: "$assignedCourse", count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
       ]),
@@ -141,8 +143,11 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .lean();
 
-    const facultyDocs = await User.find({ role: "faculty" })
-      .select("name email assignedCourse")
+    const facultyDocs = await User.find({
+      role: "faculty",
+      facultyType: { $ne: "nonTeaching" },
+    })
+      .select("name email assignedCourse facultyType designation")
       .sort({ name: 1 })
       .lean();
 

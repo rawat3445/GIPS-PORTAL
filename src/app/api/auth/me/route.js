@@ -16,7 +16,7 @@ export async function GET(req) {
     await connectDB();
 
     const user = await User.findById(decoded.id).select(
-      "name email role assignedCourse course year enrollmentNo profileImage",
+      "name email role assignedCourse facultyType designation phone course year enrollmentNo profileImage",
     );
 
     if (!user) {
@@ -30,6 +30,9 @@ export async function GET(req) {
         email: user.email,
         role: user.role,
         assignedCourse: user.assignedCourse || "",
+        facultyType: user.facultyType || "teaching",
+        designation: user.designation || "",
+        phone: user.phone || "",
         course: user.course || user.assignedCourse || "",
         year: user.year || null,
         enrollmentNo: user.enrollmentNo || "",

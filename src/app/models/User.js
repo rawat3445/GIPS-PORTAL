@@ -41,11 +41,28 @@ const userSchema = new mongoose.Schema(
     },
 
     // ================= FACULTY =================
+    facultyType: {
+      type: String,
+      enum: ["teaching", "nonTeaching"],
+      default: "teaching",
+      required: function () {
+        return this.role === "faculty";
+      },
+    },
+
     assignedCourse: {
       type: String,
       enum: ["BPT", "BOPTOM", "BMRIT", "DOPTOM", "BOTT"],
       required: function () {
-        return this.role === "faculty";
+        return this.role === "faculty" && this.facultyType !== "nonTeaching";
+      },
+    },
+
+    designation: {
+      type: String,
+      trim: true,
+      required: function () {
+        return this.role === "faculty" && this.facultyType === "nonTeaching";
       },
     },
 
@@ -81,7 +98,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       required: function () {
-        return this.role === "student";
+        return (
+          this.role === "student" ||
+          (this.role === "faculty" && this.facultyType === "nonTeaching")
+        );
       },
     },
   },
@@ -89,11 +109,19 @@ const userSchema = new mongoose.Schema(
 );
 
 const existingUserModel = mongoose.models.User;
+const existingAssignedCourseRequired =
+  existingUserModel?.schema.path("assignedCourse")?.options?.required;
+const existingPhoneRequired =
+  existingUserModel?.schema.path("phone")?.options?.required;
 
 if (
   existingUserModel &&
   (!existingUserModel.schema.path("profileImage") ||
-    !existingUserModel.schema.path("profileImagePublicId"))
+    !existingUserModel.schema.path("profileImagePublicId") ||
+    !existingUserModel.schema.path("facultyType") ||
+    !existingUserModel.schema.path("designation") ||
+    !String(existingAssignedCourseRequired || "").includes("facultyType") ||
+    !String(existingPhoneRequired || "").includes("facultyType"))
 ) {
   delete mongoose.models.User;
 }

@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   BarChart3,
+  BriefcaseBusiness,
   CalendarDays,
+  GraduationCap,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -14,40 +16,115 @@ import {
   ShieldCheck,
   Sparkles,
   Users,
-  UsersRound,
 } from "lucide-react";
+
+function NavLink({
+  href,
+  icon: Icon,
+  label,
+  isActive,
+  sidebarOpen,
+  onNavigate,
+  nested = false,
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className={`group relative flex items-center rounded-2xl py-3 transition ${
+        isActive
+          ? "bg-white text-slate-900 shadow-[0_16px_35px_-18px_rgba(255,255,255,0.7)]"
+          : "text-amber-50/90 hover:bg-white/10 hover:text-white"
+      } ${
+        sidebarOpen
+          ? `${nested ? "ml-4 gap-3 px-4" : "gap-3 px-4"} justify-start`
+          : "justify-center px-2"
+      }`}
+    >
+      <span
+        className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ${
+          isActive
+            ? "bg-amber-100 text-amber-700"
+            : "bg-white/8 text-amber-100 group-hover:bg-white/14"
+        }`}
+      >
+        <Icon className="h-5 w-5" />
+      </span>
+      {sidebarOpen && <span className="truncate font-medium">{label}</span>}
+      {!sidebarOpen && <span className="sr-only">{label}</span>}
+    </Link>
+  );
+}
 
 export default function AdminLayoutClient({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [me, setMe] = useState(null);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
 
-  const menuItems = [
+  const currentFacultyType =
+    searchParams.get("type") === "nonTeaching" ? "nonTeaching" : "teaching";
+
+  const directItems = [
     {
       name: "Dashboard",
       href: "/dashboard/admin",
       icon: LayoutDashboard,
+      isActive: pathname === "/dashboard/admin",
     },
     {
       name: "Statistics",
       href: "/dashboard/admin/stats",
       icon: BarChart3,
-    },
-    {
-      name: "Attendance",
-      href: "/dashboard/admin/attendance",
-      icon: CalendarDays,
+      isActive: pathname === "/dashboard/admin/stats",
     },
     {
       name: "Students",
       href: "/dashboard/admin/students",
       icon: Users,
+      isActive: pathname === "/dashboard/admin/students",
+    },
+  ];
+
+  const groupedItems = [
+    {
+      label: "Attendance",
+      items: [
+        {
+          name: "Student Attendance",
+          href: "/dashboard/admin/attendance",
+          icon: CalendarDays,
+          isActive: pathname === "/dashboard/admin/attendance",
+        },
+        {
+          name: "Faculty Attendance",
+          href: "/dashboard/admin/attendance/faculty",
+          icon: CalendarDays,
+          isActive: pathname === "/dashboard/admin/attendance/faculty",
+        },
+      ],
     },
     {
-      name: "Faculty",
-      href: "/dashboard/admin/faculty",
-      icon: UsersRound,
+      label: "Faculty",
+      items: [
+        {
+          name: "Teaching Faculty",
+          href: "/dashboard/admin/faculty?type=teaching",
+          icon: GraduationCap,
+          isActive:
+            pathname === "/dashboard/admin/faculty" &&
+            currentFacultyType === "teaching",
+        },
+        {
+          name: "Non-Teaching Faculty",
+          href: "/dashboard/admin/faculty?type=nonTeaching",
+          icon: BriefcaseBusiness,
+          isActive:
+            pathname === "/dashboard/admin/faculty" &&
+            currentFacultyType === "nonTeaching",
+        },
+      ],
     },
   ];
 
@@ -95,6 +172,12 @@ export default function AdminLayoutClient({ children }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const handleNavigate = () => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7_0%,#fff7ed_28%,#f8fafc_62%,#f8fafc_100%)]">
       {sidebarOpen && (
@@ -107,8 +190,8 @@ export default function AdminLayoutClient({ children }) {
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex flex-col overflow-x-hidden border-r border-white/10 bg-[linear-gradient(180deg,#3f1d12_0%,#b45309_42%,#111827_100%)] text-white shadow-[24px_0_80px_-42px_rgba(15,23,42,0.9)] transition-all duration-300 md:static md:z-auto ${
           sidebarOpen
-            ? "translate-x-0 w-64"
-            : "-translate-x-full w-64 md:translate-x-0 md:w-24"
+            ? "translate-x-0 w-72"
+            : "-translate-x-full w-72 md:translate-x-0 md:w-24"
         }`}
       >
         <div className="border-b border-white/10 p-4">
@@ -161,43 +244,39 @@ export default function AdminLayoutClient({ children }) {
           )}
 
           <div className="space-y-2">
-            {menuItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => {
-                    if (window.innerWidth < 768) {
-                      setSidebarOpen(false);
-                    }
-                  }}
-                  className={`group relative flex items-center rounded-2xl py-3 transition ${
-                    isActive
-                      ? "bg-white text-slate-900 shadow-[0_16px_35px_-18px_rgba(255,255,255,0.7)]"
-                      : "text-amber-50/90 hover:bg-white/10 hover:text-white"
-                  } ${
-                    sidebarOpen
-                      ? "gap-3 px-4 justify-start"
-                      : "justify-center px-2"
-                  }`}
-                >
-                  <span
-                    className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ${
-                      isActive
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-white/8 text-amber-100 group-hover:bg-white/14"
-                    }`}
-                  >
-                    <item.icon className="h-5 w-5" />
-                  </span>
-                  {sidebarOpen && (
-                    <span className="truncate font-medium">{item.name}</span>
-                  )}
-                  {!sidebarOpen && <span className="sr-only">{item.name}</span>}
-                </Link>
-              );
-            })}
+            {directItems.map((item) => (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                icon={item.icon}
+                label={item.name}
+                isActive={item.isActive}
+                sidebarOpen={sidebarOpen}
+                onNavigate={handleNavigate}
+              />
+            ))}
+
+            {groupedItems.map((group) => (
+              <div key={group.label} className="space-y-2">
+                {sidebarOpen && (
+                  <p className="px-4 pt-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-100/70">
+                    {group.label}
+                  </p>
+                )}
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.href}
+                    href={item.href}
+                    icon={item.icon}
+                    label={item.name}
+                    isActive={item.isActive}
+                    sidebarOpen={sidebarOpen}
+                    onNavigate={handleNavigate}
+                    nested={sidebarOpen}
+                  />
+                ))}
+              </div>
+            ))}
           </div>
         </nav>
 

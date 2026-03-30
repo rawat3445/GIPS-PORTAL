@@ -1360,6 +1360,11 @@ export default function StudentDashboard() {
   const profileThemeTone = getProfileThemeTone(streaks.current);
   const showProfileFire = !loading && !err;
   const streakPeriodLabel = streakMonthLabel || "this month";
+  const normalizedStreakPercent = Math.max(
+    0,
+    Math.min(100, streakProgress.percent),
+  );
+  const streakMarkerLeft = `clamp(1.5rem, ${normalizedStreakPercent}%, calc(100% - 1.5rem))`;
   const profileStreakTheme = showProfileFire
     ? getProfileStreakTheme(profileThemeTone)
     : null;
@@ -1427,7 +1432,7 @@ export default function StudentDashboard() {
               Student Dashboard
             </div>
 
-            <div className="mt-5 flex items-center gap-4 rounded-[28px] border border-white/80 bg-white/80 p-4 shadow-[0_22px_45px_-30px_rgba(15,23,42,0.28)] backdrop-blur">
+            <div className="mt-5 flex flex-col items-center gap-4 rounded-[28px] border border-white/80 bg-white/80 p-4 text-center shadow-[0_22px_45px_-30px_rgba(15,23,42,0.28)] backdrop-blur sm:p-5 md:flex-row md:items-center md:text-left">
               <FlameAvatar
                 src={me?.profileImage}
                 name={me?.name}
@@ -1435,7 +1440,7 @@ export default function StudentDashboard() {
                 size={208}
               />
 
-              <div className="min-w-0">
+              <div className="w-full min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
                   Student Profile
                 </p>
@@ -1450,7 +1455,7 @@ export default function StudentDashboard() {
                 ) : err ? (
                   <p className="mt-2 text-sm text-red-600">{err}</p>
                 ) : (
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-3 md:justify-start">
                     <span className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/95 px-4 py-2 text-xs font-semibold text-gray-700 shadow-sm">
                       <BookOpen className="h-4 w-4 text-blue-600" />
                       {course || "Course not set"}
@@ -1483,7 +1488,7 @@ export default function StudentDashboard() {
               <button
                 type="button"
                 onClick={() => setAssistantVisible(true)}
-                className="absolute right-4 top-4 z-30 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 shadow-[0_18px_35px_-22px_rgba(37,99,235,0.9)] transition hover:-translate-y-0.5 hover:bg-blue-50"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 shadow-[0_18px_35px_-22px_rgba(37,99,235,0.9)] transition hover:-translate-y-0.5 hover:bg-blue-50 md:absolute md:right-4 md:top-4 md:mt-0 md:w-auto"
                 aria-label="Show student buddy"
               >
                 <Sparkles className="h-4 w-4" />
@@ -1509,15 +1514,15 @@ export default function StudentDashboard() {
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
                   href="/dashboard/student/attendance"
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto"
                 >
                   Open Attendance
                   <ArrowRight className="h-4 w-4" />
                 </Link>
-                <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm">
+                <div className="w-full rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm sm:w-auto">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
                     Focus
                   </p>
@@ -1578,7 +1583,7 @@ export default function StudentDashboard() {
                   </span>
                 </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
                       This Month
@@ -1605,7 +1610,7 @@ export default function StudentDashboard() {
                 </div>
 
                 <div className="mt-4 rounded-2xl border border-white/80 bg-white/75 px-4 py-3 shadow-sm">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm font-semibold text-gray-900">
                       {streakProgress.nextTarget
                         ? `Progress to ${streakProgress.nextTarget}-day tier`
@@ -1615,22 +1620,24 @@ export default function StudentDashboard() {
                       {streakProgress.percent}%
                     </span>
                   </div>
-                  <div className="relative mt-3 h-12">
-                    <div className="absolute inset-x-0 top-1/2 h-5 -translate-y-1/2 rounded-full bg-white/90" />
+                  <div className="relative mt-3 h-14 overflow-visible sm:h-16">
+                    <div className="absolute inset-x-0 bottom-1 h-4 rounded-full bg-white/90" />
                     <div
-                      className="absolute left-0 top-1/2 h-5 -translate-y-1/2 rounded-full bg-gradient-to-r from-orange-400 via-amber-400 to-rose-400 transition-all duration-500"
+                      className="absolute bottom-1 left-0 h-4 rounded-full bg-gradient-to-r from-orange-400 via-amber-400 to-rose-400 transition-all duration-500"
                       style={{
-                        width: `${Math.max(0, Math.min(100, streakProgress.percent))}%`,
+                        width: `${normalizedStreakPercent}%`,
                       }}
-                    >
-                      {streakProgress.percent > 0 && (
-                        <span className="pointer-events-none absolute right-[-18px] top-1/2 z-10 flex h-14 w-14 -translate-y-1/2 items-center justify-center">
-                          <span className="absolute inset-[8px] rounded-full bg-orange-300/75 blur-lg animate-pulse" />
-                          <Flame className="relative h-10 w-10 animate-pulse fill-orange-500 text-orange-500 drop-shadow-[0_10px_22px_rgba(15,23,42,0.18)]" />
-                          <span className="hidden">ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¥</span>
-                        </span>
-                      )}
-                    </div>
+                    />
+                    {normalizedStreakPercent > 0 && (
+                      <span
+                        className="pointer-events-none absolute bottom-4 z-10 flex  h-[-10] -translate-x-1/2 items-center justify-center sm:bottom-5 sm:h-12 sm:w-12"
+                        style={{ left: streakMarkerLeft }}
+                      >
+                        <span className="absolute inset-[6px] rounded-full bg-orange-300/75 blur-lg animate-pulse sm:inset-[7px]" />
+                        <Flame className="relative h-7 animate-pulse fill-orange-500 text-orange-500 drop-shadow-[0_10px_22px_rgba(15,23,42,0.18)] sm:h-12 sm:w-8" />
+                        <span className="hidden">ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¥</span>
+                      </span>
+                    )}
                   </div>
                   <p className="mt-3 text-sm font-semibold text-gray-900">
                     {streakNote}

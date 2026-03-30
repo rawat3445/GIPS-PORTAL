@@ -90,6 +90,7 @@ export async function PATCH(req, { params }) {
 
     const previousProfileImagePublicId = user.profileImagePublicId || "";
     const updates = {};
+    const unsetFields = {};
 
     if (typeof body.name === "string" && body.name.trim()) {
       updates.name = body.name.trim();
@@ -124,8 +125,46 @@ export async function PATCH(req, { params }) {
     }
 
     if (user.role === "faculty") {
-      if (typeof body.assignedCourse === "string" && body.assignedCourse.trim()) {
-        updates.assignedCourse = body.assignedCourse.trim().toUpperCase();
+      const nextFacultyType =
+        typeof body.facultyType === "string" && body.facultyType.trim()
+          ? body.facultyType.trim() === "nonTeaching"
+            ? "nonTeaching"
+            : "teaching"
+          : user.facultyType || "teaching";
+
+      if (typeof body.facultyType === "string" && body.facultyType.trim()) {
+        updates.facultyType = nextFacultyType;
+      }
+
+      if (typeof body.phone === "string") {
+        const trimmedPhone = body.phone.trim();
+        if (trimmedPhone) {
+          updates.phone = trimmedPhone;
+        } else if (user.phone) {
+          unsetFields.phone = 1;
+        }
+      }
+
+      if (nextFacultyType === "nonTeaching") {
+        unsetFields.assignedCourse = 1;
+
+        if (typeof body.designation === "string") {
+          const trimmedDesignation = body.designation.trim();
+          if (trimmedDesignation) {
+            updates.designation = trimmedDesignation;
+          } else if (user.designation) {
+            unsetFields.designation = 1;
+          }
+        }
+      } else {
+        unsetFields.designation = 1;
+
+        if (
+          typeof body.assignedCourse === "string" &&
+          body.assignedCourse.trim()
+        ) {
+          updates.assignedCourse = body.assignedCourse.trim().toUpperCase();
+        }
       }
     }
 
@@ -151,17 +190,22 @@ export async function PATCH(req, { params }) {
       }
     }
 
-    if (Object.keys(updates).length === 0) {
+    if (Object.keys(updates).length === 0 && Object.keys(unsetFields).length === 0) {
       return NextResponse.json(
         { message: "No valid fields provided for update" },
         { status: 400 }
       );
     }
 
-    await User.collection.updateOne(
-      { _id: user._id },
-      { $set: updates },
-    );
+    const updateDoc = {};
+    if (Object.keys(updates).length > 0) {
+      updateDoc.$set = updates;
+    }
+    if (Object.keys(unsetFields).length > 0) {
+      updateDoc.$unset = unsetFields;
+    }
+
+    await User.collection.updateOne({ _id: user._id }, updateDoc);
 
     const updatedUser = await User.collection.findOne(
       { _id: user._id },

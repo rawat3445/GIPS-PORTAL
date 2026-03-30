@@ -32,6 +32,11 @@ export default function MarkAttendanceRedirectPage() {
           return;
         }
 
+        if (String(user?.facultyType || "").trim() === "nonTeaching") {
+          router.replace("/dashboard/faculty/see-attendance");
+          return;
+        }
+
         if (!user?.assignedCourse) {
           setError("Course not assigned. Contact admin.");
           return;

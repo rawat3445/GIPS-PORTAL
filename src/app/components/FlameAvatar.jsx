@@ -272,15 +272,23 @@ export default function FlameAvatar({
   theme = null,
   size = 168,
 }) {
-  const [flameReady, setFlameReady] = useState(false);
+  const [readyThemeKey, setReadyThemeKey] = useState("");
   const canvasRef = useRef(null);
   const hasFlameTheme = Boolean(theme);
   const resolvedTheme = theme || DEFAULT_THEME;
   const shellSize = Math.round(size * SHELL_RATIO);
+  const themeKey = hasFlameTheme
+    ? [
+        resolvedTheme.flameOuter,
+        resolvedTheme.flameInner,
+        resolvedTheme.flameCore,
+        resolvedTheme.flameStroke,
+      ].join("|")
+    : "";
+  const flameReady = hasFlameTheme && readyThemeKey === themeKey;
 
   useEffect(() => {
     if (!hasFlameTheme) {
-      setFlameReady(false);
       return undefined;
     }
 
@@ -334,7 +342,7 @@ export default function FlameAvatar({
 
       if (!painted && active) {
         painted = true;
-        setFlameReady(true);
+        setReadyThemeKey(themeKey);
       }
 
       frameId = window.requestAnimationFrame(render);
@@ -348,6 +356,7 @@ export default function FlameAvatar({
     };
   }, [
     hasFlameTheme,
+    themeKey,
     resolvedTheme.flameOuter,
     resolvedTheme.flameInner,
     resolvedTheme.flameCore,

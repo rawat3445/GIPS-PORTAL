@@ -38,7 +38,9 @@ export async function POST(req) {
       email,
       password,
       role,
+      facultyType,
       assignedCourse,
+      designation,
       enrollmentNo,
       course,
       year,
@@ -50,9 +52,14 @@ export async function POST(req) {
     const normalizedEmail = String(email || "").trim().toLowerCase();
     const normalizedPassword = String(password || "");
     const normalizedRole = String(role || "").trim().toLowerCase();
+    const normalizedFacultyType =
+      String(facultyType || "").trim() === "nonTeaching"
+        ? "nonTeaching"
+        : "teaching";
     const normalizedAssignedCourse = String(assignedCourse || "")
       .trim()
       .toUpperCase();
+    const normalizedDesignation = String(designation || "").trim();
     const normalizedEnrollmentNo = String(enrollmentNo || "").trim();
     const normalizedCourse = String(course || "").trim().toUpperCase();
     const normalizedPhone = String(phone || "").trim();
@@ -73,11 +80,23 @@ export async function POST(req) {
       email: normalizedEmail,
       password: hashedPassword,
       role: normalizedRole,
-      assignedCourse: normalizedAssignedCourse || undefined,
+      facultyType:
+        normalizedRole === "faculty" ? normalizedFacultyType : undefined,
+      assignedCourse:
+        normalizedRole === "faculty" && normalizedFacultyType !== "nonTeaching"
+          ? normalizedAssignedCourse || undefined
+          : undefined,
+      designation:
+        normalizedRole === "faculty" && normalizedFacultyType === "nonTeaching"
+          ? normalizedDesignation || undefined
+          : undefined,
       enrollmentNo: normalizedEnrollmentNo || undefined,
       course: normalizedCourse || undefined,
       year: Number.isNaN(normalizedYear) ? undefined : normalizedYear,
-      phone: normalizedPhone || undefined,
+      phone:
+        normalizedRole === "student" || normalizedRole === "faculty"
+          ? normalizedPhone || undefined
+          : undefined,
     });
 
     if (uploadedImage?.profileImage) {
@@ -122,6 +141,7 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const role = searchParams.get("role");
+    const facultyType = searchParams.get("facultyType");
 
     if (!role) {
       return NextResponse.json(
@@ -130,7 +150,21 @@ export async function GET(req) {
       );
     }
 
-    const users = await User.find({ role }).select("-password");
+    const query = { role };
+
+    if (role === "faculty") {
+      if (facultyType === "nonTeaching") {
+        query.facultyType = "nonTeaching";
+      } else if (facultyType === "teaching") {
+        query.$or = [
+          { facultyType: "teaching" },
+          { facultyType: { $exists: false } },
+          { facultyType: null },
+        ];
+      }
+    }
+
+    const users = await User.find(query).select("-password").sort({ name: 1 });
 
     return NextResponse.json(users);
   } catch (error) {

@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Eye,
   PanelLeftClose,
   PanelLeftOpen,
   Sparkles,
@@ -21,6 +22,8 @@ export default function FacultyLayoutClient({ children }) {
   const [me, setMe] = useState(null);
   const pathname = usePathname();
   const router = useRouter();
+  const isNonTeaching =
+    String(me?.facultyType || "").trim() === "nonTeaching";
 
   const primaryMenuItems = [
     {
@@ -28,11 +31,26 @@ export default function FacultyLayoutClient({ children }) {
       href: "/dashboard/faculty",
       icon: LayoutDashboard,
     },
-    {
-      name: "Mark Attendance",
-      href: "/dashboard/faculty/mark-attendance",
-      icon: CalendarCheck2,
-    },
+    ...(isNonTeaching
+      ? [
+          {
+            name: "See Attendance",
+            href: "/dashboard/faculty/see-attendance",
+            icon: Eye,
+          },
+        ]
+      : [
+          {
+            name: "Mark Attendance",
+            href: "/dashboard/faculty/mark-attendance",
+            icon: CalendarCheck2,
+          },
+          {
+            name: "My Attendance",
+            href: "/dashboard/faculty/see-attendance",
+            icon: Eye,
+          },
+        ]),
   ];
 
   const secondaryMenuItems = [
@@ -95,7 +113,7 @@ export default function FacultyLayoutClient({ children }) {
   }, []);
 
   const facultySubText = [
-    me?.assignedCourse || "",
+    isNonTeaching ? me?.designation || "" : me?.assignedCourse || "",
     me?.email || "",
   ]
     .filter(Boolean)
@@ -132,7 +150,7 @@ export default function FacultyLayoutClient({ children }) {
                   <div className="min-w-0">
                     <h1 className="truncate text-lg font-bold">Faculty Portal</h1>
                     <p className="mt-0.5 text-xs text-indigo-100/75">
-                      Course workspace
+                      {isNonTeaching ? "Staff workspace" : "Course workspace"}
                     </p>
                   </div>
                 </div>

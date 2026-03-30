@@ -6,8 +6,11 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   BookOpen,
+  BriefcaseBusiness,
   CalendarCheck2,
   GraduationCap,
+  Mail,
+  Phone,
   PlusCircle,
   Sparkles,
 } from "lucide-react";
@@ -80,6 +83,10 @@ export default function FacultyDashboard() {
   }, []);
 
   const assigned = String(faculty?.assignedCourse || "").toUpperCase();
+  const facultyType =
+    String(faculty?.facultyType || "").trim() === "nonTeaching"
+      ? "nonTeaching"
+      : "teaching";
 
   const myCourse = useMemo(() => {
     return COURSES.find((c) => c.code === assigned) || null;
@@ -100,6 +107,81 @@ export default function FacultyDashboard() {
 
   if (error) {
     return <div className="p-6 text-red-600">{error}</div>;
+  }
+
+  if (facultyType === "nonTeaching") {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7_0%,#fff7ed_24%,#f8fafc_58%,#f8fafc_100%)]">
+        <div className="border-b border-white/70 bg-[radial-gradient(circle_at_top_left,#fff7ed_0%,#ffffff_48%,#fef3c7_100%)] px-4 py-6 md:px-6">
+          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-100 bg-white/90 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-amber-700 shadow-sm">
+                <Sparkles className="h-3.5 w-3.5" />
+                Faculty Dashboard
+              </div>
+              <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
+                Welcome back, {faculty?.name || "Faculty"}
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-gray-600 md:text-base">
+                Your non-teaching profile is active. Attendance is managed by the
+                admin panel, while this screen keeps your profile details visible.
+              </p>
+            </div>
+
+            <div className="rounded-[28px] border border-white/80 bg-white/88 p-5 shadow-[0_24px_60px_-38px_rgba(15,23,42,0.45)] backdrop-blur">
+              <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                Staff Guide
+              </div>
+              <p className="mt-4 text-lg font-semibold text-slate-950">
+                Hello, {faculty?.name || "Faculty"}.
+              </p>
+              <p className="mt-2 text-sm leading-7 text-gray-600">
+                Admin records your daily attendance, and your profile details stay
+                available here for quick reference.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6 p-4 md:p-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="rounded-[28px] border border-white/80 bg-white/90 p-5 shadow-[0_24px_55px_-36px_rgba(15,23,42,0.38)]">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                <BriefcaseBusiness className="h-5 w-5" />
+              </span>
+              <p className="mt-4 text-sm font-medium text-gray-500">Role</p>
+              <p className="mt-2 text-2xl font-bold text-slate-950">
+                Non-Teaching
+              </p>
+              <p className="mt-2 text-sm text-gray-600">
+                {faculty?.designation || "Designation not added yet"}
+              </p>
+            </div>
+
+            <div className="rounded-[28px] border border-white/80 bg-white/90 p-5 shadow-[0_24px_55px_-36px_rgba(15,23,42,0.38)]">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+                <Mail className="h-5 w-5" />
+              </span>
+              <p className="mt-4 text-sm font-medium text-gray-500">Email</p>
+              <p className="mt-2 text-lg font-bold text-slate-950 break-all">
+                {faculty?.email || "No email"}
+              </p>
+            </div>
+
+            <div className="rounded-[28px] border border-white/80 bg-white/90 p-5 shadow-[0_24px_55px_-36px_rgba(15,23,42,0.38)]">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                <Phone className="h-5 w-5" />
+              </span>
+              <p className="mt-4 text-sm font-medium text-gray-500">Phone</p>
+              <p className="mt-2 text-2xl font-bold text-slate-950">
+                {faculty?.phone || "-"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!myCourse) {
