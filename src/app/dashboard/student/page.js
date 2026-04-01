@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import FlameAvatar from "../../components/FlameAvatar";
+import ProfileAvatar from "../../components/ProfileAvatar";
 import {
   Activity,
   AlertCircle,
@@ -186,60 +187,179 @@ function ComingSoonCard({ title, description, icon: Icon, accent = "blue" }) {
   );
 }
 
-function getBadgeStyles(tone, unlocked) {
+function buildActiveBadgeStyles({
+  cardGlow,
+  glow,
+  chip,
+  icon,
+  meta,
+  note,
+}) {
+  return {
+    card: `relative isolate overflow-hidden border bg-white/98 text-slate-900 ring-2 scale-[1.02] ${cardGlow}`,
+    glow: `absolute inset-x-4 top-3 h-20 rounded-full blur-2xl opacity-100 animate-pulse ${glow}`,
+    veil: "hidden",
+    chip: `${chip} shadow-sm`,
+    icon: `${icon} shadow-[0_10px_24px_-18px_rgba(15,23,42,0.9)]`,
+    title: "text-slate-950",
+    body: "text-slate-700",
+    meta,
+    note,
+  };
+}
+
+function buildEarnedBadgeStyles({
+  card,
+  chip,
+  icon,
+  meta,
+  note,
+}) {
+  return {
+    card: `relative isolate overflow-hidden border shadow-none ${card}`,
+    glow: "hidden",
+    veil: "absolute inset-0 bg-white/35",
+    chip,
+    icon,
+    title: "text-slate-800",
+    body: "text-slate-600",
+    meta,
+    note,
+  };
+}
+
+function getBadgeStyles(tone, unlocked, isCurrentTier) {
   if (!unlocked) {
     return {
-      card: "border-white/70 bg-white/70 text-gray-500",
-      chip: "bg-gray-100 text-gray-500",
-      icon: "bg-gray-100 text-gray-400",
+      card: "border-slate-200 bg-slate-50/80 text-slate-400 opacity-75 saturate-0 shadow-none",
+      glow: "hidden",
+      chip: "border border-slate-200 bg-slate-100 text-slate-500",
+      icon: "bg-slate-100 text-slate-400",
+      title: "text-slate-600",
+      body: "text-slate-500",
+      meta: "text-slate-500",
+      note: "text-slate-500",
     };
   }
 
   if (tone === "emerald") {
-    return {
-      card: "border-emerald-200 bg-emerald-50/95 text-emerald-800",
-      chip: "bg-emerald-100 text-emerald-700",
-      icon: "bg-emerald-100 text-emerald-700",
-    };
+    return isCurrentTier
+      ? buildActiveBadgeStyles({
+          cardGlow:
+            "border-emerald-200/90 bg-[linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98),rgba(209,250,229,0.96))] ring-emerald-300/90 shadow-[0_30px_80px_-26px_rgba(5,150,105,0.52)]",
+          glow: "bg-emerald-200/80",
+          chip: "bg-emerald-100 text-emerald-700 animate-pulse",
+          icon: "bg-emerald-100 text-emerald-700",
+          meta: "text-emerald-700",
+          note: "text-emerald-700",
+        })
+      : buildEarnedBadgeStyles({
+          card: "border-emerald-200 bg-emerald-50/85 text-emerald-800",
+          chip: "border border-emerald-200 bg-white/85 text-emerald-700",
+          icon: "bg-emerald-100/90 text-emerald-700 opacity-75",
+          meta: "text-emerald-700",
+          note: "text-emerald-700",
+        });
   }
 
   if (tone === "amber") {
-    return {
-      card: "border-amber-200 bg-amber-50/95 text-amber-900",
-      chip: "bg-amber-100 text-amber-700",
-      icon: "bg-amber-100 text-amber-700",
-    };
+    return isCurrentTier
+      ? buildActiveBadgeStyles({
+          cardGlow:
+            "border-amber-200/90 bg-[linear-gradient(135deg,rgba(255,251,235,0.99),rgba(255,255,255,0.98),rgba(254,243,199,0.96))] ring-amber-300/90 shadow-[0_30px_80px_-26px_rgba(245,158,11,0.5)]",
+          glow: "bg-amber-200/80",
+          chip: "bg-amber-100 text-amber-700 animate-pulse",
+          icon: "bg-amber-100 text-amber-700",
+          meta: "text-amber-700",
+          note: "text-amber-700",
+        })
+      : buildEarnedBadgeStyles({
+          card: "border-amber-200 bg-amber-50/85 text-amber-900",
+          chip: "border border-amber-200 bg-white/85 text-amber-700",
+          icon: "bg-amber-100/90 text-amber-700 opacity-75",
+          meta: "text-amber-700",
+          note: "text-amber-700",
+        });
   }
 
   if (tone === "indigo") {
-    return {
-      card: "border-indigo-200 bg-indigo-50/95 text-indigo-900",
-      chip: "bg-indigo-100 text-indigo-700",
-      icon: "bg-indigo-100 text-indigo-700",
-    };
+    return isCurrentTier
+      ? buildActiveBadgeStyles({
+          cardGlow:
+            "border-indigo-200/90 bg-[linear-gradient(135deg,rgba(238,242,255,0.99),rgba(255,255,255,0.98),rgba(224,231,255,0.96))] ring-indigo-300/90 shadow-[0_30px_80px_-26px_rgba(99,102,241,0.54)]",
+          glow: "bg-indigo-200/80",
+          chip: "bg-indigo-100 text-indigo-700 animate-pulse",
+          icon: "bg-indigo-100 text-indigo-700",
+          meta: "text-indigo-700",
+          note: "text-indigo-700",
+        })
+      : buildEarnedBadgeStyles({
+          card: "border-indigo-200 bg-indigo-50/85 text-indigo-900",
+          chip: "border border-indigo-200 bg-white/85 text-indigo-700",
+          icon: "bg-indigo-100/90 text-indigo-700 opacity-75",
+          meta: "text-indigo-700",
+          note: "text-indigo-700",
+        });
   }
 
   if (tone === "rose") {
-    return {
-      card: "border-rose-200 bg-[linear-gradient(135deg,rgba(255,241,242,0.98),rgba(255,255,255,0.96),rgba(254,243,199,0.94))] text-rose-900",
-      chip: "bg-gradient-to-r from-rose-100 to-amber-100 text-rose-700",
-      icon: "bg-gradient-to-br from-rose-100 to-amber-100 text-rose-700",
-    };
+    return isCurrentTier
+      ? buildActiveBadgeStyles({
+          cardGlow:
+            "border-rose-200/90 bg-[linear-gradient(135deg,rgba(255,241,242,0.99),rgba(255,255,255,0.98),rgba(254,243,199,0.96))] ring-rose-300/90 shadow-[0_30px_80px_-26px_rgba(244,63,94,0.52)]",
+          glow: "bg-rose-200/80",
+          chip: "bg-gradient-to-r from-rose-100 to-amber-100 text-rose-700 animate-pulse",
+          icon: "bg-gradient-to-br from-rose-100 to-amber-100 text-rose-700",
+          meta: "text-rose-700",
+          note: "text-rose-700",
+        })
+      : buildEarnedBadgeStyles({
+          card:
+            "border-rose-200 bg-[linear-gradient(135deg,rgba(255,241,242,0.92),rgba(255,255,255,0.92),rgba(254,243,199,0.86))] text-rose-900",
+          chip: "border border-rose-200 bg-white/85 text-rose-700",
+          icon: "bg-gradient-to-br from-rose-100/90 to-amber-100/90 text-rose-700 opacity-75",
+          meta: "text-rose-700",
+          note: "text-rose-700",
+        });
   }
 
   if (tone === "violet") {
-    return {
-      card: "border-violet-200 bg-violet-50/95 text-violet-900",
-      chip: "bg-violet-100 text-violet-700",
-      icon: "bg-violet-100 text-violet-700",
-    };
+    return isCurrentTier
+      ? buildActiveBadgeStyles({
+          cardGlow:
+            "border-violet-200/90 bg-[linear-gradient(135deg,rgba(245,243,255,0.99),rgba(255,255,255,0.98),rgba(233,213,255,0.96))] ring-violet-300/90 shadow-[0_30px_80px_-26px_rgba(139,92,246,0.54)]",
+          glow: "bg-violet-200/80",
+          chip: "bg-violet-100 text-violet-700 animate-pulse",
+          icon: "bg-violet-100 text-violet-700",
+          meta: "text-violet-700",
+          note: "text-violet-700",
+        })
+      : buildEarnedBadgeStyles({
+          card: "border-violet-200 bg-violet-50/85 text-violet-900",
+          chip: "border border-violet-200 bg-white/85 text-violet-700",
+          icon: "bg-violet-100/90 text-violet-700 opacity-75",
+          meta: "text-violet-700",
+          note: "text-violet-700",
+        });
   }
 
-  return {
-    card: "border-sky-200 bg-sky-50/95 text-sky-900",
-    chip: "bg-sky-100 text-sky-700",
-    icon: "bg-sky-100 text-sky-700",
-  };
+  return isCurrentTier
+    ? buildActiveBadgeStyles({
+        cardGlow:
+          "border-sky-200/90 bg-[linear-gradient(135deg,rgba(240,249,255,0.99),rgba(255,255,255,0.98),rgba(224,242,254,0.96))] ring-sky-300/90 shadow-[0_30px_80px_-26px_rgba(14,165,233,0.52)]",
+        glow: "bg-sky-200/80",
+        chip: "bg-sky-100 text-sky-700 animate-pulse",
+        icon: "bg-sky-100 text-sky-700",
+        meta: "text-sky-700",
+        note: "text-sky-700",
+      })
+    : buildEarnedBadgeStyles({
+        card: "border-sky-200 bg-sky-50/85 text-sky-900",
+        chip: "border border-sky-200 bg-white/85 text-sky-700",
+        icon: "bg-sky-100/90 text-sky-700 opacity-75",
+        meta: "text-sky-700",
+        note: "text-sky-700",
+      });
 }
 
 function getBadgeIcon(icon) {
@@ -256,6 +376,36 @@ function getBadgeIcon(icon) {
 
 function formatBadgeProgress(badge) {
   return `${Math.min(badge.progress, badge.target)}/${badge.target} days`;
+}
+
+function getBadgeStatusLabel(badge) {
+  if (badge.isCurrentTier) {
+    return "Current Tier";
+  }
+
+  if (badge.unlocked) {
+    return "Unlocked";
+  }
+
+  return "In Progress";
+}
+
+function getBadgeStatusNote(badge) {
+  if (badge.isCurrentTier) {
+    return "This tier is active right now.";
+  }
+
+  if (badge.unlocked) {
+    return "Earned earlier this month and kept in your cabinet.";
+  }
+
+  const daysLeft = Math.max(
+    0,
+    badge.target - Math.min(Number(badge.progress || 0), badge.target),
+  );
+  return `${daysLeft} more day${
+    daysLeft === 1 ? "" : "s"
+  } needed to unlock this tier.`;
 }
 
 function getStreakNote(currentStreak) {
@@ -401,6 +551,166 @@ function getProfileStreakTheme(tone) {
   };
 }
 
+function formatStreakDays(value) {
+  return `${value} day${value === 1 ? "" : "s"}`;
+}
+
+function formatLeaderboardPercentage(value) {
+  const numericValue = Number(value);
+  return `${(Number.isFinite(numericValue) ? numericValue : 0).toFixed(1)}%`;
+}
+
+function getLeaderboardTitleShell(title) {
+  if (title === "Legend") {
+    return "bg-amber-100 text-amber-800";
+  }
+
+  if (title === "Elite") {
+    return "bg-indigo-100 text-indigo-700";
+  }
+
+  if (title === "Active") {
+    return "bg-sky-100 text-sky-700";
+  }
+
+  return "bg-slate-100 text-slate-600";
+}
+
+function getLeaderboardRankShell(rank, isCurrentUser) {
+  if (rank === 1) {
+    return isCurrentUser
+      ? "border border-amber-300 bg-[linear-gradient(135deg,rgba(251,191,36,0.24),rgba(255,255,255,0.96),rgba(253,230,138,0.38))] text-amber-900 shadow-sm"
+      : "border border-amber-200 bg-[linear-gradient(135deg,rgba(254,243,199,0.98),rgba(255,255,255,0.96),rgba(251,191,36,0.26))] text-amber-900 shadow-sm";
+  }
+
+  if (rank === 2) {
+    return isCurrentUser
+      ? "border border-slate-300 bg-[linear-gradient(135deg,rgba(226,232,240,0.95),rgba(255,255,255,0.96),rgba(203,213,225,0.72))] text-slate-800 shadow-sm"
+      : "border border-slate-200 bg-[linear-gradient(135deg,rgba(241,245,249,0.98),rgba(255,255,255,0.96),rgba(226,232,240,0.86))] text-slate-800 shadow-sm";
+  }
+
+  if (rank === 3) {
+    return isCurrentUser
+      ? "border border-[#c08457] bg-[linear-gradient(135deg,rgba(194,120,58,0.24),rgba(255,255,255,0.96),rgba(251,191,116,0.36))] text-[#7c2d12] shadow-sm"
+      : "border border-[#d6a272] bg-[linear-gradient(135deg,rgba(250,240,230,0.98),rgba(255,255,255,0.96),rgba(194,120,58,0.2))] text-[#7c2d12] shadow-sm";
+  }
+
+  if (isCurrentUser) {
+    return "border border-blue-200 bg-blue-50/90 text-blue-800 shadow-sm";
+  }
+
+  return "border border-slate-200 bg-slate-50/90 text-slate-700";
+}
+
+function getLeaderboardRankLabel(rank) {
+  if (rank === 1) return "1st Place";
+  if (rank === 2) return "2nd Place";
+  if (rank === 3) return "3rd Place";
+  return `#${rank}`;
+}
+
+function getLeaderboardTierShell(tierTone, tierIsLive) {
+  if (tierTone === "rose") {
+    return tierIsLive
+      ? "border border-rose-200 bg-gradient-to-r from-rose-100 to-amber-100 text-rose-700 shadow-sm"
+      : "border border-rose-100 bg-rose-50/90 text-rose-700";
+  }
+
+  if (tierTone === "indigo") {
+    return tierIsLive
+      ? "border border-indigo-200 bg-indigo-100 text-indigo-700 shadow-sm"
+      : "border border-indigo-100 bg-indigo-50/90 text-indigo-700";
+  }
+
+  if (tierTone === "emerald") {
+    return tierIsLive
+      ? "border border-emerald-200 bg-emerald-100 text-emerald-700 shadow-sm"
+      : "border border-emerald-100 bg-emerald-50/90 text-emerald-700";
+  }
+
+  if (tierTone === "violet") {
+    return tierIsLive
+      ? "border border-violet-200 bg-violet-100 text-violet-700 shadow-sm"
+      : "border border-violet-100 bg-violet-50/90 text-violet-700";
+  }
+
+  if (tierTone === "sky") {
+    return tierIsLive
+      ? "border border-sky-200 bg-sky-100 text-sky-700 shadow-sm"
+      : "border border-sky-100 bg-sky-50/90 text-sky-700";
+  }
+
+  if (tierTone === "amber") {
+    return tierIsLive
+      ? "border border-amber-200 bg-amber-100 text-amber-700 shadow-sm"
+      : "border border-amber-100 bg-amber-50/90 text-amber-700";
+  }
+
+  return "border border-slate-200 bg-slate-100 text-slate-600";
+}
+
+function getLeaderboardTierStateLabel(tierState) {
+  if (tierState === "excellent") {
+    return "Excellent";
+  }
+
+  if (tierState === "strong") {
+    return "Strong";
+  }
+
+  if (tierState === "safe") {
+    return "On Track";
+  }
+
+  return "Needs Care";
+}
+
+function getLeaderboardTierNote(student) {
+  const presentDays = Number(student?.presentDays || 0);
+  const workingDays = Number(student?.workingDays || 0);
+  const overallPercentage = Number(student?.overallPercentage || 0);
+
+  if (workingDays > 0) {
+    return `${formatLeaderboardPercentage(
+      overallPercentage,
+    )} overall attendance • ${presentDays}/${workingDays} present`;
+  }
+
+  return `${formatLeaderboardPercentage(
+    overallPercentage,
+  )} overall attendance`;
+}
+
+function getLeaderboardRowShell(rank, isCurrentUser) {
+  if (rank === 1) {
+    return isCurrentUser
+      ? "border-amber-300 bg-[linear-gradient(135deg,rgba(255,251,235,0.99),rgba(239,246,255,0.94),rgba(253,230,138,0.88))] shadow-[0_24px_52px_-34px_rgba(217,119,6,0.45)]"
+      : "border-amber-200 bg-[linear-gradient(135deg,rgba(255,251,235,0.99),rgba(255,255,255,0.96),rgba(255,237,213,0.9))] shadow-[0_24px_52px_-38px_rgba(217,119,6,0.35)]";
+  }
+
+  if (rank === 2) {
+    return isCurrentUser
+      ? "border-slate-300 bg-[linear-gradient(135deg,rgba(248,250,252,0.99),rgba(239,246,255,0.94),rgba(226,232,240,0.9))] shadow-[0_24px_52px_-38px_rgba(71,85,105,0.35)]"
+      : "border-slate-200 bg-[linear-gradient(135deg,rgba(248,250,252,0.99),rgba(255,255,255,0.96),rgba(226,232,240,0.9))] shadow-[0_24px_52px_-40px_rgba(100,116,139,0.28)]";
+  }
+
+  if (rank === 3) {
+    return isCurrentUser
+      ? "border-[#c08457] bg-[linear-gradient(135deg,rgba(255,243,230,0.99),rgba(239,246,255,0.94),rgba(214,162,114,0.92))] shadow-[0_24px_52px_-38px_rgba(146,64,14,0.32)]"
+      : "border-[#d6a272] bg-[linear-gradient(135deg,rgba(255,245,235,0.99),rgba(255,255,255,0.96),rgba(214,162,114,0.86))] shadow-[0_24px_52px_-40px_rgba(146,64,14,0.22)]";
+  }
+
+  if (isCurrentUser) {
+    return "border-blue-200 bg-[linear-gradient(135deg,rgba(239,246,255,0.98),rgba(255,255,255,0.96),rgba(224,231,255,0.92))] shadow-[0_18px_38px_-30px_rgba(37,99,235,0.45)]";
+  }
+
+  if (rank <= 5) {
+    return "border-indigo-100 bg-[linear-gradient(135deg,rgba(238,242,255,0.98),rgba(255,255,255,0.96),rgba(224,231,255,0.88))]";
+  }
+
+  return "border-white/80 bg-white/82";
+}
+
 function StudentAssistant({
   assistant,
   todayStatus,
@@ -410,7 +720,7 @@ function StudentAssistant({
 }) {
   return (
     <>
-      <div className="absolute bottom-2 right-6 hidden md:block">
+      <div className="absolute bottom-2 right-6 hidden xl:block">
         <div className="assistant-arrive pointer-events-none flex items-end gap-4">
           <div
             className={`pointer-events-auto relative mb-8 w-[210px] rounded-[22px] border px-3.5 py-3 shadow-[0_18px_42px_-22px_rgba(15,23,42,0.28)] backdrop-blur ${getAssistantClasses(
@@ -1208,6 +1518,19 @@ export default function StudentDashboard() {
   });
   const [attendanceBadges, setAttendanceBadges] = useState([]);
   const [streakMonthLabel, setStreakMonthLabel] = useState("");
+  const [leaderboard, setLeaderboard] = useState({
+    totalStudents: 0,
+    yourRank: null,
+    yourTitle: "Rising",
+    yourOverallPercentage: 0,
+    yourPresentDays: 0,
+    yourAbsentDays: 0,
+    yourWorkingDays: 0,
+    gapToNextRank: 0,
+    motivation: "",
+    topStudents: [],
+    nearbyStudents: [],
+  });
 
   const today = useMemo(() => toISODate(new Date()), []);
   const monthRange = useMemo(() => getMonthRange(new Date()), []);
@@ -1310,6 +1633,37 @@ export default function StudentDashboard() {
             Array.isArray(summaryData?.badges) ? summaryData.badges : [],
           );
           setStreakMonthLabel(String(summaryData?.streakMonthLabel || ""));
+          setLeaderboard({
+            totalStudents: Number(summaryData?.leaderboard?.totalStudents || 0),
+            yourRank: summaryData?.leaderboard?.yourRank ?? null,
+            yourTitle:
+              String(summaryData?.leaderboard?.yourTitle || "").trim() ||
+              "Rising",
+            yourOverallPercentage: Number(
+              summaryData?.leaderboard?.yourOverallPercentage || 0,
+            ),
+            yourPresentDays: Number(
+              summaryData?.leaderboard?.yourPresentDays || 0,
+            ),
+            yourAbsentDays: Number(
+              summaryData?.leaderboard?.yourAbsentDays || 0,
+            ),
+            yourWorkingDays: Number(
+              summaryData?.leaderboard?.yourWorkingDays || 0,
+            ),
+            gapToNextRank: Number(
+              summaryData?.leaderboard?.gapToNextRank || 0,
+            ),
+            motivation: String(summaryData?.leaderboard?.motivation || ""),
+            topStudents: Array.isArray(summaryData?.leaderboard?.topStudents)
+              ? summaryData.leaderboard.topStudents
+              : [],
+            nearbyStudents: Array.isArray(
+              summaryData?.leaderboard?.nearbyStudents,
+            )
+              ? summaryData.leaderboard.nearbyStudents
+              : [],
+          });
         }
       } catch (e) {
         setErr(e.message || "Failed to load dashboard");
@@ -1364,7 +1718,6 @@ export default function StudentDashboard() {
     0,
     Math.min(100, streakProgress.percent),
   );
-  const streakMarkerLeft = `clamp(1.5rem, ${normalizedStreakPercent}%, calc(100% - 1.5rem))`;
   const profileStreakTheme = showProfileFire
     ? getProfileStreakTheme(profileThemeTone)
     : null;
@@ -1418,11 +1771,19 @@ export default function StudentDashboard() {
       valueClass: "text-violet-700",
     },
   ];
+  const topStudents = Array.isArray(leaderboard.topStudents)
+    ? leaderboard.topStudents
+    : [];
+  const nearbyStudents = Array.isArray(leaderboard.nearbyStudents)
+    ? leaderboard.nearbyStudents
+    : [];
+  const hasLeaderboardData =
+    topStudents.length > 0 || nearbyStudents.length > 0;
 
   return (
     <>
       <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0%,#eef2ff_22%,#f8fafc_56%,#f8fafc_100%)]">
-        <div className="relative overflow-visible border-b border-white/60 bg-[radial-gradient(circle_at_top_left,#eff6ff_0%,#ffffff_42%,#eef2ff_100%)] px-4 py-6 md:min-h-[240px] md:px-6 md:pb-8 md:pr-[30rem]">
+        <div className="relative overflow-visible border-b border-white/60 bg-[radial-gradient(circle_at_top_left,#eff6ff_0%,#ffffff_42%,#eef2ff_100%)] px-4 py-6 md:min-h-[240px] md:px-6 md:pb-8 md:pr-28 lg:pr-[22rem] xl:pr-[30rem]">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.22),transparent_48%)]" />
           <div className="pointer-events-none absolute left-10 top-8 h-20 w-20 rounded-full bg-blue-200/30 blur-2xl" />
           <div className="pointer-events-none absolute left-44 top-14 h-14 w-14 rounded-full bg-cyan-200/30 blur-2xl" />
@@ -1620,24 +1981,22 @@ export default function StudentDashboard() {
                       {streakProgress.percent}%
                     </span>
                   </div>
-                  <div className="relative mt-3 h-14 overflow-visible sm:h-16">
-                    <div className="absolute inset-x-0 bottom-1 h-4 rounded-full bg-white/90" />
+                  <div className="relative mt-3 h-12">
+                    <div className="absolute inset-x-0 top-1/2 h-5 -translate-y-1/2 rounded-full bg-white/90" />
                     <div
-                      className="absolute bottom-1 left-0 h-4 rounded-full bg-gradient-to-r from-orange-400 via-amber-400 to-rose-400 transition-all duration-500"
+                      className="absolute left-0 top-1/2 h-5 -translate-y-1/2 rounded-full bg-gradient-to-r from-orange-400 via-amber-400 to-rose-400 transition-all duration-500"
                       style={{
                         width: `${normalizedStreakPercent}%`,
                       }}
-                    />
-                    {normalizedStreakPercent > 0 && (
-                      <span
-                        className="pointer-events-none absolute bottom-4 z-10 flex  h-[-10] -translate-x-1/2 items-center justify-center sm:bottom-5 sm:h-12 sm:w-12"
-                        style={{ left: streakMarkerLeft }}
-                      >
-                        <span className="absolute inset-[6px] rounded-full bg-orange-300/75 blur-lg animate-pulse sm:inset-[7px]" />
-                        <Flame className="relative h-7 animate-pulse fill-orange-500 text-orange-500 drop-shadow-[0_10px_22px_rgba(15,23,42,0.18)] sm:h-12 sm:w-8" />
-                        <span className="hidden">ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¥</span>
-                      </span>
-                    )}
+                    >
+                      {normalizedStreakPercent > 0 && (
+                        <span className="pointer-events-none absolute right-[-18px] top-1/2 z-10 flex h-14 w-14 -translate-y-1/2 items-center justify-center">
+                          <span className="absolute inset-[8px] rounded-full bg-orange-300/75 blur-lg animate-pulse" />
+                          <Flame className="relative h-10 w-10 animate-pulse fill-orange-500 text-orange-500 drop-shadow-[0_10px_22px_rgba(15,23,42,0.18)]" />
+                          <span className="hidden">streak flame</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <p className="mt-3 text-sm font-semibold text-gray-900">
                     {streakNote}
@@ -1663,8 +2022,9 @@ export default function StudentDashboard() {
                       Your tier ladder
                     </h3>
                     <p className="mt-2 text-sm leading-6 text-gray-600">
-                      Each badge follows your confirmed attendance streak in{" "}
-                      {streakPeriodLabel}.
+                      Badges stay earned from your best streak in{" "}
+                      {streakPeriodLabel}, while your current active tier stays
+                      highlighted.
                     </p>
                   </div>
                   <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm">
@@ -1682,7 +2042,11 @@ export default function StudentDashboard() {
 
                 <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {attendanceBadges.map((badge) => {
-                    const styles = getBadgeStyles(badge.tone, badge.unlocked);
+                    const styles = getBadgeStyles(
+                      badge.tone,
+                      badge.unlocked,
+                      badge.isCurrentTier,
+                    );
                     const BadgeIcon = getBadgeIcon(badge.icon);
 
                     return (
@@ -1690,27 +2054,32 @@ export default function StudentDashboard() {
                         key={badge.key}
                         className={`rounded-[24px] border p-4 shadow-sm transition ${styles.card}`}
                       >
+                        <div className={styles.glow} />
+                        <div className={styles.veil} />
                         <div className="flex items-start justify-between gap-3">
                           <span
-                            className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${styles.icon}`}
+                            className={`relative inline-flex h-10 w-10 items-center justify-center rounded-2xl ${styles.icon}`}
                           >
                             <BadgeIcon className="h-4 w-4" />
                           </span>
                           <span
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${styles.chip}`}
+                            className={`relative rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${styles.chip}`}
                           >
-                            {badge.unlocked ? "Unlocked" : "In Progress"}
+                            {getBadgeStatusLabel(badge)}
                           </span>
                         </div>
 
-                        <p className="mt-4 text-base font-semibold text-gray-900">
+                        <p className={`relative mt-4 text-base font-semibold ${styles.title}`}>
                           {badge.title}
                         </p>
-                        <p className="mt-1 text-xs leading-5 text-gray-600">
+                        <p className={`relative mt-1 text-xs leading-5 ${styles.body}`}>
                           {badge.description}
                         </p>
-                        <p className="mt-3 text-[11px] font-semibold text-gray-500">
+                        <p className={`relative mt-3 text-[11px] font-semibold ${styles.meta}`}>
                           {formatBadgeProgress(badge)}
+                        </p>
+                        <p className={`relative mt-1 text-[11px] leading-5 ${styles.note}`}>
+                          {getBadgeStatusNote(badge)}
                         </p>
                       </div>
                     );
@@ -1738,6 +2107,306 @@ export default function StudentDashboard() {
                     </p>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(239,246,255,0.93),rgba(224,231,255,0.9))] p-5 shadow-[0_30px_80px_-44px_rgba(15,23,42,0.42)] backdrop-blur md:p-7">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-indigo-700">
+                  Overall Leaderboard
+                </p>
+                <h2 className="mt-3 text-2xl font-bold text-slate-950 md:text-[2rem]">
+                  Race the full student board
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-gray-600 md:text-base">
+                  Ranked by overall attendance across all students. Sundays,
+                  winter vacation, holidays, internships, and approved
+                  off-days stay excluded so the board stays fair.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+                    Overall Board
+                </p>
+                <p className="mt-1 font-semibold text-gray-900">
+                  {leaderboard.totalStudents} students ranked
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[0.92fr_1.08fr_1fr]">
+              <div className="rounded-[28px] border border-amber-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(255,247,237,0.95),rgba(254,242,242,0.92))] p-5 shadow-[0_24px_48px_-36px_rgba(249,115,22,0.45)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-orange-700">
+                      Your Stats
+                    </p>
+                    <h3 className="mt-2 text-xl font-bold text-slate-950">
+                      Stay in the race
+                    </h3>
+                  </div>
+                  <span
+                    className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getLeaderboardTitleShell(
+                      leaderboard.yourTitle,
+                    )}`}
+                  >
+                    {leaderboard.yourTitle}
+                  </span>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="rounded-[24px] border border-white/80 bg-white/88 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                      Overall Rank
+                    </p>
+                    <p className="mt-3 text-4xl font-bold text-slate-950">
+                      {leaderboard.yourRank ? `#${leaderboard.yourRank}` : "-"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-[24px] border border-white/80 bg-white/88 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                      Overall Attendance
+                    </p>
+                    <p className="mt-3 text-4xl font-bold text-orange-600">
+                      {formatLeaderboardPercentage(
+                        leaderboard.yourOverallPercentage,
+                      )}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      based on your full attendance history
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/80 bg-white/84 px-4 py-3 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                      Present Days
+                    </p>
+                    <p className="mt-2 text-2xl font-bold text-violet-700">
+                      {leaderboard.yourPresentDays}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      confirmed present days overall
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/80 bg-white/84 px-4 py-3 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                      Working Days
+                    </p>
+                    <p className="mt-2 text-2xl font-bold text-blue-700">
+                      {leaderboard.yourWorkingDays}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      counted in your overall attendance
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-700">
+                    Momentum Message
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {leaderboard.motivation ||
+                      "Attend regularly to improve your overall attendance rank."}
+                  </p>
+                  {leaderboard.gapToNextRank > 0 ? (
+                    <p className="mt-1 text-xs leading-5 text-gray-500">
+                      {formatLeaderboardPercentage(leaderboard.gapToNextRank)}{" "}
+                      behind the student above you.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(239,246,255,0.95),rgba(243,232,255,0.92))] p-5 shadow-[0_24px_50px_-38px_rgba(37,99,235,0.35)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
+                      Overall Top 5
+                    </p>
+                    <h3 className="mt-2 text-xl font-bold text-slate-950">
+                      Student leaders
+                    </h3>
+                  </div>
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                    <Trophy className="h-5 w-5" />
+                  </span>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {hasLeaderboardData ? (
+                    topStudents.map((student) => (
+                      <div
+                        key={`${student.rank}-${student.studentId}`}
+                        className={`rounded-[24px] border px-4 py-3 shadow-sm ${getLeaderboardRowShell(
+                          student.rank,
+                          student.isCurrentUser,
+                        )}`}
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex min-w-0 items-start gap-3">
+                            <ProfileAvatar
+                              src={student.profileImage}
+                              name={student.name}
+                              sizeClass="h-11 w-11"
+                              className="border-white/80"
+                              textClassName="text-xs"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold leading-5 text-slate-950">
+                                <span
+                                  className={`mr-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] ${getLeaderboardRankShell(
+                                    student.rank,
+                                    student.isCurrentUser,
+                                  )}`}
+                                >
+                                  {getLeaderboardRankLabel(student.rank)}
+                                </span>
+                                <span className="break-words">
+                                  {student.isCurrentUser
+                                    ? `YOU - ${student.name}`
+                                    : student.name}
+                                </span>
+                              </p>
+                              <p className="mt-1 break-words text-[11px] font-medium text-gray-500">
+                                {student.course} • Year {student.year}
+                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span
+                                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getLeaderboardTitleShell(
+                                    student.title,
+                                  )}`}
+                                >
+                                  {student.title}
+                                </span>
+                                <span
+                                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getLeaderboardTierShell(
+                                    student.tierTone,
+                                    student.tierIsLive,
+                                  )}`}
+                                >
+                                  {student.tierLabel}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="w-full text-left sm:w-auto sm:max-w-[180px] sm:shrink-0 sm:text-right">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                              {getLeaderboardTierStateLabel(student.tierState)}
+                            </p>
+                            <p className="mt-2 text-lg font-bold text-slate-950">
+                              {formatLeaderboardPercentage(
+                                student.overallPercentage,
+                              )}
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-gray-500">
+                              {student.presentDays}/{student.workingDays} present
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-[24px] border border-white/80 bg-white/82 px-4 py-5 text-sm text-gray-500 shadow-sm">
+                      Students will appear here once overall attendance records
+                      are available.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(240,253,250,0.92),rgba(239,246,255,0.9))] p-5 shadow-[0_24px_50px_-38px_rgba(16,185,129,0.32)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
+                      Around You
+                    </p>
+                    <h3 className="mt-2 text-xl font-bold text-slate-950">
+                      Overall nearby ranking
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-gray-600">
+                      See the students just above and below you to keep the
+                      competition real.
+                    </p>
+                  </div>
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                    <Sparkles className="h-5 w-5" />
+                  </span>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {hasLeaderboardData ? (
+                    nearbyStudents.map((student) => (
+                      <div
+                        key={`nearby-${student.rank}-${student.studentId}`}
+                        className={`rounded-[24px] border px-4 py-3 shadow-sm ${getLeaderboardRowShell(
+                          student.rank,
+                          student.isCurrentUser,
+                        )}`}
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex min-w-0 items-start gap-3">
+                            <ProfileAvatar
+                              src={student.profileImage}
+                              name={student.name}
+                              sizeClass="h-10 w-10"
+                              className="border-white/80"
+                              textClassName="text-[11px]"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold leading-5 text-slate-950">
+                                <span
+                                  className={`mr-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] ${getLeaderboardRankShell(
+                                    student.rank,
+                                    student.isCurrentUser,
+                                  )}`}
+                                >
+                                  {getLeaderboardRankLabel(student.rank)}
+                                </span>
+                                <span className="break-words">
+                                  {student.isCurrentUser
+                                    ? `YOU - ${student.name}`
+                                    : student.name}
+                                </span>
+                              </p>
+                              <p className="mt-1 break-words text-[11px] font-medium text-gray-500">
+                                {student.course} • Year {student.year}
+                              </p>
+                              <p className="mt-1 break-words text-[11px] font-medium text-gray-500">
+                                {getLeaderboardTierNote(student)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="w-full text-left sm:w-auto sm:shrink-0 sm:text-right">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getLeaderboardTierShell(
+                                student.tierTone,
+                                student.tierIsLive,
+                              )}`}
+                            >
+                              {student.tierLabel}
+                            </span>
+                            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                              {getLeaderboardTierStateLabel(student.tierState)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-[24px] border border-white/80 bg-white/82 px-4 py-5 text-sm text-gray-500 shadow-sm">
+                      Your nearby ranking will appear once overall attendance
+                      records are available.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

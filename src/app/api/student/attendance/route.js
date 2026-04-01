@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import connectDB from "../../../lib/db";
 import Attendance from "../../../models/Attendance";
+import Holiday from "../../../models/Holiday";
+import User from "../../../models/User";
 import {
   addDays,
   ATTENDANCE_START_DATE,
@@ -15,14 +17,6 @@ import {
   WINTER_VACATION_FROM,
   WINTER_VACATION_TO,
 } from "../../../lib/attendanceEvents";
-
-function isWorkingDay(dateString, todayISO) {
-  if (dateString < ATTENDANCE_START_DATE) return false;
-  if (dateString > todayISO) return false;
-  if (isWinterVacation(dateString)) return false;
-  if (isSunday(dateString)) return false;
-  return true;
-}
 
 function monthLabel(monthKey) {
   const [year, month] = monthKey.split("-").map(Number);
@@ -147,7 +141,7 @@ function buildStreakProgress(streaks) {
   };
 }
 
-function buildAttendanceBadges({ bestStreak }) {
+function buildAttendanceBadges({ bestStreak, currentStreak }) {
   const definitions = [
     {
       key: "amber-ember",
@@ -205,11 +199,120 @@ function buildAttendanceBadges({ bestStreak }) {
     },
   ];
 
+  const liveTierTarget =
+    definitions.filter((badge) => currentStreak >= badge.target).at(-1)?.target ||
+    null;
+
   return definitions.map((badge) => ({
     ...badge,
     progress: Number(badge.metric.toFixed(1)),
     unlocked: badge.metric >= badge.target,
+    active: currentStreak >= badge.target,
+    isCurrentTier: liveTierTarget === badge.target,
   }));
+}
+
+function getAttendanceTierDetails(overallPercentage) {
+  if (overallPercentage >= 95) {
+    return {
+      tierLabel: "95% Club",
+      tierTone: "rose",
+      tierState: "excellent",
+      tierIsLive: true,
+    };
+  }
+
+  if (overallPercentage >= 90) {
+    return {
+      tierLabel: "90%+",
+      tierTone: "indigo",
+      tierState: "excellent",
+      tierIsLive: true,
+    };
+  }
+
+  if (overallPercentage >= 85) {
+    return {
+      tierLabel: "85%+",
+      tierTone: "emerald",
+      tierState: "strong",
+      tierIsLive: true,
+    };
+  }
+
+  if (overallPercentage >= 75) {
+    return {
+      tierLabel: "Safe Zone",
+      tierTone: "sky",
+      tierState: "safe",
+      tierIsLive: true,
+    };
+  }
+
+  return {
+    tierLabel: "Attention",
+    tierTone: "amber",
+    tierState: "attention",
+    tierIsLive: false,
+  };
+}
+
+function getLeaderboardGroupKey(course, year) {
+  return `${String(course || "").toUpperCase()}|${Number(year) || 0}`;
+}
+
+function getLeaderboardTitle(rank) {
+  if (rank === 1) return "Legend";
+  if (rank <= 5) return "Elite";
+  if (rank <= 20) return "Active";
+  return "Rising";
+}
+
+function formatPercentageLabel(value) {
+  const numericValue = Number(value);
+  return `${(Number.isFinite(numericValue) ? numericValue : 0).toFixed(1)}%`;
+}
+
+function buildLeaderboardMessage({
+  rank,
+  overallPercentage,
+  standings,
+}) {
+  if (!Array.isArray(standings) || !standings.length) {
+    return "Overall ranking will appear once attendance records are available.";
+  }
+
+  if (rank === 1) {
+    return `You are leading the portal with ${formatPercentageLabel(
+      overallPercentage,
+    )} overall attendance.`;
+  }
+
+  const higherRankEntry = standings[Math.max(0, rank - 2)] || null;
+  const attendanceGap =
+    higherRankEntry && higherRankEntry.overallPercentage > overallPercentage
+      ? Number(
+          (higherRankEntry.overallPercentage - overallPercentage).toFixed(1),
+        )
+      : 0;
+
+  if (attendanceGap > 0) {
+    return `${formatPercentageLabel(
+      overallPercentage,
+    )} overall attendance. You are ${formatPercentageLabel(
+      attendanceGap,
+    )} behind the student just above you.`;
+  }
+
+  if (overallPercentage >= 75) {
+    return `${formatPercentageLabel(
+      overallPercentage,
+    )} overall attendance keeps you above the 75% target. Keep going to climb higher.`;
+  }
+
+  return `${formatPercentageLabel(
+    overallPercentage,
+  )} overall attendance is below the 75% target. Consistent present days will help you recover and climb.`;
 }
 
 async function getMe(request) {
@@ -269,21 +372,47 @@ export async function GET(request) {
         studentId: me._id,
       });
 
-      const holidayMap = await getHolidayMapForContext({
-        fromDate: ATTENDANCE_START_DATE,
-        toDate: calendarEndDate,
-        course,
-        year,
-        studentId: me._id,
-      });
-      const docs = await Attendance.find({
-        course,
-        year,
-        date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
-        "records.studentId": me._id,
-      })
-        .select({ date: 1, records: 1 })
-        .lean();
+      const [holidayMap, docs, allStudents, allLeaderboardDocs, allLeaderboardHolidays] =
+        await Promise.all([
+          getHolidayMapForContext({
+            fromDate: ATTENDANCE_START_DATE,
+            toDate: calendarEndDate,
+            course,
+            year,
+            studentId: me._id,
+          }),
+          Attendance.find({
+            course,
+            year,
+            date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
+          })
+            .select({ date: 1, records: 1 })
+            .lean(),
+          User.find({
+            role: "student",
+          })
+            .select({ name: 1, profileImage: 1, course: 1, year: 1 })
+            .sort({ name: 1 })
+            .lean(),
+          Attendance.find({
+            date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
+          })
+            .select({ course: 1, year: 1, date: 1, records: 1 })
+            .lean(),
+          Holiday.find({
+            date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
+          })
+            .select({
+              date: 1,
+              title: 1,
+              eventType: 1,
+              scopeType: 1,
+              course: 1,
+              year: 1,
+              studentId: 1,
+            })
+            .lean(),
+        ]);
 
       const recordMap = new Map();
       docs.forEach((doc) => {
@@ -293,6 +422,72 @@ export async function GET(request) {
         if (record) {
           recordMap.set(doc.date, record.status);
         }
+      });
+
+      const leaderboardRecordMap = new Map();
+      allLeaderboardDocs.forEach((doc) => {
+        const dailyRecordMap = new Map();
+        (doc.records || []).forEach((record) => {
+          dailyRecordMap.set(String(record.studentId), record.status);
+        });
+        leaderboardRecordMap.set(
+          `${getLeaderboardGroupKey(doc.course, doc.year)}|${doc.date}`,
+          dailyRecordMap,
+        );
+      });
+
+      const leaderboardStudents = allStudents.filter((student) => {
+        const studentCourse = String(student?.course || "").toUpperCase();
+        const studentYear = Number(student?.year);
+        return Boolean(studentCourse) && Number.isFinite(studentYear) && studentYear > 0;
+      });
+      const leaderboardStatsMap = new Map(
+        leaderboardStudents.map((student) => [
+          String(student._id),
+          {
+            studentId: String(student._id),
+            name: student.name || "Student",
+            profileImage: student.profileImage || "",
+            course: String(student.course || "").toUpperCase(),
+            year: Number(student.year) || 0,
+            presentDays: 0,
+            absentDays: 0,
+            workingDays: 0,
+          },
+        ]),
+      );
+      const globalHolidayMap = new Map();
+      const courseHolidayMap = new Map();
+      const courseYearHolidayMap = new Map();
+      const studentHolidayMap = new Map();
+
+      allLeaderboardHolidays.forEach((holiday) => {
+        const scopeType = String(holiday.scopeType || "global");
+        const normalizedCourse = String(holiday.course || "").toUpperCase();
+        const normalizedYear = Number(holiday.year) || 0;
+
+        if (scopeType === "student" && holiday.studentId) {
+          studentHolidayMap.set(
+            `${String(holiday.studentId)}|${holiday.date}`,
+            holiday,
+          );
+          return;
+        }
+
+        if (scopeType === "courseYear") {
+          courseYearHolidayMap.set(
+            `${getLeaderboardGroupKey(normalizedCourse, normalizedYear)}|${holiday.date}`,
+            holiday,
+          );
+          return;
+        }
+
+        if (scopeType === "course") {
+          courseHolidayMap.set(`${normalizedCourse}|${holiday.date}`, holiday);
+          return;
+        }
+
+        globalHolidayMap.set(holiday.date, holiday);
       });
 
       const monthsMap = new Map();
@@ -417,7 +612,152 @@ export async function GET(request) {
       const streakProgress = buildStreakProgress(streaks);
       const badges = buildAttendanceBadges({
         bestStreak: streaks.best,
+        currentStreak: streaks.current,
       });
+
+      let leaderboardCursor = ATTENDANCE_START_DATE;
+      while (leaderboardCursor <= todayISO) {
+        if (isWinterVacation(leaderboardCursor) || isSunday(leaderboardCursor)) {
+          leaderboardCursor = addDays(leaderboardCursor, 1);
+          continue;
+        }
+
+        leaderboardStudents.forEach((student) => {
+          const studentId = String(student._id);
+          const stats = leaderboardStatsMap.get(studentId);
+          if (!stats) return;
+
+          const groupKey = getLeaderboardGroupKey(stats.course, stats.year);
+          const applicableHoliday =
+            studentHolidayMap.get(`${studentId}|${leaderboardCursor}`) ||
+            courseYearHolidayMap.get(`${groupKey}|${leaderboardCursor}`) ||
+            courseHolidayMap.get(`${stats.course}|${leaderboardCursor}`) ||
+            globalHolidayMap.get(leaderboardCursor);
+
+          if (applicableHoliday) {
+            return;
+          }
+
+          stats.workingDays += 1;
+
+          const dailyRecords =
+            leaderboardRecordMap.get(`${groupKey}|${leaderboardCursor}`) ||
+            new Map();
+          const status = dailyRecords.get(studentId);
+          if (status === "present") {
+            stats.presentDays += 1;
+          } else if (status === "absent") {
+            stats.absentDays += 1;
+          }
+        });
+
+        leaderboardCursor = addDays(leaderboardCursor, 1);
+      }
+
+      const leaderboardEntries = leaderboardStudents
+        .map((student) => {
+          const studentId = String(student._id);
+          const stats = leaderboardStatsMap.get(studentId) || {
+            name: student.name || "Student",
+            profileImage: student.profileImage || "",
+            course: String(student.course || "").toUpperCase(),
+            year: Number(student.year) || 0,
+            presentDays: 0,
+            absentDays: 0,
+            workingDays: 0,
+          };
+          const overallPercentage =
+            stats.workingDays === 0
+              ? 0
+              : Number(((stats.presentDays / stats.workingDays) * 100).toFixed(1));
+
+          return {
+            studentId,
+            name: stats.name,
+            profileImage: stats.profileImage,
+            course: stats.course,
+            year: stats.year,
+            overallPercentage,
+            presentDays: stats.presentDays,
+            absentDays: stats.absentDays,
+            workingDays: stats.workingDays,
+            isCurrentUser: studentId === String(me._id),
+          };
+        })
+        .sort(
+          (a, b) =>
+            b.overallPercentage - a.overallPercentage ||
+            b.presentDays - a.presentDays ||
+            a.name.localeCompare(b.name)
+        )
+        .map((entry, index) => ({
+          ...entry,
+          rank: index + 1,
+          title: getLeaderboardTitle(index + 1),
+        }));
+
+      const toPublicLeaderboardEntry = (entry) => ({
+        studentId: entry.studentId,
+        name: entry.name,
+        profileImage: entry.profileImage,
+        course: entry.course,
+        year: entry.year,
+        isCurrentUser: entry.isCurrentUser,
+        rank: entry.rank,
+        title: entry.title,
+        overallPercentage: entry.overallPercentage,
+        presentDays: entry.presentDays,
+        absentDays: entry.absentDays,
+        workingDays: entry.workingDays,
+        ...getAttendanceTierDetails(entry.overallPercentage),
+      });
+
+      const currentUserRanking =
+        leaderboardEntries.find((entry) => entry.isCurrentUser) || null;
+      const currentUserIndex = leaderboardEntries.findIndex(
+        (entry) => entry.isCurrentUser
+      );
+      const nearbyStart =
+        currentUserIndex < 0 ? 0 : Math.max(0, currentUserIndex - 2);
+      const nearbyEnd =
+        currentUserIndex < 0
+          ? Math.min(5, leaderboardEntries.length)
+          : Math.min(leaderboardEntries.length, nearbyStart + 5);
+      const normalizedNearbyStart = Math.max(0, nearbyEnd - 5);
+      const higherRankEntry =
+        currentUserIndex > 0 ? leaderboardEntries[currentUserIndex - 1] : null;
+
+      const leaderboard = {
+        scope: "overallAttendance",
+        totalStudents: leaderboardEntries.length,
+        yourRank: currentUserRanking?.rank ?? null,
+        yourTitle: currentUserRanking?.title || getLeaderboardTitle(1),
+        yourOverallPercentage:
+          currentUserRanking?.overallPercentage ?? overall.percentage,
+        yourPresentDays: currentUserRanking?.presentDays ?? overall.present,
+        yourAbsentDays: currentUserRanking?.absentDays ?? overall.absent,
+        yourWorkingDays: currentUserRanking?.workingDays ?? overall.workingDays,
+        gapToNextRank:
+          currentUserRanking && higherRankEntry
+            ? Number(
+                Math.max(
+                  0,
+                  higherRankEntry.overallPercentage -
+                    currentUserRanking.overallPercentage,
+                ).toFixed(1),
+              )
+            : 0,
+        motivation: buildLeaderboardMessage({
+          rank: currentUserRanking?.rank ?? 1,
+          overallPercentage:
+            currentUserRanking?.overallPercentage ?? overall.percentage,
+          standings: leaderboardEntries,
+        }),
+        topStudents: leaderboardEntries.slice(0, 5).map(toPublicLeaderboardEntry),
+        nearbyStudents: leaderboardEntries
+          .slice(normalizedNearbyStart, nearbyEnd)
+          .map(toPublicLeaderboardEntry),
+      };
 
       return NextResponse.json({
         course,
@@ -452,6 +792,7 @@ export async function GET(request) {
         streaks,
         streakProgress,
         badges,
+        leaderboard,
         months,
         calendar,
       });
@@ -491,7 +832,6 @@ export async function GET(request) {
         course,
         year,
         date,
-        "records.studentId": me._id,
       }).lean();
 
       const record = doc?.records?.find(
@@ -511,7 +851,6 @@ export async function GET(request) {
         course,
         year,
         date: { $gte: from, $lte: to },
-        "records.studentId": me._id,
       })
         .select({ date: 1, records: 1 })
         .lean();

@@ -14,6 +14,7 @@ import {
   Trophy,
 } from "lucide-react";
 import AttendancePerformanceChart from "../../_components/AttendancePerformanceChart";
+import AttendanceCalendarGrid from "../../_components/AttendanceCalendarGrid";
 
 const ATTENDANCE_START_MONTH = "2026-01";
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -85,61 +86,179 @@ function getStatusLabel(status) {
   }
 }
 
-function getBadgeStyles(tone, unlocked) {
+function buildActiveBadgeStyles({
+  cardGlow,
+  glow,
+  chip,
+  icon,
+  meta,
+  note,
+}) {
+  return {
+    card: `relative isolate overflow-hidden border bg-white/98 text-slate-900 ring-2 scale-[1.02] ${cardGlow}`,
+    glow: `absolute inset-x-4 top-3 h-20 rounded-full blur-2xl opacity-100 animate-pulse ${glow}`,
+    veil: "hidden",
+    chip: `${chip} shadow-sm`,
+    icon: `${icon} shadow-[0_10px_24px_-18px_rgba(15,23,42,0.9)]`,
+    title: "text-slate-950",
+    body: "text-slate-700",
+    meta,
+    note,
+  };
+}
+
+function buildEarnedBadgeStyles({
+  card,
+  chip,
+  icon,
+  meta,
+  note,
+}) {
+  return {
+    card: `relative isolate overflow-hidden border shadow-none ${card}`,
+    glow: "hidden",
+    veil: "absolute inset-0 bg-white/35",
+    chip,
+    icon,
+    title: "text-slate-800",
+    body: "text-slate-600",
+    meta,
+    note,
+  };
+}
+
+function getBadgeStyles(tone, unlocked, isCurrentTier) {
   if (!unlocked) {
     return {
-      card: "border-gray-200 bg-white text-gray-500",
-      chip: "bg-gray-100 text-gray-500",
-      icon: "bg-gray-100 text-gray-400",
+      card: "border-slate-200 bg-slate-50/80 text-slate-400 opacity-75 saturate-0 shadow-none",
+      glow: "hidden",
+      chip: "border border-slate-200 bg-slate-100 text-slate-500",
+      icon: "bg-slate-100 text-slate-400",
+      title: "text-slate-600",
+      body: "text-slate-500",
+      meta: "text-slate-500",
+      note: "text-slate-500",
     };
   }
 
   if (tone === "emerald") {
-    return {
-      card: "border-emerald-200 bg-emerald-50 text-emerald-900",
-      chip: "bg-emerald-100 text-emerald-700",
-      icon: "bg-emerald-100 text-emerald-700",
-    };
+    return isCurrentTier
+      ? buildActiveBadgeStyles({
+          cardGlow:
+            "border-emerald-200/90 bg-[linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.98),rgba(209,250,229,0.96))] ring-emerald-300/90 shadow-[0_30px_80px_-26px_rgba(5,150,105,0.52)]",
+          glow: "bg-emerald-200/80",
+          chip: "bg-emerald-100 text-emerald-700 animate-pulse",
+          icon: "bg-emerald-100 text-emerald-700",
+          meta: "text-emerald-700",
+          note: "text-emerald-700",
+        })
+      : buildEarnedBadgeStyles({
+          card: "border-emerald-200 bg-emerald-50/85 text-emerald-800",
+          chip: "border border-emerald-200 bg-white/85 text-emerald-700",
+          icon: "bg-emerald-100/90 text-emerald-700 opacity-75",
+          meta: "text-emerald-700",
+          note: "text-emerald-700",
+        });
   }
 
   if (tone === "amber") {
-    return {
-      card: "border-amber-200 bg-amber-50 text-amber-900",
-      chip: "bg-amber-100 text-amber-700",
-      icon: "bg-amber-100 text-amber-700",
-    };
+    return isCurrentTier
+      ? buildActiveBadgeStyles({
+          cardGlow:
+            "border-amber-200/90 bg-[linear-gradient(135deg,rgba(255,251,235,0.99),rgba(255,255,255,0.98),rgba(254,243,199,0.96))] ring-amber-300/90 shadow-[0_30px_80px_-26px_rgba(245,158,11,0.5)]",
+          glow: "bg-amber-200/80",
+          chip: "bg-amber-100 text-amber-700 animate-pulse",
+          icon: "bg-amber-100 text-amber-700",
+          meta: "text-amber-700",
+          note: "text-amber-700",
+        })
+      : buildEarnedBadgeStyles({
+          card: "border-amber-200 bg-amber-50/85 text-amber-900",
+          chip: "border border-amber-200 bg-white/85 text-amber-700",
+          icon: "bg-amber-100/90 text-amber-700 opacity-75",
+          meta: "text-amber-700",
+          note: "text-amber-700",
+        });
   }
 
   if (tone === "indigo") {
-    return {
-      card: "border-indigo-200 bg-indigo-50 text-indigo-900",
-      chip: "bg-indigo-100 text-indigo-700",
-      icon: "bg-indigo-100 text-indigo-700",
-    };
+    return isCurrentTier
+      ? buildActiveBadgeStyles({
+          cardGlow:
+            "border-indigo-200/90 bg-[linear-gradient(135deg,rgba(238,242,255,0.99),rgba(255,255,255,0.98),rgba(224,231,255,0.96))] ring-indigo-300/90 shadow-[0_30px_80px_-26px_rgba(99,102,241,0.54)]",
+          glow: "bg-indigo-200/80",
+          chip: "bg-indigo-100 text-indigo-700 animate-pulse",
+          icon: "bg-indigo-100 text-indigo-700",
+          meta: "text-indigo-700",
+          note: "text-indigo-700",
+        })
+      : buildEarnedBadgeStyles({
+          card: "border-indigo-200 bg-indigo-50/85 text-indigo-900",
+          chip: "border border-indigo-200 bg-white/85 text-indigo-700",
+          icon: "bg-indigo-100/90 text-indigo-700 opacity-75",
+          meta: "text-indigo-700",
+          note: "text-indigo-700",
+        });
   }
 
   if (tone === "rose") {
-    return {
-      card:
-        "border-rose-200 bg-[linear-gradient(135deg,rgba(255,241,242,0.98),rgba(255,255,255,0.96),rgba(254,243,199,0.94))] text-rose-900",
-      chip: "bg-gradient-to-r from-rose-100 to-amber-100 text-rose-700",
-      icon: "bg-gradient-to-br from-rose-100 to-amber-100 text-rose-700",
-    };
+    return isCurrentTier
+      ? buildActiveBadgeStyles({
+          cardGlow:
+            "border-rose-200/90 bg-[linear-gradient(135deg,rgba(255,241,242,0.99),rgba(255,255,255,0.98),rgba(254,243,199,0.96))] ring-rose-300/90 shadow-[0_30px_80px_-26px_rgba(244,63,94,0.52)]",
+          glow: "bg-rose-200/80",
+          chip: "bg-gradient-to-r from-rose-100 to-amber-100 text-rose-700 animate-pulse",
+          icon: "bg-gradient-to-br from-rose-100 to-amber-100 text-rose-700",
+          meta: "text-rose-700",
+          note: "text-rose-700",
+        })
+      : buildEarnedBadgeStyles({
+          card:
+            "border-rose-200 bg-[linear-gradient(135deg,rgba(255,241,242,0.92),rgba(255,255,255,0.92),rgba(254,243,199,0.86))] text-rose-900",
+          chip: "border border-rose-200 bg-white/85 text-rose-700",
+          icon: "bg-gradient-to-br from-rose-100/90 to-amber-100/90 text-rose-700 opacity-75",
+          meta: "text-rose-700",
+          note: "text-rose-700",
+        });
   }
 
   if (tone === "violet") {
-    return {
-      card: "border-violet-200 bg-violet-50 text-violet-900",
-      chip: "bg-violet-100 text-violet-700",
-      icon: "bg-violet-100 text-violet-700",
-    };
+    return isCurrentTier
+      ? buildActiveBadgeStyles({
+          cardGlow:
+            "border-violet-200/90 bg-[linear-gradient(135deg,rgba(245,243,255,0.99),rgba(255,255,255,0.98),rgba(233,213,255,0.96))] ring-violet-300/90 shadow-[0_30px_80px_-26px_rgba(139,92,246,0.54)]",
+          glow: "bg-violet-200/80",
+          chip: "bg-violet-100 text-violet-700 animate-pulse",
+          icon: "bg-violet-100 text-violet-700",
+          meta: "text-violet-700",
+          note: "text-violet-700",
+        })
+      : buildEarnedBadgeStyles({
+          card: "border-violet-200 bg-violet-50/85 text-violet-900",
+          chip: "border border-violet-200 bg-white/85 text-violet-700",
+          icon: "bg-violet-100/90 text-violet-700 opacity-75",
+          meta: "text-violet-700",
+          note: "text-violet-700",
+        });
   }
 
-  return {
-    card: "border-sky-200 bg-sky-50 text-sky-900",
-    chip: "bg-sky-100 text-sky-700",
-    icon: "bg-sky-100 text-sky-700",
-  };
+  return isCurrentTier
+    ? buildActiveBadgeStyles({
+        cardGlow:
+          "border-sky-200/90 bg-[linear-gradient(135deg,rgba(240,249,255,0.99),rgba(255,255,255,0.98),rgba(224,242,254,0.96))] ring-sky-300/90 shadow-[0_30px_80px_-26px_rgba(14,165,233,0.52)]",
+        glow: "bg-sky-200/80",
+        chip: "bg-sky-100 text-sky-700 animate-pulse",
+        icon: "bg-sky-100 text-sky-700",
+        meta: "text-sky-700",
+        note: "text-sky-700",
+      })
+    : buildEarnedBadgeStyles({
+        card: "border-sky-200 bg-sky-50/85 text-sky-900",
+        chip: "border border-sky-200 bg-white/85 text-sky-700",
+        icon: "bg-sky-100/90 text-sky-700 opacity-75",
+        meta: "text-sky-700",
+        note: "text-sky-700",
+      });
 }
 
 function getBadgeIcon(icon) {
@@ -156,6 +275,36 @@ function getBadgeIcon(icon) {
 
 function formatBadgeProgress(badge) {
   return `${Math.min(badge.progress, badge.target)}/${badge.target} days`;
+}
+
+function getBadgeStatusLabel(badge) {
+  if (badge.isCurrentTier) {
+    return "Current Tier";
+  }
+
+  if (badge.unlocked) {
+    return "Unlocked";
+  }
+
+  return "In Progress";
+}
+
+function getBadgeStatusNote(badge) {
+  if (badge.isCurrentTier) {
+    return "This tier is active right now.";
+  }
+
+  if (badge.unlocked) {
+    return "Earned earlier this month and kept in your cabinet.";
+  }
+
+  const daysLeft = Math.max(
+    0,
+    badge.target - Math.min(Number(badge.progress || 0), badge.target),
+  );
+  return `${daysLeft} more day${
+    daysLeft === 1 ? "" : "s"
+  } needed to unlock this tier.`;
 }
 
 export default function StudentAttendancePage() {
@@ -289,7 +438,7 @@ export default function StudentAttendancePage() {
 
       <div className="space-y-6 p-4 md:p-6">
         <div className="rounded-[30px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(239,246,255,0.92),rgba(236,253,245,0.88))] p-4 shadow-[0_26px_70px_-44px_rgba(15,23,42,0.45)] backdrop-blur md:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-col gap-4">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
                 Attendance Rules
@@ -301,20 +450,6 @@ export default function StudentAttendancePage() {
                 Winter vacation dates and Sundays are excluded from working-day
                 attendance tracking.
               </p>
-            </div>
-
-            <div className="w-full max-w-xs rounded-2xl border border-white/80 bg-white/80 p-3 shadow-sm">
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Select Month
-              </label>
-              <input
-                type="month"
-                min={ATTENDANCE_START_MONTH}
-                max={maxMonthKey}
-                value={monthKey}
-                onChange={(e) => setMonthKey(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
             </div>
           </div>
         </div>
@@ -505,7 +640,8 @@ export default function StudentAttendancePage() {
                     </h2>
                     <p className="mt-2 text-sm leading-7 text-gray-600">
                       The badge order follows the current-month tier ladder from
-                      Amber Ember to Rose Crown.
+                      Amber Ember to Rose Crown, and your current active tier
+                      stays highlighted.
                     </p>
                   </div>
                   <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm">
@@ -523,7 +659,11 @@ export default function StudentAttendancePage() {
 
                 <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {badges.map((badge) => {
-                    const styles = getBadgeStyles(badge.tone, badge.unlocked);
+                    const styles = getBadgeStyles(
+                      badge.tone,
+                      badge.unlocked,
+                      badge.isCurrentTier,
+                    );
                     const BadgeIcon = getBadgeIcon(badge.icon);
 
                     return (
@@ -531,27 +671,32 @@ export default function StudentAttendancePage() {
                         key={badge.key}
                         className={`rounded-[24px] border p-4 shadow-sm ${styles.card}`}
                       >
+                        <div className={styles.glow} />
+                        <div className={styles.veil} />
                         <div className="flex items-start justify-between gap-3">
                           <span
-                            className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${styles.icon}`}
+                            className={`relative inline-flex h-10 w-10 items-center justify-center rounded-2xl ${styles.icon}`}
                           >
                             <BadgeIcon className="h-4 w-4" />
                           </span>
                           <span
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${styles.chip}`}
+                            className={`relative rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${styles.chip}`}
                           >
-                            {badge.unlocked ? "Unlocked" : "In Progress"}
+                            {getBadgeStatusLabel(badge)}
                           </span>
                         </div>
 
-                        <p className="mt-4 text-base font-semibold text-gray-900">
+                        <p className={`relative mt-4 text-base font-semibold ${styles.title}`}>
                           {badge.title}
                         </p>
-                        <p className="mt-1 text-xs leading-5 text-gray-600">
+                        <p className={`relative mt-1 text-xs leading-5 ${styles.body}`}>
                           {badge.description}
                         </p>
-                        <p className="mt-3 text-[11px] font-semibold text-gray-500">
+                        <p className={`relative mt-3 text-[11px] font-semibold ${styles.meta}`}>
                           {formatBadgeProgress(badge)}
+                        </p>
+                        <p className={`relative mt-1 text-[11px] leading-5 ${styles.note}`}>
+                          {getBadgeStatusNote(badge)}
                         </p>
                       </div>
                     );
@@ -582,14 +727,29 @@ export default function StudentAttendancePage() {
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr]">
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
-                <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      Attendance Calendar
-                    </h2>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {selectedMonthStats.label}
-                    </p>
+                <div className="mb-5 flex flex-col gap-4">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        Attendance Calendar
+                      </h2>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {selectedMonthStats.label}
+                      </p>
+                    </div>
+                    <div className="w-full rounded-2xl border border-gray-200 bg-gray-50/80 p-3 shadow-sm md:max-w-xs">
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Select Month
+                      </label>
+                      <input
+                        type="month"
+                        min={ATTENDANCE_START_MONTH}
+                        max={maxMonthKey}
+                        value={monthKey}
+                        onChange={(e) => setMonthKey(e.target.value)}
+                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full bg-green-50 px-3 py-1 font-medium text-green-700">
@@ -616,48 +776,13 @@ export default function StudentAttendancePage() {
                   </div>
                 </div>
 
-                <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
-                  <div className="min-w-[720px]">
-                    <div className="grid grid-cols-7 gap-2 md:gap-3">
-                      {WEEK_DAYS.map((day) => (
-                        <div
-                          key={day}
-                          className="pb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:text-xs"
-                        >
-                          {day}
-                        </div>
-                      ))}
-
-                      {monthGrid.map((item, index) =>
-                        item ? (
-                          <div
-                            key={`${monthKey}-${item.day}-${index}`}
-                            className={`min-h-[80px] rounded-xl border p-2.5 md:min-h-[88px] md:p-3 ${getStatusClasses(
-                              item.status
-                            )}`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <span className="text-sm font-bold">{item.day}</span>
-                              <span className="text-[9px] font-semibold uppercase tracking-wide md:text-[10px]">
-                                {getStatusLabel(item.status)}
-                              </span>
-                            </div>
-                            {item.note && (
-                              <p className="mt-2 text-[10px] leading-4 md:mt-3 md:text-[11px]">
-                                {item.note}
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <div
-                            key={`${monthKey}-empty-${index}`}
-                            className="min-h-[80px] rounded-xl border border-transparent md:min-h-[88px]"
-                          />
-                        )
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <AttendanceCalendarGrid
+                  weekDays={WEEK_DAYS}
+                  monthGrid={monthGrid}
+                  monthKey={monthKey}
+                  getStatusClasses={getStatusClasses}
+                  getStatusLabel={getStatusLabel}
+                />
               </div>
 
               <div className="space-y-6">

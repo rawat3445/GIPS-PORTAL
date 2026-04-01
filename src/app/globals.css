@@ -30,6 +30,44 @@ body {
   font-family: var(--font-ui);
 }
 
+.calendar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.5) rgba(226, 232, 240, 0.85);
+}
+
+.calendar-scrollbar::-webkit-scrollbar {
+  height: 10px;
+}
+
+.calendar-scrollbar::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.85);
+}
+
+.calendar-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.78), rgba(14, 165, 233, 0.82));
+}
+
+.calendar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.9), rgba(2, 132, 199, 0.92));
+}
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 @keyframes floatBlob {
   0%,
   100% {

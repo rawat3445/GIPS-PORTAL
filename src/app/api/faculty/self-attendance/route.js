@@ -82,10 +82,12 @@ export async function GET(req) {
     const todayISO = toISODate(new Date());
 
     const [docs, holidayMap] = await Promise.all([
+      // Read the full month range and match records in JS so both legacy
+      // string ids and current ObjectId ids are picked up consistently.
       FacultyAttendance.find({
         date: { $gte: from, $lte: to },
-        "records.facultyId": auth.user._id,
       })
+        .select("date records")
         .sort({ date: -1 })
         .lean(),
       getHolidayMapForContext({
@@ -121,6 +123,8 @@ export async function GET(req) {
       if (cursor > todayISO) {
         status = "future";
         note = "Upcoming day";
+      } else if (attendanceRecordMap.has(cursor)) {
+        status = attendanceRecordMap.get(cursor);
       } else if (isWinterVacation(cursor)) {
         status = "vacation";
         note = "Winter vacation";
@@ -138,8 +142,6 @@ export async function GET(req) {
         status = "holiday";
         note = "Sunday holiday";
         holidayDays += 1;
-      } else if (attendanceRecordMap.has(cursor)) {
-        status = attendanceRecordMap.get(cursor);
       }
 
       if (status === "present") {
@@ -152,7 +154,6 @@ export async function GET(req) {
         leave += 1;
         records.push({ date: cursor, status });
       } else if (status === "holiday") {
-        holidayDays += 1;
         records.push({ date: cursor, status });
       }
 
