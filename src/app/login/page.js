@@ -760,6 +760,9 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+  const [buildInfo, setBuildInfo] = useState({
+    version: "24",
+  });
 
   const typedWord = useTypingEffect(
     ["elevated.", "reimagined.", "simplified.", "empowered."],
@@ -770,6 +773,31 @@ export default function LoginPage() {
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 60);
     return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadBuildInfo() {
+      try {
+        const res = await fetch("/api/meta/version", {
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !isActive) return;
+
+        setBuildInfo({
+          version: String(data?.version || "1"),
+        });
+      } catch {}
+    }
+
+    loadBuildInfo();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const handleSubmit = async (e) => {
@@ -1535,6 +1563,21 @@ export default function LoginPage() {
                 </div>
               </div>
             </section>
+          </div>
+        </div>
+
+        <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4">
+          <div
+            className="inline-flex flex-wrap items-center justify-center gap-2 rounded-full px-4 py-2 text-[11px] font-medium tracking-[0.16em] text-white/60"
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              backdropFilter: "blur(14px)",
+            }}
+          >
+            <span className="uppercase text-amber-300/85">
+              Version {buildInfo.version}
+            </span>
           </div>
         </div>
       </div>
