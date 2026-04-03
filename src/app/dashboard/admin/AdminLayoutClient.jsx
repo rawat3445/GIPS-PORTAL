@@ -85,6 +85,12 @@ export default function AdminLayoutClient({ children }) {
       icon: Users,
       isActive: pathname === "/dashboard/admin/students",
     },
+    {
+      name: "Admins",
+      href: "/dashboard/admin/admins",
+      icon: ShieldCheck,
+      isActive: pathname.startsWith("/dashboard/admin/admins"),
+    },
   ];
 
   const groupedItems = [
