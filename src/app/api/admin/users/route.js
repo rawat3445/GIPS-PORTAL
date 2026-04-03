@@ -4,6 +4,12 @@ import connectDB from "../../../lib/db";
 import User from "../../../models/User";
 import { requireAdmin } from "../../../lib/auth";
 import {
+  describeManagedUser,
+  getAdminManagementPath,
+  getUserById,
+  logActivity,
+} from "../../../lib/activity";
+import {
   deleteStudentProfileImage,
   isBase64Image,
   isRemoteImageUrl,
@@ -19,6 +25,14 @@ function normalizeProfileImage(profileImage) {
     throw new Error("Invalid profile image");
   }
   return value;
+}
+
+function buildUserCreateLabel(role) {
+  const normalizedRole = String(role || "").trim().toLowerCase() || "user";
+  const roleLabel =
+    normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1);
+
+  return `Created ${roleLabel}`;
 }
 
 /* ================= CREATE USER ================= */
@@ -73,6 +87,8 @@ export async function POST(req) {
       uploadedImage = await uploadStudentProfileImage(normalizedProfileImage);
     }
 
+    const actor = await getUserById(auth.decoded.id);
+
     const hashedPassword = await bcrypt.hash(normalizedPassword, 10);
 
     const createdUser = await User.create({
@@ -110,6 +126,21 @@ export async function POST(req) {
         },
       );
     }
+
+    await logActivity({
+      actor,
+      actionType: "user_create",
+      actionLabel: buildUserCreateLabel(createdUser.role),
+      target: createdUser,
+      path: getAdminManagementPath(createdUser),
+      details: describeManagedUser(createdUser),
+      metadata: {
+        facultyType: createdUser.facultyType || "",
+        assignedCourse: createdUser.assignedCourse || "",
+        course: createdUser.course || "",
+        year: createdUser.year || null,
+      },
+    });
 
     return NextResponse.json({ message: "User created" }, { status: 201 });
   } catch (error) {

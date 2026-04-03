@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
+  Activity,
   BarChart3,
   BriefcaseBusiness,
   CalendarDays,
@@ -17,6 +18,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import { trackDashboardPageView } from "../../lib/activityClient";
 
 function NavLink({
   href,
@@ -65,6 +67,7 @@ export default function AdminLayoutClient({ children }) {
 
   const currentFacultyType =
     searchParams.get("type") === "nonTeaching" ? "nonTeaching" : "teaching";
+  const searchKey = searchParams.toString();
 
   const directItems = [
     {
@@ -90,6 +93,12 @@ export default function AdminLayoutClient({ children }) {
       href: "/dashboard/admin/admins",
       icon: ShieldCheck,
       isActive: pathname.startsWith("/dashboard/admin/admins"),
+    },
+    {
+      name: "Activity Logs",
+      href: "/dashboard/admin/activity-logs",
+      icon: Activity,
+      isActive: pathname.startsWith("/dashboard/admin/activity-logs"),
     },
   ];
 
@@ -177,6 +186,13 @@ export default function AdminLayoutClient({ children }) {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    trackDashboardPageView({
+      userId: me?._id,
+      pathname: searchKey ? `${pathname}?${searchKey}` : pathname,
+    });
+  }, [me?._id, pathname, searchKey]);
 
   const handleNavigate = () => {
     if (window.innerWidth < 768) {

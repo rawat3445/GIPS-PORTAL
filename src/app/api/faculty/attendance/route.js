@@ -9,6 +9,7 @@ import {
   WINTER_VACATION_FROM,
   WINTER_VACATION_TO,
 } from "../../../lib/attendanceEvents";
+import { logActivity } from "../../../lib/activity";
 
 function getDateValidationMessage(dateString) {
   const todayISO = toISODate(new Date());
@@ -112,6 +113,21 @@ export async function POST(request) {
       },
       { new: true, upsert: true }
     );
+
+    await logActivity({
+      actor: me,
+      actionType: "attendance_marked",
+      actionLabel: "Marked attendance",
+      path: "/dashboard/faculty/mark-attendance",
+      details: `Marked ${String(course).toUpperCase()} Year ${year} attendance for ${date}`,
+      metadata: {
+        attendanceId: doc._id,
+        course: String(course).toUpperCase(),
+        year: Number(year),
+        date,
+        recordCount: records.length,
+      },
+    });
 
     return NextResponse.json({ message: "Saved", attendanceId: doc._id });
   } catch (e) {

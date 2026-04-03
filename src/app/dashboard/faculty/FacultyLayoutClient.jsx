@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { trackDashboardPageView } from "../../lib/activityClient";
 import {
   CalendarCheck2,
   ClipboardCheck,
@@ -111,6 +112,13 @@ export default function FacultyLayoutClient({ children }) {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    trackDashboardPageView({
+      userId: me?._id,
+      pathname,
+    });
+  }, [me?._id, pathname]);
 
   const facultySubText = [
     isNonTeaching ? me?.designation || "" : me?.assignedCourse || "",

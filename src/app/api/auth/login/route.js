@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import connectDB from "../../../lib/db";
 import User from "../../../models/User";
+import { logActivity } from "../../../lib/activity";
 
 function isBcryptHash(value) {
   return /^\$2[aby]\$\d{2}\$/.test(String(value || "").trim());
@@ -198,6 +199,14 @@ export async function POST(req) {
       path: "/",
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
+    });
+
+    await logActivity({
+      actor: user,
+      actionType: "login",
+      actionLabel: "Signed in",
+      path: redirectTo,
+      details: `Signed in to the ${role} dashboard`,
     });
 
     return response;

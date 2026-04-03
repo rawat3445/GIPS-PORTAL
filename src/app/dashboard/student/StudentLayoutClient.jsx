@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import ProfileAvatar from "../../components/ProfileAvatar";
+import { trackDashboardPageView } from "../../lib/activityClient";
 import {
   BarChart3,
   BookOpen,
@@ -107,6 +108,13 @@ export default function StudentLayoutClient({ children }) {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    trackDashboardPageView({
+      userId: me?._id,
+      pathname,
+    });
+  }, [me?._id, pathname]);
 
   const studentSubText = [
     me?.enrollmentNo || "",

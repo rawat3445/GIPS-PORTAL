@@ -2,14 +2,20 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import connectDB from "../../../../lib/db";
 import User from "../../../../models/User";
-import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
+import { requireAdmin } from "../../../../lib/auth";
+import {
+  describeManagedUser,
+  getAdminManagementPath,
+  getUserById,
+  logActivity,
+} from "../../../../lib/activity";
 import {
   deleteStudentProfileImage,
   isBase64Image,
   isRemoteImageUrl,
   uploadStudentProfileImage,
 } from "../../../../lib/cloudinary";
+
 export const runtime = "nodejs";
 
 function normalizeProfileImage(profileImage) {
@@ -21,17 +27,17 @@ function normalizeProfileImage(profileImage) {
   return value;
 }
 
-async function requireAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
-  if (!token) return { ok: false };
+function buildManagedUserActionLabel(action, role) {
+  const normalizedRole = String(role || "").trim().toLowerCase() || "user";
+  const roleLabel =
+    normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1);
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (String(decoded.role).toLowerCase() !== "admin") return { ok: false };
-    return { ok: true, decoded };
-  } catch {
-    return { ok: false };
+  return `${action} ${roleLabel}`;
+}
+
+function pushChangedField(changedFields, label) {
+  if (!changedFields.includes(label)) {
+    changedFields.push(label);
   }
 }
 
@@ -44,7 +50,8 @@ export async function DELETE(req, { params }) {
   try {
     await connectDB();
 
-    const { id } =await  params; // ✅ FIX: params is a Promise in your setup [web:170]
+    const actor = await getUserById(auth.decoded.id);
+    const { id } = await params;
     const deletedUser = await User.findByIdAndDelete(id);
 
     if (!deletedUser) {
@@ -58,6 +65,15 @@ export async function DELETE(req, { params }) {
         console.error("DELETE CLOUDINARY CLEANUP ERROR:", cleanupError);
       }
     }
+
+    await logActivity({
+      actor,
+      actionType: "user_delete",
+      actionLabel: buildManagedUserActionLabel("Deleted", deletedUser.role),
+      target: deletedUser,
+      path: getAdminManagementPath(deletedUser),
+      details: describeManagedUser(deletedUser),
+    });
 
     return NextResponse.json(
       { message: "User deleted successfully" },
@@ -80,6 +96,7 @@ export async function PATCH(req, { params }) {
   try {
     await connectDB();
 
+    const actor = await getUserById(auth.decoded.id);
     const { id } = await params;
     const body = await req.json();
 
@@ -91,18 +108,22 @@ export async function PATCH(req, { params }) {
     const previousProfileImagePublicId = user.profileImagePublicId || "";
     const updates = {};
     const unsetFields = {};
+    const changedFields = [];
 
     if (typeof body.name === "string" && body.name.trim()) {
       updates.name = body.name.trim();
+      pushChangedField(changedFields, "name");
     }
 
     if (typeof body.email === "string" && body.email.trim()) {
       updates.email = body.email.trim().toLowerCase();
+      pushChangedField(changedFields, "email");
     }
 
     if (user.role === "student") {
       if (typeof body.phone === "string" && body.phone.trim()) {
         updates.phone = body.phone.trim();
+        pushChangedField(changedFields, "phone");
       }
 
       if (
@@ -110,16 +131,19 @@ export async function PATCH(req, { params }) {
         body.enrollmentNo.trim()
       ) {
         updates.enrollmentNo = body.enrollmentNo.trim();
+        pushChangedField(changedFields, "enrollment number");
       }
 
       if (typeof body.course === "string" && body.course.trim()) {
         updates.course = body.course.trim().toUpperCase();
+        pushChangedField(changedFields, "course");
       }
 
       if (body.year !== undefined && body.year !== null && body.year !== "") {
         const parsedYear = Number(body.year);
         if (!Number.isNaN(parsedYear) && parsedYear >= 1 && parsedYear <= 4) {
           updates.year = parsedYear;
+          pushChangedField(changedFields, "year");
         }
       }
     }
@@ -134,47 +158,57 @@ export async function PATCH(req, { params }) {
 
       if (typeof body.facultyType === "string" && body.facultyType.trim()) {
         updates.facultyType = nextFacultyType;
+        pushChangedField(changedFields, "faculty type");
       }
 
       if (typeof body.phone === "string") {
         const trimmedPhone = body.phone.trim();
         if (trimmedPhone) {
           updates.phone = trimmedPhone;
+          pushChangedField(changedFields, "phone");
         } else if (user.phone) {
           unsetFields.phone = 1;
+          pushChangedField(changedFields, "phone");
         }
       }
 
       if (nextFacultyType === "nonTeaching") {
         unsetFields.assignedCourse = 1;
+        pushChangedField(changedFields, "assigned course");
 
         if (typeof body.designation === "string") {
           const trimmedDesignation = body.designation.trim();
           if (trimmedDesignation) {
             updates.designation = trimmedDesignation;
+            pushChangedField(changedFields, "designation");
           } else if (user.designation) {
             unsetFields.designation = 1;
+            pushChangedField(changedFields, "designation");
           }
         }
       } else {
         unsetFields.designation = 1;
+        pushChangedField(changedFields, "designation");
 
         if (
           typeof body.assignedCourse === "string" &&
           body.assignedCourse.trim()
         ) {
           updates.assignedCourse = body.assignedCourse.trim().toUpperCase();
+          pushChangedField(changedFields, "assigned course");
         }
       }
     }
 
     if (typeof body.password === "string" && body.password.trim()) {
       updates.password = await bcrypt.hash(body.password.trim(), 10);
+      pushChangedField(changedFields, "password");
     }
 
     if (body.removeProfileImage === true) {
       updates.profileImage = "";
       updates.profileImagePublicId = "";
+      pushChangedField(changedFields, "profile image");
     } else if (
       typeof body.profileImage === "string" &&
       body.profileImage.trim()
@@ -188,12 +222,17 @@ export async function PATCH(req, { params }) {
       } else {
         updates.profileImage = normalizedProfileImage;
       }
+
+      pushChangedField(changedFields, "profile image");
     }
 
-    if (Object.keys(updates).length === 0 && Object.keys(unsetFields).length === 0) {
+    if (
+      Object.keys(updates).length === 0 &&
+      Object.keys(unsetFields).length === 0
+    ) {
       return NextResponse.json(
         { message: "No valid fields provided for update" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -226,7 +265,8 @@ export async function PATCH(req, { params }) {
 
     if (
       previousProfileImagePublicId &&
-      (body.removeProfileImage === true || uploadedImage?.profileImagePublicId) &&
+      (body.removeProfileImage === true ||
+        uploadedImage?.profileImagePublicId) &&
       previousProfileImagePublicId !== updatedUser.profileImagePublicId
     ) {
       try {
@@ -236,9 +276,26 @@ export async function PATCH(req, { params }) {
       }
     }
 
+    await logActivity({
+      actor,
+      actionType: "user_update",
+      actionLabel: buildManagedUserActionLabel("Updated", updatedUser.role),
+      target: updatedUser,
+      path: getAdminManagementPath(updatedUser),
+      details: [
+        describeManagedUser(updatedUser),
+        changedFields.length ? `Fields: ${changedFields.join(", ")}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | "),
+      metadata: {
+        changedFields,
+      },
+    });
+
     return NextResponse.json(
       { message: "User updated successfully", user: updatedUser },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     if (uploadedImage?.profileImagePublicId) {
