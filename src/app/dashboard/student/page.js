@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import FlameAvatar from "../../components/FlameAvatar";
-import ProfileAvatar from "../../components/ProfileAvatar";
 import {
   Activity,
   AlertCircle,
@@ -649,36 +648,29 @@ function getLeaderboardTierShell(tierTone, tierIsLive) {
   return "border border-slate-200 bg-slate-100 text-slate-600";
 }
 
-function getLeaderboardTierStateLabel(tierState) {
-  if (tierState === "excellent") {
-    return "Excellent";
-  }
-
-  if (tierState === "strong") {
-    return "Strong";
-  }
-
-  if (tierState === "safe") {
-    return "On Track";
-  }
-
-  return "Needs Care";
-}
-
 function getLeaderboardTierNote(student) {
   const presentDays = Number(student?.presentDays || 0);
-  const workingDays = Number(student?.workingDays || 0);
-  const overallPercentage = Number(student?.overallPercentage || 0);
+  const confirmedMarkedDays = Number(
+    student?.confirmedMarkedDays || presentDays + Number(student?.absentDays || 0),
+  );
+  const confirmedOverallPercentage = Number(
+    student?.confirmedOverallPercentage || 0,
+  );
+  const attendanceScore = Number(student?.attendanceScore || 0);
 
-  if (workingDays > 0) {
-    return `${formatLeaderboardPercentage(
-      overallPercentage,
-    )} overall attendance • ${presentDays}/${workingDays} present`;
+  if (confirmedMarkedDays > 0) {
+    return `Score ${formatLeaderboardScore(
+      attendanceScore,
+    )} • ${formatLeaderboardPercentage(
+      confirmedOverallPercentage,
+    )} confirmed attendance • ${presentDays}/${confirmedMarkedDays} present`;
   }
 
-  return `${formatLeaderboardPercentage(
-    overallPercentage,
-  )} overall attendance`;
+  return `Score ${formatLeaderboardScore(
+    attendanceScore,
+  )} • ${formatLeaderboardPercentage(
+    confirmedOverallPercentage,
+  )} confirmed attendance`;
 }
 
 function getLeaderboardRowShell(rank, isCurrentUser) {
@@ -1522,14 +1514,11 @@ export default function StudentDashboard() {
     totalStudents: 0,
     yourRank: null,
     yourTitle: "Rising",
-    yourOverallPercentage: 0,
+    yourConfirmedOverallPercentage: 0,
+    yourConfirmedMarkedDays: 0,
     yourPresentDays: 0,
-    yourAbsentDays: 0,
-    yourWorkingDays: 0,
     gapToNextRank: 0,
     motivation: "",
-    topStudents: [],
-    nearbyStudents: [],
   });
 
   const today = useMemo(() => toISODate(new Date()), []);
@@ -1610,7 +1599,13 @@ export default function StudentDashboard() {
         });
         const summaryData = await summaryRes.json().catch(() => ({}));
         if (summaryRes.ok) {
-          setOverallAttendance(Number(summaryData?.overall?.percentage || 0));
+          setOverallAttendance(
+            Number(
+              summaryData?.overall?.confirmedPercentage ??
+                summaryData?.overall?.percentage ??
+                0,
+            ),
+          );
           setStreaks({
             current: Number(summaryData?.streaks?.current || 0),
             best: Number(summaryData?.streaks?.best || 0),
@@ -1634,35 +1629,27 @@ export default function StudentDashboard() {
           );
           setStreakMonthLabel(String(summaryData?.streakMonthLabel || ""));
           setLeaderboard({
-            totalStudents: Number(summaryData?.leaderboard?.totalStudents || 0),
-            yourRank: summaryData?.leaderboard?.yourRank ?? null,
+            totalStudents: Number(
+              summaryData?.attendanceLeaderboard?.totalStudents || 0,
+            ),
+            yourRank: summaryData?.attendanceLeaderboard?.yourRank ?? null,
             yourTitle:
-              String(summaryData?.leaderboard?.yourTitle || "").trim() ||
+              String(summaryData?.attendanceLeaderboard?.yourTitle || "").trim() ||
               "Rising",
-            yourOverallPercentage: Number(
-              summaryData?.leaderboard?.yourOverallPercentage || 0,
+            yourConfirmedOverallPercentage: Number(
+              summaryData?.attendanceLeaderboard?.yourConfirmedOverallPercentage ||
+                0,
+            ),
+            yourConfirmedMarkedDays: Number(
+              summaryData?.attendanceLeaderboard?.yourConfirmedMarkedDays || 0,
             ),
             yourPresentDays: Number(
-              summaryData?.leaderboard?.yourPresentDays || 0,
-            ),
-            yourAbsentDays: Number(
-              summaryData?.leaderboard?.yourAbsentDays || 0,
-            ),
-            yourWorkingDays: Number(
-              summaryData?.leaderboard?.yourWorkingDays || 0,
+              summaryData?.attendanceLeaderboard?.yourPresentDays || 0,
             ),
             gapToNextRank: Number(
-              summaryData?.leaderboard?.gapToNextRank || 0,
+              summaryData?.attendanceLeaderboard?.gapToNextRank || 0,
             ),
-            motivation: String(summaryData?.leaderboard?.motivation || ""),
-            topStudents: Array.isArray(summaryData?.leaderboard?.topStudents)
-              ? summaryData.leaderboard.topStudents
-              : [],
-            nearbyStudents: Array.isArray(
-              summaryData?.leaderboard?.nearbyStudents,
-            )
-              ? summaryData.leaderboard.nearbyStudents
-              : [],
+            motivation: String(summaryData?.attendanceLeaderboard?.motivation || ""),
           });
         }
       } catch (e) {
@@ -1771,15 +1758,6 @@ export default function StudentDashboard() {
       valueClass: "text-violet-700",
     },
   ];
-  const topStudents = Array.isArray(leaderboard.topStudents)
-    ? leaderboard.topStudents
-    : [];
-  const nearbyStudents = Array.isArray(leaderboard.nearbyStudents)
-    ? leaderboard.nearbyStudents
-    : [];
-  const hasLeaderboardData =
-    topStudents.length > 0 || nearbyStudents.length > 0;
-
   return (
     <>
       <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0%,#eef2ff_22%,#f8fafc_56%,#f8fafc_100%)]">
@@ -1883,12 +1861,19 @@ export default function StudentDashboard() {
                   Open Attendance
                   <ArrowRight className="h-4 w-4" />
                 </Link>
+                <Link
+                  href="/dashboard/student/points"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 sm:w-auto"
+                >
+                  Open Student Points
+                  <Trophy className="h-4 w-4" />
+                </Link>
                 <div className="w-full rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm sm:w-auto">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
                     Focus
                   </p>
                   <p className="mt-1 font-semibold text-gray-900">
-                    Protect your monthly streak and climb the next tier
+                    Build your live attendance category while academic categories roll out
                   </p>
                 </div>
               </div>
@@ -2111,302 +2096,87 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(239,246,255,0.93),rgba(224,231,255,0.9))] p-5 shadow-[0_30px_80px_-44px_rgba(15,23,42,0.42)] backdrop-blur md:p-7">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="overflow-hidden rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(255,251,235,0.94),rgba(239,246,255,0.9))] p-5 shadow-[0_30px_80px_-44px_rgba(15,23,42,0.42)] backdrop-blur md:p-7">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-2xl">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-indigo-700">
-                  Overall Leaderboard
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">
+                  Student Points Preview
                 </p>
                 <h2 className="mt-3 text-2xl font-bold text-slate-950 md:text-[2rem]">
-                  Race the full student board
+                  Track the live ranking on your student points page
                 </h2>
                 <p className="mt-3 text-sm leading-7 text-gray-600 md:text-base">
-                  Ranked by overall attendance across all students. Sundays,
-                  winter vacation, holidays, internships, and approved
-                  off-days stay excluded so the board stays fair.
+                  The student points page now explains the full 100-point
+                  structure. Your current live ranking there still runs on the
+                  attendance category until assignments, class tests, and
+                  results begin storing portal data.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 text-sm shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
-                    Overall Board
-                </p>
-                <p className="mt-1 font-semibold text-gray-900">
-                  {leaderboard.totalStudents} students ranked
-                </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/dashboard/student/points"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600"
+                >
+                  Open Student Points Page
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <div className="rounded-2xl border border-white/80 bg-white/82 px-4 py-3 text-sm shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                    Live Attendance Snapshot
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-950">
+                    {formatLeaderboardPercentage(
+                      leaderboard.yourConfirmedOverallPercentage,
+                    )}
+                    {" • "}
+                    {leaderboard.yourRank ? `Rank #${leaderboard.yourRank}` : "Rank pending"}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[0.92fr_1.08fr_1fr]">
-              <div className="rounded-[28px] border border-amber-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(255,247,237,0.95),rgba(254,242,242,0.92))] p-5 shadow-[0_24px_48px_-36px_rgba(249,115,22,0.45)]">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-orange-700">
-                      Your Stats
-                    </p>
-                    <h3 className="mt-2 text-xl font-bold text-slate-950">
-                      Stay in the race
-                    </h3>
-                  </div>
-                  <span
-                    className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getLeaderboardTitleShell(
-                      leaderboard.yourTitle,
-                    )}`}
-                  >
-                    {leaderboard.yourTitle}
-                  </span>
-                </div>
-
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <div className="rounded-[24px] border border-white/80 bg-white/88 p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                      Overall Rank
-                    </p>
-                    <p className="mt-3 text-4xl font-bold text-slate-950">
-                      {leaderboard.yourRank ? `#${leaderboard.yourRank}` : "-"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-[24px] border border-white/80 bg-white/88 p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                      Overall Attendance
-                    </p>
-                    <p className="mt-3 text-4xl font-bold text-orange-600">
-                      {formatLeaderboardPercentage(
-                        leaderboard.yourOverallPercentage,
-                      )}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      based on your full attendance history
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-white/80 bg-white/84 px-4 py-3 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                      Present Days
-                    </p>
-                    <p className="mt-2 text-2xl font-bold text-violet-700">
-                      {leaderboard.yourPresentDays}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      confirmed present days overall
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/80 bg-white/84 px-4 py-3 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                      Working Days
-                    </p>
-                    <p className="mt-2 text-2xl font-bold text-blue-700">
-                      {leaderboard.yourWorkingDays}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      counted in your overall attendance
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-700">
-                    Momentum Message
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-slate-900">
-                    {leaderboard.motivation ||
-                      "Attend regularly to improve your overall attendance rank."}
-                  </p>
-                  {leaderboard.gapToNextRank > 0 ? (
-                    <p className="mt-1 text-xs leading-5 text-gray-500">
-                      {formatLeaderboardPercentage(leaderboard.gapToNextRank)}{" "}
-                      behind the student above you.
-                    </p>
-                  ) : null}
-                </div>
+            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="rounded-[24px] border border-white/80 bg-white/88 p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                  Live Attendance Coverage
+                </p>
+                <p className="mt-3 text-3xl font-bold text-blue-700">
+                  {formatLeaderboardPercentage(
+                    leaderboard.yourConfirmedOverallPercentage,
+                  )}
+                </p>
+                <p className="mt-2 text-xs text-gray-500">
+                  {leaderboard.yourPresentDays}/{leaderboard.yourConfirmedMarkedDays} marked present
+                </p>
               </div>
 
-              <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(239,246,255,0.95),rgba(243,232,255,0.92))] p-5 shadow-[0_24px_50px_-38px_rgba(37,99,235,0.35)]">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
-                      Overall Top 5
-                    </p>
-                    <h3 className="mt-2 text-xl font-bold text-slate-950">
-                      Student leaders
-                    </h3>
-                  </div>
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
-                    <Trophy className="h-5 w-5" />
-                  </span>
-                </div>
-
-                <div className="mt-5 space-y-3">
-                  {hasLeaderboardData ? (
-                    topStudents.map((student) => (
-                      <div
-                        key={`${student.rank}-${student.studentId}`}
-                        className={`rounded-[24px] border px-4 py-3 shadow-sm ${getLeaderboardRowShell(
-                          student.rank,
-                          student.isCurrentUser,
-                        )}`}
-                      >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex min-w-0 items-start gap-3">
-                            <ProfileAvatar
-                              src={student.profileImage}
-                              name={student.name}
-                              sizeClass="h-11 w-11"
-                              className="border-white/80"
-                              textClassName="text-xs"
-                            />
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold leading-5 text-slate-950">
-                                <span
-                                  className={`mr-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] ${getLeaderboardRankShell(
-                                    student.rank,
-                                    student.isCurrentUser,
-                                  )}`}
-                                >
-                                  {getLeaderboardRankLabel(student.rank)}
-                                </span>
-                                <span className="break-words">
-                                  {student.isCurrentUser
-                                    ? `YOU - ${student.name}`
-                                    : student.name}
-                                </span>
-                              </p>
-                              <p className="mt-1 break-words text-[11px] font-medium text-gray-500">
-                                {student.course} • Year {student.year}
-                              </p>
-                              <div className="mt-2 flex flex-wrap items-center gap-2">
-                                <span
-                                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getLeaderboardTitleShell(
-                                    student.title,
-                                  )}`}
-                                >
-                                  {student.title}
-                                </span>
-                                <span
-                                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getLeaderboardTierShell(
-                                    student.tierTone,
-                                    student.tierIsLive,
-                                  )}`}
-                                >
-                                  {student.tierLabel}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="w-full text-left sm:w-auto sm:max-w-[180px] sm:shrink-0 sm:text-right">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
-                              {getLeaderboardTierStateLabel(student.tierState)}
-                            </p>
-                            <p className="mt-2 text-lg font-bold text-slate-950">
-                              {formatLeaderboardPercentage(
-                                student.overallPercentage,
-                              )}
-                            </p>
-                            <p className="mt-1 text-xs leading-5 text-gray-500">
-                              {student.presentDays}/{student.workingDays} present
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="rounded-[24px] border border-white/80 bg-white/82 px-4 py-5 text-sm text-gray-500 shadow-sm">
-                      Students will appear here once overall attendance records
-                      are available.
-                    </div>
-                  )}
-                </div>
+              <div className="rounded-[24px] border border-white/80 bg-white/88 p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                  Current Live Rank
+                </p>
+                <p className="mt-3 text-3xl font-bold text-amber-700">
+                  {leaderboard.yourRank ? `#${leaderboard.yourRank}` : "-"}
+                </p>
+                <p className="mt-2 text-xs text-gray-500">
+                  {leaderboard.totalStudents} students in the live attendance ranking
+                </p>
               </div>
 
-              <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(240,253,250,0.92),rgba(239,246,255,0.9))] p-5 shadow-[0_24px_50px_-38px_rgba(16,185,129,0.32)]">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
-                      Around You
-                    </p>
-                    <h3 className="mt-2 text-xl font-bold text-slate-950">
-                      Overall nearby ranking
-                    </h3>
-                    <p className="mt-2 text-sm leading-6 text-gray-600">
-                      See the students just above and below you to keep the
-                      competition real.
-                    </p>
-                  </div>
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                    <Sparkles className="h-5 w-5" />
-                  </span>
-                </div>
-
-                <div className="mt-5 space-y-3">
-                  {hasLeaderboardData ? (
-                    nearbyStudents.map((student) => (
-                      <div
-                        key={`nearby-${student.rank}-${student.studentId}`}
-                        className={`rounded-[24px] border px-4 py-3 shadow-sm ${getLeaderboardRowShell(
-                          student.rank,
-                          student.isCurrentUser,
-                        )}`}
-                      >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex min-w-0 items-start gap-3">
-                            <ProfileAvatar
-                              src={student.profileImage}
-                              name={student.name}
-                              sizeClass="h-10 w-10"
-                              className="border-white/80"
-                              textClassName="text-[11px]"
-                            />
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold leading-5 text-slate-950">
-                                <span
-                                  className={`mr-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] ${getLeaderboardRankShell(
-                                    student.rank,
-                                    student.isCurrentUser,
-                                  )}`}
-                                >
-                                  {getLeaderboardRankLabel(student.rank)}
-                                </span>
-                                <span className="break-words">
-                                  {student.isCurrentUser
-                                    ? `YOU - ${student.name}`
-                                    : student.name}
-                                </span>
-                              </p>
-                              <p className="mt-1 break-words text-[11px] font-medium text-gray-500">
-                                {student.course} • Year {student.year}
-                              </p>
-                              <p className="mt-1 break-words text-[11px] font-medium text-gray-500">
-                                {getLeaderboardTierNote(student)}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="w-full text-left sm:w-auto sm:shrink-0 sm:text-right">
-                            <span
-                              className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getLeaderboardTierShell(
-                                student.tierTone,
-                                student.tierIsLive,
-                              )}`}
-                            >
-                              {student.tierLabel}
-                            </span>
-                            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
-                              {getLeaderboardTierStateLabel(student.tierState)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="rounded-[24px] border border-white/80 bg-white/82 px-4 py-5 text-sm text-gray-500 shadow-sm">
-                      Your nearby ranking will appear once overall attendance
-                      records are available.
-                    </div>
-                  )}
-                </div>
+              <div className="rounded-[24px] border border-white/80 bg-white/88 p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                  Momentum
+                </p>
+                <p className="mt-3 text-lg font-bold text-slate-950">
+                  {leaderboard.motivation ||
+                    "Open the student points page to see the 100-point structure and your live attendance ranking."}
+                </p>
+                {leaderboard.gapToNextRank > 0 ? (
+                  <p className="mt-2 text-xs text-gray-500">
+                    {formatLeaderboardPercentage(leaderboard.gapToNextRank)} to
+                    the next rank.
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>
@@ -2414,7 +2184,7 @@ export default function StudentDashboard() {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <ComingSoonCard
               title="Results Module"
-              description="Marks, semester result summaries, and performance insights are being polished for your dashboard."
+              description="Marks, semester result summaries, and performance insights are being polished for your dashboard and reserved result points."
               icon={TrendingUp}
               accent="blue"
             />
@@ -2426,7 +2196,7 @@ export default function StudentDashboard() {
             />
             <ComingSoonCard
               title="Assignments Module"
-              description="Upcoming assignment tracking and submission progress are being prepared for this section."
+              description="Upcoming assignment tracking and submission progress are being prepared for this section and reserved assignment points."
               icon={FileClock}
               accent="emerald"
             />

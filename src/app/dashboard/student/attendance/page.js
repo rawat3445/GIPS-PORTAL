@@ -7,12 +7,12 @@ import {
   CalendarDays,
   CalendarRange,
   CheckCircle2,
-  Clock3,
   Flame,
   Sparkles,
   TrendingUp,
   Trophy,
 } from "lucide-react";
+import ProfileAvatar from "../../../components/ProfileAvatar";
 import AttendancePerformanceChart from "../../_components/AttendancePerformanceChart";
 import AttendanceCalendarGrid from "../../_components/AttendanceCalendarGrid";
 
@@ -84,6 +84,142 @@ function getStatusLabel(status) {
     default:
       return "Not Marked";
   }
+}
+
+function formatLeaderboardPercentage(value) {
+  const numericValue = Number(value);
+  return `${(Number.isFinite(numericValue) ? numericValue : 0).toFixed(1)}%`;
+}
+
+function getLeaderboardTitleShell(title) {
+  if (title === "Legend") {
+    return "bg-amber-100 text-amber-800";
+  }
+
+  if (title === "Elite") {
+    return "bg-indigo-100 text-indigo-700";
+  }
+
+  if (title === "Active") {
+    return "bg-sky-100 text-sky-700";
+  }
+
+  return "bg-slate-100 text-slate-600";
+}
+
+function getLeaderboardRankShell(rank, isCurrentUser) {
+  if (rank === 1) {
+    return isCurrentUser
+      ? "border border-amber-300 bg-[linear-gradient(135deg,rgba(251,191,36,0.24),rgba(255,255,255,0.96),rgba(253,230,138,0.38))] text-amber-900 shadow-sm"
+      : "border border-amber-200 bg-[linear-gradient(135deg,rgba(254,243,199,0.98),rgba(255,255,255,0.96),rgba(251,191,36,0.26))] text-amber-900 shadow-sm";
+  }
+
+  if (rank === 2) {
+    return isCurrentUser
+      ? "border border-slate-300 bg-[linear-gradient(135deg,rgba(226,232,240,0.95),rgba(255,255,255,0.96),rgba(203,213,225,0.72))] text-slate-800 shadow-sm"
+      : "border border-slate-200 bg-[linear-gradient(135deg,rgba(241,245,249,0.98),rgba(255,255,255,0.96),rgba(226,232,240,0.86))] text-slate-800 shadow-sm";
+  }
+
+  if (rank === 3) {
+    return isCurrentUser
+      ? "border border-[#c08457] bg-[linear-gradient(135deg,rgba(194,120,58,0.24),rgba(255,255,255,0.96),rgba(251,191,116,0.36))] text-[#7c2d12] shadow-sm"
+      : "border border-[#d6a272] bg-[linear-gradient(135deg,rgba(250,240,230,0.98),rgba(255,255,255,0.96),rgba(194,120,58,0.2))] text-[#7c2d12] shadow-sm";
+  }
+
+  if (isCurrentUser) {
+    return "border border-blue-200 bg-blue-50/90 text-blue-800 shadow-sm";
+  }
+
+  return "border border-slate-200 bg-slate-50/90 text-slate-700";
+}
+
+function getLeaderboardRankLabel(rank) {
+  if (rank === 1) return "1st Place";
+  if (rank === 2) return "2nd Place";
+  if (rank === 3) return "3rd Place";
+  return `#${rank}`;
+}
+
+function getLeaderboardTierShell(tierTone, tierIsLive) {
+  if (tierTone === "rose") {
+    return tierIsLive
+      ? "border border-rose-200 bg-gradient-to-r from-rose-100 to-amber-100 text-rose-700 shadow-sm"
+      : "border border-rose-100 bg-rose-50/90 text-rose-700";
+  }
+
+  if (tierTone === "indigo") {
+    return tierIsLive
+      ? "border border-indigo-200 bg-indigo-100 text-indigo-700 shadow-sm"
+      : "border border-indigo-100 bg-indigo-50/90 text-indigo-700";
+  }
+
+  if (tierTone === "emerald") {
+    return tierIsLive
+      ? "border border-emerald-200 bg-emerald-100 text-emerald-700 shadow-sm"
+      : "border border-emerald-100 bg-emerald-50/90 text-emerald-700";
+  }
+
+  if (tierTone === "sky") {
+    return tierIsLive
+      ? "border border-sky-200 bg-sky-100 text-sky-700 shadow-sm"
+      : "border border-sky-100 bg-sky-50/90 text-sky-700";
+  }
+
+  if (tierTone === "amber") {
+    return tierIsLive
+      ? "border border-amber-200 bg-amber-100 text-amber-700 shadow-sm"
+      : "border border-amber-100 bg-amber-50/90 text-amber-700";
+  }
+
+  return "border border-slate-200 bg-slate-100 text-slate-600";
+}
+
+function getLeaderboardRowShell(rank, isCurrentUser) {
+  if (rank === 1) {
+    return isCurrentUser
+      ? "border-amber-300 bg-[linear-gradient(135deg,rgba(255,251,235,0.99),rgba(239,246,255,0.94),rgba(253,230,138,0.88))] shadow-[0_24px_52px_-34px_rgba(217,119,6,0.45)]"
+      : "border-amber-200 bg-[linear-gradient(135deg,rgba(255,251,235,0.99),rgba(255,255,255,0.96),rgba(255,237,213,0.9))] shadow-[0_24px_52px_-38px_rgba(217,119,6,0.35)]";
+  }
+
+  if (rank === 2) {
+    return isCurrentUser
+      ? "border-slate-300 bg-[linear-gradient(135deg,rgba(248,250,252,0.99),rgba(239,246,255,0.94),rgba(226,232,240,0.9))] shadow-[0_24px_52px_-38px_rgba(71,85,105,0.35)]"
+      : "border-slate-200 bg-[linear-gradient(135deg,rgba(248,250,252,0.99),rgba(255,255,255,0.96),rgba(226,232,240,0.9))] shadow-[0_24px_52px_-40px_rgba(100,116,139,0.28)]";
+  }
+
+  if (rank === 3) {
+    return isCurrentUser
+      ? "border-[#c08457] bg-[linear-gradient(135deg,rgba(255,243,230,0.99),rgba(239,246,255,0.94),rgba(214,162,114,0.92))] shadow-[0_24px_52px_-38px_rgba(146,64,14,0.32)]"
+      : "border-[#d6a272] bg-[linear-gradient(135deg,rgba(255,245,235,0.99),rgba(255,255,255,0.96),rgba(214,162,114,0.86))] shadow-[0_24px_52px_-40px_rgba(146,64,14,0.22)]";
+  }
+
+  if (isCurrentUser) {
+    return "border-blue-200 bg-[linear-gradient(135deg,rgba(239,246,255,0.98),rgba(255,255,255,0.96),rgba(224,231,255,0.92))] shadow-[0_18px_38px_-30px_rgba(37,99,235,0.45)]";
+  }
+
+  if (rank <= 5) {
+    return "border-indigo-100 bg-[linear-gradient(135deg,rgba(238,242,255,0.98),rgba(255,255,255,0.96),rgba(224,231,255,0.88))]";
+  }
+
+  return "border-white/80 bg-white/82";
+}
+
+function getLeaderboardTierNote(student) {
+  const presentDays = Number(student?.presentDays || 0);
+  const confirmedMarkedDays = Number(student?.confirmedMarkedDays || 0);
+  const confirmedOverallPercentage = Number(
+    student?.confirmedOverallPercentage || 0,
+  );
+
+  if (confirmedMarkedDays > 0) {
+    return `${formatLeaderboardPercentage(
+      confirmedOverallPercentage,
+    )} confirmed attendance • ${presentDays}/${confirmedMarkedDays} present`;
+  }
+
+  return `${formatLeaderboardPercentage(
+    confirmedOverallPercentage,
+  )} confirmed attendance`;
 }
 
 function buildActiveBadgeStyles({
@@ -416,6 +552,26 @@ export default function StudentAttendancePage() {
   const earnedBadgeCount = badges.filter((badge) => badge.unlocked).length;
   const nextBadge = badges.find((badge) => !badge.unlocked);
   const streakMonthLabel = summary?.streakMonthLabel || getMonthLabel(getCurrentMonthKey());
+  const attendanceLeaderboard = summary?.attendanceLeaderboard || {
+    totalStudents: 0,
+    yourRank: null,
+    yourTitle: "Rising",
+    yourConfirmedOverallPercentage: 0,
+    yourConfirmedMarkedDays: 0,
+    yourPresentDays: 0,
+    gapToNextRank: 0,
+    motivation: "",
+    topStudents: [],
+    nearbyStudents: [],
+  };
+  const topStudents = Array.isArray(attendanceLeaderboard.topStudents)
+    ? attendanceLeaderboard.topStudents
+    : [];
+  const nearbyStudents = Array.isArray(attendanceLeaderboard.nearbyStudents)
+    ? attendanceLeaderboard.nearbyStudents
+    : [];
+  const hasLeaderboardData =
+    topStudents.length > 0 || nearbyStudents.length > 0;
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0%,#eef2ff_22%,#f8fafc_56%,#f8fafc_100%)]">
@@ -844,6 +1000,276 @@ export default function StudentAttendancePage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-[30px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(239,246,255,0.94),rgba(224,231,255,0.9))] p-5 shadow-[0_24px_58px_-40px_rgba(15,23,42,0.28)] md:p-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="max-w-2xl">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-indigo-700">
+                    Attendance Leaderboard
+                  </p>
+                  <h2 className="mt-3 text-2xl font-bold text-slate-950">
+                    Top 5 and students near you
+                  </h2>
+                  <p className="mt-2 text-sm leading-7 text-gray-600">
+                    This ranking is based on attendance, not points. It uses your
+                    confirmed attendance percentage and shows where you stand in
+                    the full student board.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-white/80 bg-white/84 px-4 py-3 text-sm shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                    Your Standing
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-950">
+                    {attendanceLeaderboard.yourRank
+                      ? `Rank #${attendanceLeaderboard.yourRank}`
+                      : "Rank pending"}
+                    {" • "}
+                    {formatLeaderboardPercentage(
+                      attendanceLeaderboard.yourConfirmedOverallPercentage,
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="rounded-[24px] border border-white/80 bg-white/88 p-4 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                    Attendance Rank
+                  </p>
+                  <p className="mt-3 text-3xl font-bold text-amber-700">
+                    {attendanceLeaderboard.yourRank
+                      ? `#${attendanceLeaderboard.yourRank}`
+                      : "-"}
+                  </p>
+                  <p className="mt-2 text-xs text-gray-500">
+                    {attendanceLeaderboard.totalStudents} students ranked
+                  </p>
+                </div>
+
+                <div className="rounded-[24px] border border-white/80 bg-white/88 p-4 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                    Confirmed Attendance
+                  </p>
+                  <p className="mt-3 text-3xl font-bold text-blue-700">
+                    {formatLeaderboardPercentage(
+                      attendanceLeaderboard.yourConfirmedOverallPercentage,
+                    )}
+                  </p>
+                  <p className="mt-2 text-xs text-gray-500">
+                    {attendanceLeaderboard.yourPresentDays}/
+                    {attendanceLeaderboard.yourConfirmedMarkedDays} marked present
+                  </p>
+                </div>
+
+                <div className="rounded-[24px] border border-white/80 bg-white/88 p-4 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                    Momentum
+                  </p>
+                  <p className="mt-3 text-sm font-semibold text-slate-950">
+                    {attendanceLeaderboard.motivation ||
+                      "Attendance ranking will appear once records are available."}
+                  </p>
+                  {attendanceLeaderboard.gapToNextRank > 0 ? (
+                    <p className="mt-2 text-xs text-gray-500">
+                      {formatLeaderboardPercentage(
+                        attendanceLeaderboard.gapToNextRank,
+                      )}{" "}
+                      to the next rank.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(239,246,255,0.95),rgba(243,232,255,0.92))] p-5 shadow-[0_24px_50px_-38px_rgba(37,99,235,0.35)]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
+                        Overall Top 5
+                      </p>
+                      <h3 className="mt-2 text-xl font-bold text-slate-950">
+                        Attendance leaders
+                      </h3>
+                    </div>
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                      <Trophy className="h-5 w-5" />
+                    </span>
+                  </div>
+
+                  <div className="mt-5 space-y-3">
+                    {hasLeaderboardData ? (
+                      topStudents.map((student) => (
+                        <div
+                          key={`${student.rank}-${student.studentId}`}
+                          className={`rounded-[24px] border px-4 py-3 shadow-sm ${getLeaderboardRowShell(
+                            student.rank,
+                            student.isCurrentUser,
+                          )}`}
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex min-w-0 items-start gap-3">
+                              <ProfileAvatar
+                                src={student.profileImage}
+                                name={student.name}
+                                sizeClass="h-11 w-11"
+                                className="border-white/80"
+                                textClassName="text-xs"
+                              />
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold leading-5 text-slate-950">
+                                  <span
+                                    className={`mr-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] ${getLeaderboardRankShell(
+                                      student.rank,
+                                      student.isCurrentUser,
+                                    )}`}
+                                  >
+                                    {getLeaderboardRankLabel(student.rank)}
+                                  </span>
+                                  <span className="break-words">
+                                    {student.isCurrentUser
+                                      ? `YOU - ${student.name}`
+                                      : student.name}
+                                  </span>
+                                </p>
+                                <p className="mt-1 break-words text-[11px] font-medium text-gray-500">
+                                  {student.course} • Year {student.year}
+                                </p>
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                  <span
+                                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getLeaderboardTitleShell(
+                                      student.title,
+                                    )}`}
+                                  >
+                                    {student.title}
+                                  </span>
+                                  <span
+                                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getLeaderboardTierShell(
+                                      student.tierTone,
+                                      student.tierIsLive,
+                                    )}`}
+                                  >
+                                    {student.tierLabel}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="w-full text-left sm:w-auto sm:max-w-[180px] sm:shrink-0 sm:text-right">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                                Overall Attendance
+                              </p>
+                              <p className="mt-2 text-lg font-bold text-slate-950">
+                                {formatLeaderboardPercentage(
+                                  student.confirmedOverallPercentage,
+                                )}
+                              </p>
+                              <p className="mt-1 text-xs leading-5 text-gray-500">
+                                {student.presentDays}/{student.confirmedMarkedDays} present
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-[24px] border border-white/80 bg-white/82 px-4 py-5 text-sm text-gray-500 shadow-sm">
+                        Students will appear here once attendance records are available.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-[28px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(240,253,250,0.92),rgba(239,246,255,0.9))] p-5 shadow-[0_24px_50px_-38px_rgba(16,185,129,0.32)]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
+                        Near You
+                      </p>
+                      <h3 className="mt-2 text-xl font-bold text-slate-950">
+                        Attendance ranking around you
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 text-gray-600">
+                        See the students just above and below you based on attendance.
+                      </p>
+                    </div>
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                      <Sparkles className="h-5 w-5" />
+                    </span>
+                  </div>
+
+                  <div className="mt-5 space-y-3">
+                    {hasLeaderboardData ? (
+                      nearbyStudents.map((student) => (
+                        <div
+                          key={`nearby-${student.rank}-${student.studentId}`}
+                          className={`rounded-[24px] border px-4 py-3 shadow-sm ${getLeaderboardRowShell(
+                            student.rank,
+                            student.isCurrentUser,
+                          )}`}
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex min-w-0 items-start gap-3">
+                              <ProfileAvatar
+                                src={student.profileImage}
+                                name={student.name}
+                                sizeClass="h-10 w-10"
+                                className="border-white/80"
+                                textClassName="text-[11px]"
+                              />
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold leading-5 text-slate-950">
+                                  <span
+                                    className={`mr-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] ${getLeaderboardRankShell(
+                                      student.rank,
+                                      student.isCurrentUser,
+                                    )}`}
+                                  >
+                                    {getLeaderboardRankLabel(student.rank)}
+                                  </span>
+                                  <span className="break-words">
+                                    {student.isCurrentUser
+                                      ? `YOU - ${student.name}`
+                                      : student.name}
+                                  </span>
+                                </p>
+                                <p className="mt-1 break-words text-[11px] font-medium text-gray-500">
+                                  {student.course} • Year {student.year}
+                                </p>
+                                <p className="mt-1 break-words text-[11px] font-medium text-gray-500">
+                                  {getLeaderboardTierNote(student)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="w-full text-left sm:w-auto sm:shrink-0 sm:text-right">
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getLeaderboardTierShell(
+                                  student.tierTone,
+                                  student.tierIsLive,
+                                )}`}
+                              >
+                                {student.tierLabel}
+                              </span>
+                              <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                                Overall Attendance
+                              </p>
+                              <p className="mt-2 text-lg font-bold text-slate-950">
+                                {formatLeaderboardPercentage(
+                                  student.confirmedOverallPercentage,
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-[24px] border border-white/80 bg-white/82 px-4 py-5 text-sm text-gray-500 shadow-sm">
+                        Your nearby attendance ranking will appear once attendance records are available.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

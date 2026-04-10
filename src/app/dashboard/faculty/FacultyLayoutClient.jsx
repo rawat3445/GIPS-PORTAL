@@ -25,6 +25,10 @@ export default function FacultyLayoutClient({ children }) {
   const router = useRouter();
   const isNonTeaching =
     String(me?.facultyType || "").trim() === "nonTeaching";
+  const assignedCourse = String(me?.assignedCourse || "").trim().toUpperCase();
+  const markAttendanceHref = assignedCourse
+    ? `/dashboard/faculty/${assignedCourse}/attendance`
+    : "/dashboard/faculty";
 
   const primaryMenuItems = [
     {
@@ -43,7 +47,7 @@ export default function FacultyLayoutClient({ children }) {
       : [
           {
             name: "Mark Attendance",
-            href: "/dashboard/faculty/mark-attendance",
+            href: markAttendanceHref,
             icon: CalendarCheck2,
           },
           {
@@ -55,16 +59,19 @@ export default function FacultyLayoutClient({ children }) {
   ];
 
   const secondaryMenuItems = [
+    ...(isNonTeaching
+      ? []
+      : [
+          {
+            name: "Course Content",
+            href: "/dashboard/faculty/upload-materials",
+            icon: Upload,
+          },
+        ]),
     {
       name: "Grade Assignments",
       href: "/dashboard/faculty/grade-assignments",
       icon: ClipboardCheck,
-      badge: "Soon",
-    },
-    {
-      name: "Upload Materials",
-      href: "/dashboard/faculty/upload-materials",
-      icon: Upload,
       badge: "Soon",
     },
   ];
@@ -274,15 +281,17 @@ export default function FacultyLayoutClient({ children }) {
                       <span className="min-w-0 flex-1 truncate font-medium">
                         {item.name}
                       </span>
-                      <span
-                        className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
-                          isActive
-                            ? "bg-white/15 text-white"
-                            : "bg-indigo-100 text-indigo-800"
-                        }`}
-                      >
-                        {item.badge}
-                      </span>
+                      {item.badge ? (
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                            isActive
+                              ? "bg-white/15 text-white"
+                              : "bg-indigo-100 text-indigo-800"
+                          }`}
+                        >
+                          {item.badge}
+                        </span>
+                      ) : null}
                     </>
                   )}
                   {!sidebarOpen && <span className="sr-only">{item.name}</span>}

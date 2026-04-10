@@ -1,6 +1,10 @@
 "use client";
 
-const PAGE_VIEW_DEDUPE_WINDOW_MS = 90 * 1000;
+const EXCLUDED_PAGE_PREFIXES = ["/dashboard/admin/activity-logs"];
+
+function shouldSkipPageTracking(path) {
+  return EXCLUDED_PAGE_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
 
 export async function trackDashboardPageView({ userId, pathname }) {
   if (!userId || !pathname || typeof window === "undefined") {
@@ -12,15 +16,17 @@ export async function trackDashboardPageView({ userId, pathname }) {
     return;
   }
 
+  if (shouldSkipPageTracking(currentPath)) {
+    return;
+  }
+
   const dedupeKey = `portal-activity:${userId}:${currentPath}`;
-  const now = Date.now();
 
   try {
-    const lastSeen = Number(window.sessionStorage.getItem(dedupeKey) || "0");
-    if (lastSeen && now - lastSeen < PAGE_VIEW_DEDUPE_WINDOW_MS) {
+    if (window.sessionStorage.getItem(dedupeKey)) {
       return;
     }
-    window.sessionStorage.setItem(dedupeKey, String(now));
+    window.sessionStorage.setItem(dedupeKey, "1");
   } catch {
     // Ignore session storage issues and still attempt the request.
   }

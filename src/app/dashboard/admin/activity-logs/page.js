@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Activity,
+  CalendarDays,
   Clock3,
   Filter,
+  LogIn,
+  LogOut,
   Search,
   UserRound,
+  UserX,
+  Users,
 } from "lucide-react";
 
 const ROLE_OPTIONS = [
@@ -27,6 +32,21 @@ const ACTION_OPTIONS = [
   { value: "attendance_marked", label: "Marked Attendance" },
 ];
 
+const REPORT_DAY_OPTIONS = [
+  { value: "1", label: "Today" },
+  { value: "7", label: "Last 7 days" },
+  { value: "15", label: "Last 15 days" },
+  { value: "30", label: "Last 30 days" },
+];
+
+const INACTIVE_DAY_OPTIONS = [
+  { value: "1", label: "1 day" },
+  { value: "3", label: "3 days" },
+  { value: "7", label: "7 days" },
+  { value: "15", label: "15 days" },
+  { value: "30", label: "30 days" },
+];
+
 function formatDateTime(value) {
   if (!value) return "-";
 
@@ -37,6 +57,29 @@ function formatDateTime(value) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatPercent(value) {
+  const numericValue = Number(value);
+  return `${(Number.isFinite(numericValue) ? numericValue : 0).toFixed(1)}%`;
+}
+
+function formatDaysAgo(value) {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return "No login record";
+  }
+
+  if (numericValue <= 0) {
+    return "Today";
+  }
+
+  if (numericValue === 1) {
+    return "1 day ago";
+  }
+
+  return `${numericValue} days ago`;
 }
 
 function getRoleChip(role) {
@@ -55,31 +98,67 @@ function getRoleChip(role) {
   return "bg-slate-100 text-slate-700";
 }
 
-function buildSummary(logs) {
-  return logs.reduce(
-    (acc, log) => {
-      acc.total += 1;
-      if (log.actorRole === "admin") acc.admin += 1;
-      if (log.actorRole === "faculty") acc.faculty += 1;
-      if (log.actorRole === "student") acc.student += 1;
-      return acc;
+function getInactiveTone(daysSinceLastLogin, hasLogin) {
+  if (!hasLogin) {
+    return "border-rose-200 bg-rose-50 text-rose-700";
+  }
+
+  if (Number(daysSinceLastLogin) >= 15) {
+    return "border-rose-200 bg-rose-50 text-rose-700";
+  }
+
+  if (Number(daysSinceLastLogin) >= 7) {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function createEmptyStudentReport(reportDays, inactiveDays) {
+  return {
+    reportDays: Number(reportDays || 7),
+    inactiveDays: Number(inactiveDays || 7),
+    totalStudents: 0,
+    inactiveStudentCount: 0,
+    neverLoggedInCount: 0,
+    today: {
+      label: "Today",
+      loggedInCount: 0,
+      loggedOutCount: 0,
+      loginEventCount: 0,
+      logoutEventCount: 0,
+      loginPercentage: 0,
+      logoutPercentage: 0,
     },
-    {
-      total: 0,
-      admin: 0,
-      faculty: 0,
-      student: 0,
-    },
-  );
+    daily: [],
+    inactiveStudents: [],
+  };
+}
+
+function createEmptyExactUserStats() {
+  return {
+    total: 0,
+    admin: 0,
+    faculty: 0,
+    student: 0,
+  };
 }
 
 export default function AdminActivityLogsPage() {
   const [logs, setLogs] = useState([]);
+  const [studentLoginReport, setStudentLoginReport] = useState(
+    createEmptyStudentReport(7, 7),
+  );
+  const [exactUserStats, setExactUserStats] = useState(
+    createEmptyExactUserStats(),
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("");
   const [actionType, setActionType] = useState("");
+  const [reportDays, setReportDays] = useState("7");
+  const [inactiveDays, setInactiveDays] = useState("7");
 
   useEffect(() => {
     async function loadLogs() {
@@ -89,6 +168,8 @@ export default function AdminActivityLogsPage() {
 
         const params = new URLSearchParams({
           limit: "120",
+          reportDays,
+          inactiveDays,
         });
 
         if (role) params.set("role", role);
@@ -106,18 +187,38 @@ export default function AdminActivityLogsPage() {
         }
 
         setLogs(Array.isArray(data.logs) ? data.logs : []);
+        setStudentLoginReport(
+          data.studentLoginReport ||
+            createEmptyStudentReport(reportDays, inactiveDays),
+        );
+        setExactUserStats(data.exactUserStats || createEmptyExactUserStats());
       } catch (loadError) {
         setError(loadError.message || "Unable to load activity logs");
         setLogs([]);
+        setStudentLoginReport(createEmptyStudentReport(reportDays, inactiveDays));
+        setExactUserStats(createEmptyExactUserStats());
       } finally {
         setLoading(false);
       }
     }
 
     loadLogs();
-  }, [role, actionType, search]);
-
-  const summary = useMemo(() => buildSummary(logs), [logs]);
+  }, [role, actionType, search, reportDays, inactiveDays]);
+  const dailySnapshots = Array.isArray(studentLoginReport?.daily)
+    ? studentLoginReport.daily
+    : [];
+  const inactiveStudents = Array.isArray(studentLoginReport?.inactiveStudents)
+    ? studentLoginReport.inactiveStudents
+    : [];
+  const todaySnapshot = studentLoginReport?.today || {
+    label: "Today",
+    loggedInCount: 0,
+    loggedOutCount: 0,
+    loginEventCount: 0,
+    logoutEventCount: 0,
+    loginPercentage: 0,
+    logoutPercentage: 0,
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
@@ -131,16 +232,32 @@ export default function AdminActivityLogsPage() {
             User Activity Timeline
           </h1>
           <p className="mt-1 text-sm leading-6 text-slate-500">
-            Review sign-ins, page visits, admin actions, and attendance updates with user names.
+            Review sign-ins, sign-outs, page visits, admin actions, and student login trends.
           </p>
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { label: "Total", value: summary.total, tone: "text-slate-900" },
-            { label: "Admins", value: summary.admin, tone: "text-amber-700" },
-            { label: "Faculty", value: summary.faculty, tone: "text-indigo-700" },
-            { label: "Students", value: summary.student, tone: "text-emerald-700" },
+            {
+              label: "Total",
+              value: exactUserStats.total,
+              tone: "text-slate-900",
+            },
+            {
+              label: "Admins",
+              value: exactUserStats.admin,
+              tone: "text-amber-700",
+            },
+            {
+              label: "Faculty",
+              value: exactUserStats.faculty,
+              tone: "text-indigo-700",
+            },
+            {
+              label: "Students",
+              value: exactUserStats.student,
+              tone: "text-emerald-700",
+            },
           ].map((item) => (
             <div
               key={item.label}
@@ -150,10 +267,281 @@ export default function AdminActivityLogsPage() {
                 {item.label}
               </p>
               <p className={`mt-2 text-2xl font-bold ${item.tone}`}>{item.value}</p>
+              <p className="mt-2 text-xs text-slate-500">Exact users in database</p>
             </div>
           ))}
         </div>
       </div>
+
+      <section className="mb-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="h-1 bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-500" />
+        <div className="p-5 sm:p-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">
+                <Users className="h-3.5 w-3.5" />
+                Student Login Report
+              </div>
+              <h2 className="mt-4 text-xl font-semibold text-slate-950">
+                Today and past-day login report for students
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                This report is student-only. It shows how many students signed in,
+                how many signed out, the percentage out of total students, the raw
+                event count behind those actions, and who has not logged in for the
+                selected past-day range.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Report Range
+                </p>
+                <div className="mt-2 flex items-center gap-3">
+                  <CalendarDays className="h-4 w-4 text-slate-400" />
+                  <select
+                    value={reportDays}
+                    onChange={(e) => setReportDays(e.target.value)}
+                    className="w-full bg-transparent text-sm text-slate-900 focus:outline-none"
+                  >
+                    {REPORT_DAY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </label>
+
+              <label className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  No Login Alert
+                </p>
+                <div className="mt-2 flex items-center gap-3">
+                  <UserX className="h-4 w-4 text-slate-400" />
+                  <select
+                    value={inactiveDays}
+                    onChange={(e) => setInactiveDays(e.target.value)}
+                    className="w-full bg-transparent text-sm text-slate-900 focus:outline-none"
+                  >
+                    {INACTIVE_DAY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            {[
+              {
+                label: "Total Students",
+                value: studentLoginReport.totalStudents,
+                note: "All registered students",
+                tone: "text-slate-900",
+                icon: Users,
+              },
+              {
+                label: `Signed In ${todaySnapshot.label}`,
+                value: todaySnapshot.loggedInCount,
+                note: `${formatPercent(todaySnapshot.loginPercentage)} of total students • ${todaySnapshot.loginEventCount} login events`,
+                tone: "text-emerald-700",
+                icon: LogIn,
+              },
+              {
+                label: "Login Percentage",
+                value: formatPercent(todaySnapshot.loginPercentage),
+                note: "Share of total students",
+                tone: "text-emerald-700",
+                icon: Activity,
+              },
+              {
+                label: `Signed Out ${todaySnapshot.label}`,
+                value: todaySnapshot.loggedOutCount,
+                note: `${formatPercent(todaySnapshot.logoutPercentage)} of total students • ${todaySnapshot.logoutEventCount} logout events`,
+                tone: "text-indigo-700",
+                icon: LogOut,
+              },
+              {
+                label: "Logout Percentage",
+                value: formatPercent(todaySnapshot.logoutPercentage),
+                note: "Share of total students",
+                tone: "text-indigo-700",
+                icon: Filter,
+              },
+              {
+                label: `No Login ${studentLoginReport.inactiveDays}d`,
+                value: studentLoginReport.inactiveStudentCount,
+                note: `${studentLoginReport.neverLoggedInCount} never logged in`,
+                tone: "text-rose-700",
+                icon: UserX,
+              },
+            ].map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <div
+                  key={item.label}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        {item.label}
+                      </p>
+                      <p className={`mt-3 text-2xl font-bold ${item.tone}`}>
+                        {item.value}
+                      </p>
+                    </div>
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-500 shadow-sm">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                  </div>
+                  <p className="mt-3 text-xs leading-5 text-slate-500">{item.note}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-6 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/70">
+              <div className="border-b border-slate-200 px-5 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
+                  Daily Student Report
+                </p>
+                <h3 className="mt-2 text-lg font-semibold text-slate-950">
+                  Login and logout numbers by day
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Student counts are unique students per day. Event counts show all
+                  raw login/logout records stored in the database.
+                </p>
+              </div>
+
+              {dailySnapshots.length === 0 ? (
+                <div className="px-5 py-8 text-sm text-slate-500">
+                  No student login activity has been recorded for this range yet.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="bg-white/80 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      <tr>
+                        <th className="px-5 py-3">Day</th>
+                        <th className="px-5 py-3">Students Signed In</th>
+                        <th className="px-5 py-3">Login %</th>
+                        <th className="px-5 py-3">Login Events</th>
+                        <th className="px-5 py-3">Students Signed Out</th>
+                        <th className="px-5 py-3">Logout %</th>
+                        <th className="px-5 py-3">Logout Events</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {dailySnapshots.map((day) => (
+                        <tr key={day.dayKey} className="bg-white/70">
+                          <td className="px-5 py-4 font-semibold text-slate-900">
+                            {day.label}
+                          </td>
+                          <td className="px-5 py-4 text-slate-700">
+                            {day.loggedInCount}
+                          </td>
+                          <td className="px-5 py-4 text-emerald-700">
+                            {formatPercent(day.loginPercentage)}
+                          </td>
+                          <td className="px-5 py-4 text-slate-700">
+                            {day.loginEventCount}
+                          </td>
+                          <td className="px-5 py-4 text-slate-700">
+                            {day.loggedOutCount}
+                          </td>
+                          <td className="px-5 py-4 text-indigo-700">
+                            {formatPercent(day.logoutPercentage)}
+                          </td>
+                          <td className="px-5 py-4 text-slate-700">
+                            {day.logoutEventCount}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/70">
+              <div className="border-b border-slate-200 px-5 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-700">
+                  Inactive Students
+                </p>
+                <h3 className="mt-2 text-lg font-semibold text-slate-950">
+                  No login in the last {studentLoginReport.inactiveDays} day
+                  {Number(studentLoginReport.inactiveDays) === 1 ? "" : "s"}
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  This is based on the student&apos;s most recent login date in the
+                  database, using India calendar days.
+                </p>
+              </div>
+
+              {inactiveStudents.length === 0 ? (
+                <div className="px-5 py-8 text-sm text-emerald-700">
+                  Nice. Every student has logged in within the selected alert range.
+                </div>
+              ) : (
+                <div className="max-h-[520px] divide-y divide-slate-200 overflow-y-auto">
+                  {inactiveStudents.map((student) => {
+                    const tone = getInactiveTone(
+                      student.daysSinceLastLogin,
+                      Boolean(student.lastLoginAt),
+                    );
+
+                    return (
+                      <div key={student.studentId} className="bg-white/80 px-5 py-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-sm font-semibold text-slate-950">
+                                {student.name}
+                              </p>
+                              <span
+                                className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${tone}`}
+                              >
+                                {formatDaysAgo(student.daysSinceLastLogin)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-sm text-slate-600">
+                              {student.course} • Year {student.year}
+                              {student.enrollmentNo ? ` • ${student.enrollmentNo}` : ""}
+                            </p>
+                            <p className="mt-1 break-all text-xs text-slate-500">
+                              {student.email || "-"}
+                            </p>
+                          </div>
+
+                          <div className="sm:text-right">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                              Last Login
+                            </p>
+                            <p className="mt-2 text-sm font-medium text-slate-900">
+                              {student.lastLoginAt
+                                ? formatDateTime(student.lastLoginAt)
+                                : "Never"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <div className="mb-5 grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1.2fr_0.45fr_0.55fr]">
         <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">

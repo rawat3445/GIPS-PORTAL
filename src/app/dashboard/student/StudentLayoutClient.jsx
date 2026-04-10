@@ -14,9 +14,11 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
   Sparkles,
+  Trophy,
 } from "lucide-react";
 
 export default function StudentLayoutClient({ children }) {
@@ -36,9 +38,19 @@ export default function StudentLayoutClient({ children }) {
       href: "/dashboard/student/attendance",
       icon: CalendarDays,
     },
+    {
+      name: "Student Points",
+      href: "/dashboard/student/points",
+      icon: Trophy,
+    },
   ];
 
   const secondaryMenuItems = [
+    {
+      name: "Portal Feedback",
+      href: "/dashboard/student/feedback",
+      icon: MessageSquare,
+    },
     {
       name: "My Courses",
       href: "/dashboard/student/courses",
@@ -228,11 +240,11 @@ export default function StudentLayoutClient({ children }) {
           {sidebarOpen && (
             <div className="mb-3 mt-6 flex items-center justify-between px-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-blue-200/80">
-                Working On It
+                More
               </p>
               <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
                 <Sparkles className="h-3.5 w-3.5" />
-                Soon
+                Tools
               </span>
             </div>
           )}
