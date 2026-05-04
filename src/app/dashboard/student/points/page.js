@@ -243,6 +243,8 @@ const ATTENDANCE_STREAK_TIERS = [
   { threshold: "25+ days", points: "5/5 pts" },
 ];
 
+const SHOW_PERSONALITY_CATEGORY = false;
+
 export default function StudentPointsPage() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -373,6 +375,52 @@ export default function StudentPointsPage() {
     summary?.attendanceCategory,
     summary?.streaks?.best,
   ]);
+  const personalityCategory = useMemo(() => {
+    const source = summary?.personalityDevelopment || {};
+    const score = source?.score || {};
+
+    return {
+      earnedPoints: Number(
+        source?.categoryPoints ?? score?.totalPoints ?? 0,
+      ),
+      totalPoints: Number(source?.categoryPoints ?? score?.totalPoints ?? 0),
+      maxPoints: Number(source?.categoryMaxPoints ?? score?.maxPoints ?? 10),
+      profileCompletionPoints: Number(score?.profileCompletionPoints || 0),
+      goalPoints: Number(score?.goalPoints || 0),
+      activityPoints: Number(score?.activityPoints || 0),
+      reflectionPoints: Number(score?.reflectionPoints || 0),
+      practicePoints: Number(score?.practicePoints || 0),
+      completedGoals: Number(score?.completedGoals || 0),
+      activitiesCount: Number(score?.activitiesCount || 0),
+      reflectionsCount: Number(score?.reflectionsCount || 0),
+      practiceSessionsCount: Number(score?.practiceSessionsCount || 0),
+      averagePracticeScore: Number(score?.averagePracticeScore || 0),
+      nextStep: source?.nextStep || "",
+    };
+  }, [summary?.personalityDevelopment]);
+  const resultsCategory = useMemo(() => {
+    const source = summary?.resultsCategory || {};
+
+    return {
+      earnedPoints: Number(source?.totalPoints || 0),
+      totalPoints: Number(source?.totalPoints || 0),
+      maxPoints: Number(source?.maxPoints || 25),
+      percentagePoints: Number(source?.percentagePoints || 0),
+      percentageMax: Number(source?.percentageMax || 15),
+      passBonusPoints: Number(source?.passBonusPoints || 0),
+      passBonusMax: Number(source?.passBonusMax || 5),
+      performanceBonusPoints: Number(source?.performanceBonusPoints || 0),
+      performanceBonusMax: Number(source?.performanceBonusMax || 5),
+      latestResultName: source?.latestResultName || "",
+      latestPercentage: Number(source?.latestPercentage || 0),
+      latestResultStatus: source?.latestResultStatus || "pending",
+      publishedAt: source?.publishedAt || null,
+      hasPublishedResult: Boolean(source?.hasPublishedResult),
+      assignmentStatus: source?.assignmentStatus || "not_assigned",
+      issueLabels: Array.isArray(source?.issueLabels) ? source.issueLabels : [],
+      issueCount: Number(source?.issueCount || 0),
+    };
+  }, [summary?.resultsCategory]);
   const pointsCategories = useMemo(
     () => [
       {
@@ -380,7 +428,7 @@ export default function StudentPointsPage() {
         label: "Attendance and consistency",
         shortLabel: "Attendance",
         description:
-          "This is the only live category right now. It rewards attendance coverage, monthly consistency, and your current-month streak tier.",
+          "This live category rewards attendance coverage, monthly consistency, and your current-month streak tier.",
         earnedPoints: attendanceCategory.earnedPoints,
         maxPoints: 25,
         status: "live",
@@ -415,6 +463,50 @@ export default function StudentPointsPage() {
           },
         ],
       },
+      ...(SHOW_PERSONALITY_CATEGORY
+        ? [{
+        key: "personality-development",
+        label: "Personality development",
+        shortLabel: "Personality",
+        description:
+          "This live category rewards profile completion, growth goals, practice sessions, reflections, and career-building activities.",
+        earnedPoints: personalityCategory.earnedPoints,
+        maxPoints: 10,
+        status: "live",
+        icon: Sparkles,
+        toneShell:
+          "border-rose-100 bg-[linear-gradient(135deg,rgba(255,241,242,0.98),rgba(255,255,255,0.96),rgba(254,249,195,0.86))]",
+        rows: [
+          {
+            label: "Profile and goals",
+            value: `${formatPointsPair(
+              personalityCategory.profileCompletionPoints +
+                personalityCategory.goalPoints,
+              4,
+            )} from focus setup and completed goals`,
+          },
+          {
+            label: "Activities and reflection",
+            value: `${formatPointsPair(
+              personalityCategory.activityPoints +
+                personalityCategory.reflectionPoints,
+              4,
+            )} from seminars, workshops, activities, and reflections`,
+          },
+          {
+            label: "Practice score",
+            value: `${formatPointsPair(
+              personalityCategory.practicePoints,
+              2,
+            )} from speaking/interview practice${
+              personalityCategory.practiceSessionsCount
+                ? ` • avg ${personalityCategory.averagePracticeScore}/10`
+                : ""
+            }`,
+          },
+        ],
+      }]
+        : []),
       {
         key: "assignments",
         label: "Assignments",
@@ -422,7 +514,7 @@ export default function StudentPointsPage() {
         description:
           "This category is now reserved in the system so regular submission discipline can affect the final score once assignment records are available.",
         earnedPoints: 0,
-        maxPoints: 20,
+        maxPoints: 15,
         status: "planned",
         icon: ClipboardList,
         toneShell:
@@ -456,21 +548,71 @@ export default function StudentPointsPage() {
         label: "Results",
         shortLabel: "Results",
         description:
-          "This is the highest-weight academic category and will activate when result records are published inside the portal.",
-        earnedPoints: 0,
-        maxPoints: 30,
-        status: "planned",
+          resultsCategory.hasPublishedResult
+            ? "This category is now live from the result your admin selected for your batch."
+            : resultsCategory.assignmentStatus === "not_assigned"
+              ? "This category stays inactive until admin selects one saved result for your batch."
+              : "A batch result was selected, but your row is not available inside that saved result yet.",
+        earnedPoints: resultsCategory.earnedPoints,
+        maxPoints: 25,
+        status: resultsCategory.hasPublishedResult ? "live" : "planned",
         icon: GraduationCap,
         toneShell:
           "border-amber-100 bg-[linear-gradient(135deg,rgba(255,251,235,0.98),rgba(255,255,255,0.96),rgba(254,240,138,0.84))]",
         rows: [
-          { label: "Result percentage", value: "Up to 20 points" },
-          { label: "Pass all subjects", value: "Up to 5 points" },
-          { label: "High-performance bonus", value: "Up to 5 points" },
+          {
+            label: "Counted result",
+            value: resultsCategory.hasPublishedResult
+              ? `${resultsCategory.latestResultName || "Published result"} • ${resultsCategory.latestPercentage.toFixed(1)}% • ${String(resultsCategory.latestResultStatus || "pending").toUpperCase()}`
+              : resultsCategory.assignmentStatus === "not_assigned"
+                ? "Admin has not selected any result for your batch yet"
+                : "Admin selected a result, but your marks row is missing in that saved result",
+          },
+          {
+            label: "Percentage score",
+            value: resultsCategory.hasPublishedResult
+              ? `${formatPointsPair(
+                  resultsCategory.percentagePoints,
+                  resultsCategory.percentageMax,
+                )} from ${resultsCategory.latestPercentage.toFixed(1)}% overall percentage`
+              : "Up to 15 points",
+          },
+          {
+            label: "Pass and performance bonus",
+            value: resultsCategory.hasPublishedResult
+              ? `${formatPointsPair(
+                  resultsCategory.passBonusPoints +
+                    resultsCategory.performanceBonusPoints,
+                  resultsCategory.passBonusMax +
+                    resultsCategory.performanceBonusMax,
+                )} from pass-all bonus and high-performance bonus`
+              : "Up to 10 points",
+          },
+          {
+            label: "Result issues",
+            value: resultsCategory.hasPublishedResult
+              ? resultsCategory.issueLabels.length
+                ? resultsCategory.issueLabels.join(", ")
+                : "No BP, fail, or absent issue in the counted result"
+              : "Issue details will appear after a valid batch result is counted",
+          },
         ],
       },
     ],
-    [attendanceCategory, attendanceScore.confirmedPercentage],
+    [
+      attendanceCategory,
+      attendanceScore.confirmedPercentage,
+      personalityCategory,
+      resultsCategory,
+    ],
+  );
+  const visibleFrameworkMaxPoints = useMemo(
+    () =>
+      pointsCategories.reduce(
+        (sum, category) => sum + Number(category?.maxPoints || 0),
+        0,
+      ),
+    [pointsCategories],
   );
   const overallFrameworkPoints = useMemo(
     () =>
@@ -480,11 +622,10 @@ export default function StudentPointsPage() {
       ),
     [pointsCategories],
   );
-  const visibleOverallFrameworkPoints = Number(
-    summary?.overallFrameworkPoints ?? overallFrameworkPoints,
-  );
+  const visibleOverallFrameworkPoints = Number(overallFrameworkPoints || 0);
   const resumeBuilderUnlocked =
     visibleOverallFrameworkPoints >= RESUME_BUILDER_UNLOCK_POINTS;
+  const hasLiveResultPoints = resultsCategory.hasPublishedResult;
   const liveCategories = useMemo(
     () => pointsCategories.filter((category) => category.status === "live").length,
     [pointsCategories],
@@ -669,9 +810,12 @@ export default function StudentPointsPage() {
       {
         step: "Results",
         rule:
-          "Results will carry 30 points: result percentage up to 20, pass-all-subjects bonus up to 5, and high-performance bonus up to 5.",
-        meaning:
-          "Reserved in the system now. It will start contributing when result data is published in the portal.",
+          "Results carry 25 points: admin first selects one saved result for your batch, then overall percentage contributes up to 15, pass-all-subjects bonus adds up to 5, and high-performance bonus adds up to 5.",
+        meaning: hasLiveResultPoints
+          ? `Live now from the admin-selected batch result: ${resultsCategory.latestResultName || "Published result"} at ${resultsCategory.latestPercentage.toFixed(1)}%.`
+          : resultsCategory.assignmentStatus === "not_assigned"
+            ? "Not active yet because no saved result has been selected by admin for your batch."
+            : "A result was selected for your batch, but your row is not available in that saved result yet.",
       },
       {
         step: "Current live ranking",
@@ -684,6 +828,10 @@ export default function StudentPointsPage() {
     [
       attendanceCategory.earnedPoints,
       attendanceCategory.maxPoints,
+      hasLiveResultPoints,
+      resultsCategory.assignmentStatus,
+      resultsCategory.latestPercentage,
+      resultsCategory.latestResultName,
     ],
   );
 
@@ -699,11 +847,11 @@ export default function StudentPointsPage() {
             Student Points System
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-600 md:text-base">
-            Your student points are now divided into four categories worth 100
-            total points. Attendance and consistency are live now from{" "}
-            {pointsStartLabel}, while assignments, class tests, and results are
-            reserved in the system and will activate when those portal modules
-            start storing real records.
+            Your student points page is currently showing the visible scoring
+            categories only. Attendance and consistency are live now from{" "}
+            {pointsStartLabel}, and
+            result points begin only after admin selects one saved batch result
+            for your course and year.
           </p>
         </div>
       </div>
@@ -730,12 +878,12 @@ export default function StudentPointsPage() {
                 <p className="mt-2 text-4xl font-bold text-amber-700">
                   {formatPointsPair(
                     visibleOverallFrameworkPoints,
-                    TOTAL_STUDENT_POINTS,
+                    visibleFrameworkMaxPoints,
                   )}
                 </p>
                 <p className="mt-2 text-xs text-gray-500">
-                  New 100-point structure. Right now only the attendance
-                  category is live in the portal.
+                  Visible student points are currently focused on attendance,
+                  reserved academic categories, and result scoring.
                 </p>
               </div>
 
@@ -770,8 +918,8 @@ export default function StudentPointsPage() {
                   {liveCategories}/{pointsCategories.length}
                 </p>
                 <p className="mt-2 text-xs text-gray-500">
-                  Assignments, class tests, and results are reserved and waiting
-                  for their portal records.
+                  Attendance is live now, and results turn
+                  live only after admin assigns one batch result for points.
                 </p>
               </div>
 
@@ -787,7 +935,7 @@ export default function StudentPointsPage() {
                 </p>
                 <p className="mt-2 text-xs text-gray-500">
                   Live leaderboard uses attendance-category points until the
-                  academic categories go live.
+                  full academic ranking is expanded later.
                 </p>
               </div>
             </div>
@@ -802,10 +950,9 @@ export default function StudentPointsPage() {
                     The new 100-point structure
                   </h2>
                   <p className="mt-3 text-sm leading-7 text-gray-600">
-                    The system is now divided into four clear categories. This
-                    makes points harder and more balanced because attendance
-                    will no longer be the only thing that matters once academic
-                    records start coming into the portal.
+                    The system is now divided into five clear categories. This
+                    keeps the full scoring structure ready while attendance and
+                    results remain the main visible categories for now.
                   </p>
                 </div>
                 <div className="rounded-[24px] border border-slate-200 bg-white/90 px-4 py-3 shadow-sm lg:max-w-xs">
@@ -813,12 +960,14 @@ export default function StudentPointsPage() {
                     Current Rollout
                   </p>
                   <p className="mt-3 text-2xl font-bold text-slate-950">
-                    Attendance live now
+                    {hasLiveResultPoints
+                      ? "Attendance and results live"
+                      : "Attendance live"}
                   </p>
                   <p className="mt-2 text-sm text-gray-600">
-                    Academic categories are already shown to students, but they
-                    start scoring only when their real portal data becomes
-                    available.
+                    Assignments and class tests are still waiting for portal
+                    records, while results begin scoring only after one saved
+                    batch result is assigned by admin.
                   </p>
                 </div>
               </div>
@@ -1066,8 +1215,10 @@ export default function StudentPointsPage() {
                     )}
                   </p>
                   <p className="mt-2 text-sm text-gray-600">
-                    Overall student points visible now. Only the attendance
-                    category is currently active inside the portal.
+                    Overall student points visible now. Attendance is active,
+                    and result
+                    points activate whenever admin assigns a saved result for
+                    your batch.
                   </p>
                 </div>
               </div>

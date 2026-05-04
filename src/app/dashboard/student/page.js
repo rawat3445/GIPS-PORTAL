@@ -1873,7 +1873,7 @@ export default function StudentDashboard() {
                     Focus
                   </p>
                   <p className="mt-1 font-semibold text-gray-900">
-                    Build your live attendance category while academic categories roll out
+                    Build attendance momentum while the remaining academic categories roll out
                   </p>
                 </div>
               </div>

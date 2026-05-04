@@ -6,6 +6,7 @@ import ProfileAvatar from "../../components/ProfileAvatar";
 import { trackDashboardPageView } from "../../lib/activityClient";
 import {
   BarChart3,
+  Bell,
   BookOpen,
   CalendarDays,
   ClipboardList,
@@ -24,6 +25,7 @@ import {
 export default function StudentLayoutClient({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [me, setMe] = useState(null);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -47,6 +49,16 @@ export default function StudentLayoutClient({ children }) {
 
   const secondaryMenuItems = [
     {
+      name: "Messages",
+      href: "/dashboard/student/messages",
+      icon: Bell,
+    },
+    {
+      name: "Results",
+      href: "/dashboard/student/results",
+      icon: BarChart3,
+    },
+    {
       name: "Portal Feedback",
       href: "/dashboard/student/feedback",
       icon: MessageSquare,
@@ -61,12 +73,6 @@ export default function StudentLayoutClient({ children }) {
       name: "Assignments",
       href: "/dashboard/student/assignments",
       icon: ClipboardList,
-      badge: "Soon",
-    },
-    {
-      name: "Results",
-      href: "/dashboard/student/results",
-      icon: BarChart3,
       badge: "Soon",
     },
     {
@@ -106,6 +112,27 @@ export default function StudentLayoutClient({ children }) {
 
     loadMe();
   }, []);
+
+  useEffect(() => {
+    async function loadUnreadCount() {
+      try {
+        const res = await fetch("/api/student/messages", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return;
+        setUnreadMessageCount(Number(data?.unreadCount || 0));
+      } catch {
+        setUnreadMessageCount(0);
+      }
+    }
+
+    loadUnreadCount();
+    window.addEventListener("portal-messages-updated", loadUnreadCount);
+    return () =>
+      window.removeEventListener("portal-messages-updated", loadUnreadCount);
+  }, [pathname]);
 
   useEffect(() => {
     function handleResize() {
@@ -229,7 +256,15 @@ export default function StudentLayoutClient({ children }) {
                     <item.icon className="h-5 w-5" />
                   </span>
                   {sidebarOpen && (
-                    <span className="font-medium truncate">{item.name}</span>
+                    <>
+                      <span className="font-medium truncate">{item.name}</span>
+                      {item.href === "/dashboard/student/messages" &&
+                      unreadMessageCount > 0 ? (
+                        <span className="rounded-full bg-rose-500 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                          {unreadMessageCount}
+                        </span>
+                      ) : null}
+                    </>
                   )}
                   {!sidebarOpen && <span className="sr-only">{item.name}</span>}
                 </Link>
@@ -285,6 +320,12 @@ export default function StudentLayoutClient({ children }) {
                       <span className="min-w-0 flex-1 truncate font-medium">
                         {item.name}
                       </span>
+                      {item.href === "/dashboard/student/messages" &&
+                      unreadMessageCount > 0 ? (
+                        <span className="rounded-full bg-rose-500 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                          {unreadMessageCount}
+                        </span>
+                      ) : null}
                       {item.badge && (
                         <span
                           className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
@@ -344,21 +385,36 @@ export default function StudentLayoutClient({ children }) {
 
       {/* Main Content */}
       <main className="min-w-0 flex-1 overflow-y-auto md:ml-0">
-        <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-white/60 bg-white/80 px-4 py-3 backdrop-blur md:hidden">
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200/80 bg-white text-gray-700 shadow-sm"
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900">Student Portal</p>
-            <p className="truncate text-xs text-gray-500">
-              {me?.name || "Student"}
-            </p>
+        <div className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-white/60 bg-white/80 px-4 py-3 backdrop-blur">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200/80 bg-white text-gray-700 shadow-sm md:hidden"
+              aria-label="Open sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900">Student Portal</p>
+              <p className="truncate text-xs text-gray-500">
+                {me?.name || "Student"}
+              </p>
+            </div>
           </div>
+
+          <Link
+            href="/dashboard/student/messages"
+            className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200/80 bg-white text-gray-700 shadow-sm transition hover:bg-slate-50"
+            aria-label="Open student messages"
+          >
+            <Bell className="h-5 w-5" />
+            {unreadMessageCount > 0 ? (
+              <span className="absolute -right-1 -top-1 inline-flex min-w-[22px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-1 text-[10px] font-bold text-white">
+                {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+              </span>
+            ) : null}
+          </Link>
         </div>
         {children}
       </main>

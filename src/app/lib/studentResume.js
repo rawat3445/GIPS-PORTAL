@@ -671,6 +671,79 @@ export function buildAchievementsFromAttendanceSummary(summary = {}) {
   return achievements;
 }
 
+export function buildAchievementsFromPersonalitySummary(summary = {}) {
+  const profile = summary?.profile || {};
+  const score = summary?.score || {};
+  const practiceCount = Number(score.practiceSessionsCount || 0);
+  const activityCount = Number(score.activitiesCount || 0);
+  const doneGoals = Number(score.completedGoals || 0);
+  const totalPoints = Number(score.totalPoints || 0);
+  const maxPoints = Number(score.maxPoints || 10);
+  const achievements = [];
+
+  if (practiceCount >= 1) {
+    achievements.push({
+      id: createItemId("achievement"),
+      title: "Completed communication and interview practice",
+      description:
+        "Used the portal personality development coach to practice communication or interview answers.",
+      source: "Student Points (Personality Development)",
+      sourceKey: `pd-practice-${practiceCount}`,
+      isImportedFromPoints: true,
+    });
+  }
+
+  if (activityCount >= 2) {
+    achievements.push({
+      id: createItemId("achievement"),
+      title: "Recorded seminars, workshops, or growth activities",
+      description:
+        `Tracked ${activityCount} personality-development activities inside the student portal.`,
+      source: "Student Points (Personality Development)",
+      sourceKey: `pd-activity-${activityCount}`,
+      isImportedFromPoints: true,
+    });
+  }
+
+  if (doneGoals >= 2) {
+    achievements.push({
+      id: createItemId("achievement"),
+      title: "Completed self-development goals",
+      description:
+        `Finished ${doneGoals} personality-development goals focused on communication, confidence, or professionalism.`,
+      source: "Student Points (Personality Development)",
+      sourceKey: `pd-goals-${doneGoals}`,
+      isImportedFromPoints: true,
+    });
+  }
+
+  if (totalPoints >= 7) {
+    achievements.push({
+      id: createItemId("achievement"),
+      title: "Built a strong personality development profile",
+      description:
+        `Reached ${Math.round(totalPoints)}/${Math.round(maxPoints)} live personality-development points through practice, activities, and reflections.`,
+      source: "Student Points (Personality Development)",
+      sourceKey: `pd-score-${Math.round(totalPoints)}`,
+      isImportedFromPoints: true,
+    });
+  }
+
+  if (Array.isArray(profile?.reflections) && profile.reflections.length >= 2) {
+    achievements.push({
+      id: createItemId("achievement"),
+      title: "Maintained reflective growth tracking",
+      description:
+        "Used reflection writing inside the portal to track personal and professional improvement.",
+      source: "Student Points (Personality Development)",
+      sourceKey: `pd-reflection-${profile.reflections.length}`,
+      isImportedFromPoints: true,
+    });
+  }
+
+  return achievements;
+}
+
 export function mergeImportedAchievements(existing = [], incoming = []) {
   const merged = [];
   const seen = new Set();

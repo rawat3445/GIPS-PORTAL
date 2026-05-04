@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { trackDashboardPageView } from "../../lib/activityClient";
 import {
+  BellRing,
   CalendarCheck2,
   ClipboardCheck,
   GraduationCap,
@@ -68,6 +69,11 @@ export default function FacultyLayoutClient({ children }) {
             icon: Upload,
           },
         ]),
+    {
+      name: "Messages",
+      href: "/dashboard/faculty/messages",
+      icon: BellRing,
+    },
     {
       name: "Grade Assignments",
       href: "/dashboard/faculty/grade-assignments",

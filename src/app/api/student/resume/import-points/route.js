@@ -4,6 +4,7 @@ import { requireStudent } from "../../../../lib/auth";
 import {
   buildResumeBuilderAccess,
   buildAchievementsFromAttendanceSummary,
+  buildAchievementsFromPersonalitySummary,
   createResumeDraft,
   mergeImportedAchievements,
 } from "../../../../lib/studentResume";
@@ -48,6 +49,22 @@ async function getStudentPointsSummary(request) {
   };
 }
 
+async function getStudentPersonalitySummary(request) {
+  const response = await fetch(new URL("/api/student/personality", request.url), {
+    headers: {
+      cookie: request.headers.get("cookie") || "",
+    },
+    cache: "no-store",
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  return {
+    ok: response.ok,
+    data,
+  };
+}
+
 export async function POST(request) {
   try {
     const student = await getAuthenticatedStudent();
@@ -59,6 +76,7 @@ export async function POST(request) {
       studentId: student._id,
     }).lean();
     const summaryResult = await getStudentPointsSummary(request);
+    const personalityResult = await getStudentPersonalitySummary(request);
 
     if (!summaryResult.ok) {
       return NextResponse.json(
@@ -78,8 +96,12 @@ export async function POST(request) {
       );
     }
 
-    const importedAchievements =
-      buildAchievementsFromAttendanceSummary(summaryResult.data);
+    const importedAchievements = [
+      ...buildAchievementsFromAttendanceSummary(summaryResult.data),
+      ...(personalityResult.ok
+        ? buildAchievementsFromPersonalitySummary(personalityResult.data)
+        : []),
+    ];
 
     const {
       _id,

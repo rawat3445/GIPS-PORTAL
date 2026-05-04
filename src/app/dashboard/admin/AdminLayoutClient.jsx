@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   Activity,
   BarChart3,
+  BellRing,
   BookOpen,
   BriefcaseBusiness,
   CalendarDays,
@@ -106,6 +107,18 @@ export default function AdminLayoutClient({ children }) {
       href: "/dashboard/admin/course-catalog",
       icon: BookOpen,
       isActive: pathname.startsWith("/dashboard/admin/course-catalog"),
+    },
+    {
+      name: "Results",
+      href: "/dashboard/admin/results",
+      icon: BookOpen,
+      isActive: pathname.startsWith("/dashboard/admin/results"),
+    },
+    {
+      name: "Messages",
+      href: "/dashboard/admin/messages",
+      icon: BellRing,
+      isActive: pathname.startsWith("/dashboard/admin/messages"),
     },
   ];
 

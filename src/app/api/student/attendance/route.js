@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import connectDB from "../../../lib/db";
 import Attendance from "../../../models/Attendance";
 import Holiday from "../../../models/Holiday";
+import ResultPointAssignment from "../../../models/ResultPointAssignment";
+import StudentPersonalityProfile from "../../../models/StudentPersonalityProfile";
+import StudentResult from "../../../models/StudentResult";
 import User from "../../../models/User";
+import { buildPersonalitySummary } from "../../../lib/personalityDevelopment";
 import { TOTAL_STUDENT_POINTS } from "../../../lib/studentResume";
 import {
   addDays,
@@ -21,6 +25,124 @@ import {
 
 const POINTS_START_DATE = "2026-04-01";
 const POINTS_START_MONTH_KEY = POINTS_START_DATE.slice(0, 7);
+const RESULT_CATEGORY_MAX_POINTS = 25;
+const RESULT_PERCENTAGE_MAX_POINTS = 15;
+const RESULT_PASS_BONUS_MAX_POINTS = 5;
+const RESULT_PERFORMANCE_BONUS_MAX_POINTS = 5;
+
+function getResultPerformanceBonus(percentage) {
+  const value = Number(percentage || 0);
+
+  if (value >= 90) return 5;
+  if (value >= 80) return 4;
+  if (value >= 70) return 3;
+  if (value >= 60) return 2;
+  if (value >= 50) return 1;
+  return 0;
+}
+
+function getResultIssueLabels(subjects) {
+  return (Array.isArray(subjects) ? subjects : []).flatMap((subject) => {
+    const subjectCode = String(subject?.subjectCode || "").trim() || "Subject";
+    const issueLabels = [];
+    const theoryStatus = String(subject?.theoryResultStatus || "").toLowerCase();
+    const practicalStatus = String(subject?.practicalResultStatus || "").toLowerCase();
+    const subjectStatus = String(subject?.subjectStatus || "").toLowerCase();
+    const hasTheory = Boolean(subject?.hasTheory ?? Number(subject?.theoryMax || 0) > 0);
+    const hasPractical = Boolean(
+      subject?.hasPractical ?? Number(subject?.practicalMax || 0) > 0,
+    );
+
+    if (hasTheory && ["fail", "bp", "absent"].includes(theoryStatus)) {
+      issueLabels.push(`${subjectCode} Theory ${theoryStatus.toUpperCase()}`);
+    }
+
+    if (hasPractical && ["fail", "bp", "absent"].includes(practicalStatus)) {
+      issueLabels.push(`${subjectCode} Practical ${practicalStatus.toUpperCase()}`);
+    }
+
+    if (
+      issueLabels.length === 0 &&
+      ["fail", "bp", "absent"].includes(subjectStatus)
+    ) {
+      issueLabels.push(`${subjectCode} ${subjectStatus.toUpperCase()}`);
+    }
+
+    return issueLabels;
+  });
+}
+
+function buildResultCategory(selectedResult, studentId, assignment = null) {
+  const studentEntry = (selectedResult?.students || []).find(
+    (entry) => String(entry?.studentId) === String(studentId),
+  );
+  const assignmentStatus = assignment?.resultId
+    ? studentEntry
+      ? "assigned"
+      : "assigned_but_student_missing"
+    : "not_assigned";
+
+  if (!selectedResult || !studentEntry) {
+    return {
+      hasPublishedResult: false,
+      assignmentStatus,
+      totalPoints: 0,
+      maxPoints: RESULT_CATEGORY_MAX_POINTS,
+      percentagePoints: 0,
+      percentageMax: RESULT_PERCENTAGE_MAX_POINTS,
+      passBonusPoints: 0,
+      passBonusMax: RESULT_PASS_BONUS_MAX_POINTS,
+      performanceBonusPoints: 0,
+      performanceBonusMax: RESULT_PERFORMANCE_BONUS_MAX_POINTS,
+      latestResultName: safeString(assignment?.resultName),
+      latestPercentage: 0,
+      latestResultStatus: "pending",
+      publishedAt: null,
+      issueLabels: [],
+      issueCount: 0,
+    };
+  }
+
+  const percentage = Number(studentEntry?.percentage || 0);
+  const resultStatus = String(studentEntry?.resultStatus || "pending").toLowerCase();
+  const issueLabels = getResultIssueLabels(studentEntry?.subjects || []);
+  const percentagePoints = Math.min(
+    RESULT_PERCENTAGE_MAX_POINTS,
+    Math.max(0, Math.round((percentage / 100) * RESULT_PERCENTAGE_MAX_POINTS)),
+  );
+  const passBonusPoints =
+    resultStatus === "pass" && issueLabels.length === 0
+      ? RESULT_PASS_BONUS_MAX_POINTS
+      : 0;
+  const performanceBonusPoints = getResultPerformanceBonus(percentage);
+  const totalPoints = Math.min(
+    RESULT_CATEGORY_MAX_POINTS,
+    percentagePoints + passBonusPoints + performanceBonusPoints,
+  );
+
+  return {
+    hasPublishedResult: true,
+    assignmentStatus,
+    totalPoints,
+    maxPoints: RESULT_CATEGORY_MAX_POINTS,
+    percentagePoints,
+    percentageMax: RESULT_PERCENTAGE_MAX_POINTS,
+    passBonusPoints,
+    passBonusMax: RESULT_PASS_BONUS_MAX_POINTS,
+    performanceBonusPoints,
+    performanceBonusMax: RESULT_PERFORMANCE_BONUS_MAX_POINTS,
+    latestResultName: String(selectedResult?.resultName || "").trim(),
+    latestPercentage: Number(percentage.toFixed(2)),
+    latestResultStatus: resultStatus,
+    publishedAt: selectedResult?.publishedAt || selectedResult?.createdAt || null,
+    issueLabels,
+    issueCount: issueLabels.length,
+  };
+}
+
+function safeString(value) {
+  return String(value || "").trim();
+}
 
 function monthLabel(monthKey) {
   const [year, month] = monthKey.split("-").map(Number);
@@ -1016,6 +1138,33 @@ export async function GET(request) {
         ).length,
         bestStreak: streaks.best,
       });
+      const [personalityProfile, resultPointAssignment] = await Promise.all([
+        StudentPersonalityProfile.findOne({
+          studentId: me._id,
+        }).lean(),
+        ResultPointAssignment.findOne({
+          course,
+          year,
+        })
+          .select("resultId resultName")
+          .lean(),
+      ]);
+      const personalityDevelopment = buildPersonalitySummary(
+        personalityProfile || {},
+        me,
+      );
+      const selectedResult = resultPointAssignment?.resultId
+        ? await StudentResult.findOne({
+            _id: resultPointAssignment.resultId,
+            course,
+            year,
+          }).lean()
+        : null;
+      const resultsCategory = buildResultCategory(
+        selectedResult,
+        me._id,
+        selectedResult ? resultPointAssignment : null,
+      );
 
       let leaderboardCursor = ATTENDANCE_START_DATE;
       while (leaderboardCursor <= todayISO) {
@@ -1429,7 +1578,10 @@ export async function GET(request) {
         })),
         resumeDate: COLLEGE_RESUME_DATE,
         pointsStartDate: POINTS_START_DATE,
-        overallFrameworkPoints: attendanceCategory.totalPoints,
+        overallFrameworkPoints:
+          attendanceCategory.totalPoints +
+          Number(personalityDevelopment?.score?.totalPoints || 0) +
+          Number(resultsCategory?.totalPoints || 0),
         overallFrameworkMaxPoints: TOTAL_STUDENT_POINTS,
         rules: {
           sundaysAreHolidays: true,
@@ -1439,6 +1591,12 @@ export async function GET(request) {
         overall,
         attendanceScore,
         attendanceCategory,
+        personalityDevelopment: {
+          ...personalityDevelopment,
+          categoryPoints: Number(personalityDevelopment?.score?.totalPoints || 0),
+          categoryMaxPoints: Number(personalityDevelopment?.score?.maxPoints || 10),
+        },
+        resultsCategory,
         streaks,
         streakProgress,
         badges,
