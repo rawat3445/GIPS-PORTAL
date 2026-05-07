@@ -16,6 +16,7 @@ import {
   FileClock,
   Receipt,
   Sparkles,
+  Target,
   TrendingUp,
   Trophy,
 } from "lucide-react";
@@ -183,6 +184,48 @@ function ComingSoonCard({ title, description, icon: Icon, accent = "blue" }) {
         <ArrowRight className="h-4 w-4 text-gray-400 transition group-hover:translate-x-0.5" />
       </div>
     </div>
+  );
+}
+
+function FeatureLaunchCard({
+  title,
+  description,
+  href,
+  statLabel,
+  statValue,
+  icon: Icon,
+}) {
+  return (
+    <Link
+      href={href}
+      className="group relative overflow-hidden rounded-[28px] border border-violet-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(245,243,255,0.95),rgba(233,213,255,0.78))] p-5 shadow-[0_24px_55px_-35px_rgba(15,23,42,0.35)] transition duration-300 hover:-translate-y-1"
+    >
+      <div className="pointer-events-none absolute right-0 top-0 h-28 w-28 rounded-full bg-white/40 blur-2xl" />
+      <div className="relative flex items-start justify-between gap-3">
+        <div>
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/85 text-violet-700 shadow-sm">
+            {Icon ? <Icon className="h-5 w-5" /> : null}
+          </span>
+          <p className="mt-4 text-base font-semibold text-gray-900">{title}</p>
+          <p className="mt-1 text-sm leading-6 text-gray-600">{description}</p>
+        </div>
+        <span className="rounded-full bg-violet-100 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-700 shadow-sm">
+          Live now
+        </span>
+      </div>
+
+      <div className="relative mt-5 rounded-2xl border border-white/70 bg-white/75 px-4 py-3 shadow-sm">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+          {statLabel}
+        </p>
+        <p className="mt-2 text-lg font-bold text-violet-700">{statValue}</p>
+      </div>
+
+      <div className="relative mt-5 flex items-center justify-between rounded-2xl border border-white/70 bg-white/70 px-4 py-3 text-xs font-medium text-gray-600 shadow-sm">
+        <span>Open class test workspace</span>
+        <ArrowRight className="h-4 w-4 text-gray-400 transition group-hover:translate-x-0.5" />
+      </div>
+    </Link>
   );
 }
 
@@ -1520,6 +1563,15 @@ export default function StudentDashboard() {
     gapToNextRank: 0,
     motivation: "",
   });
+  const [classTestSummary, setClassTestSummary] = useState({
+    totalTests: 0,
+    averagePercentage: 0,
+    totalPoints: 0,
+    maxPoints: 25,
+    latestTestName: "",
+    latestSubjectLabel: "",
+    hasPublishedTests: false,
+  });
 
   const today = useMemo(() => toISODate(new Date()), []);
   const monthRange = useMemo(() => getMonthRange(new Date()), []);
@@ -1650,6 +1702,23 @@ export default function StudentDashboard() {
               summaryData?.attendanceLeaderboard?.gapToNextRank || 0,
             ),
             motivation: String(summaryData?.attendanceLeaderboard?.motivation || ""),
+          });
+          setClassTestSummary({
+            totalTests: Number(summaryData?.classTestsCategory?.totalTests || 0),
+            averagePercentage: Number(
+              summaryData?.classTestsCategory?.averagePercentage || 0,
+            ),
+            totalPoints: Number(summaryData?.classTestsCategory?.totalPoints || 0),
+            maxPoints: Number(summaryData?.classTestsCategory?.maxPoints || 25),
+            latestTestName: String(
+              summaryData?.classTestsCategory?.latestTestName || "",
+            ),
+            latestSubjectLabel: String(
+              summaryData?.classTestsCategory?.latestSubjectLabel || "",
+            ),
+            hasPublishedTests: Boolean(
+              summaryData?.classTestsCategory?.hasPublishedTests,
+            ),
           });
         }
       } catch (e) {
@@ -2181,7 +2250,23 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+            <FeatureLaunchCard
+              title="Class Tests"
+              description="See published class test marks, pass or fail status, extra criteria, and your class-test category impact in one place."
+              href="/dashboard/student/class-tests"
+              icon={Target}
+              statLabel={
+                classTestSummary.hasPublishedTests
+                  ? classTestSummary.latestTestName || "Latest class test"
+                  : "Class test status"
+              }
+              statValue={
+                classTestSummary.hasPublishedTests
+                  ? `${classTestSummary.averagePercentage.toFixed(1)}% avg • ${classTestSummary.totalPoints}/${classTestSummary.maxPoints} pts`
+                  : "No class test published yet"
+              }
+            />
             <ComingSoonCard
               title="Results Module"
               description="Marks, semester result summaries, and performance insights are being polished for your dashboard and reserved result points."

@@ -291,7 +291,14 @@ export default function StudentPointsPage() {
     totalStudents: 0,
     yourRank: null,
     yourTitle: "Rising",
+    yourOverallFrameworkPoints: 0,
+    yourOverallFrameworkMaxPoints: TOTAL_STUDENT_POINTS,
+    yourLiveCategoryCount: 0,
     yourAttendanceScore: 0,
+    yourAttendanceCategoryPoints: 0,
+    yourClassTestsCategoryPoints: 0,
+    yourPersonalityCategoryPoints: 0,
+    yourResultsCategoryPoints: 0,
     yourConfirmedOverallPercentage: 0,
     yourConfirmedMarkedDays: 0,
     yourScoreBase: 0,
@@ -421,6 +428,35 @@ export default function StudentPointsPage() {
       issueCount: Number(source?.issueCount || 0),
     };
   }, [summary?.resultsCategory]);
+  const classTestsCategory = useMemo(() => {
+    const source = summary?.classTestsCategory || {};
+
+    return {
+      earnedPoints: Number(source?.totalPoints || 0),
+      totalPoints: Number(source?.totalPoints || 0),
+      maxPoints: Number(source?.maxPoints || 25),
+      averagePerformancePoints: Number(source?.averagePerformancePoints || 0),
+      averagePerformanceMax: Number(source?.averagePerformanceMax || 15),
+      consistencyPoints: Number(source?.consistencyPoints || 0),
+      consistencyMax: Number(source?.consistencyMax || 5),
+      improvementTrendPoints: Number(source?.improvementTrendPoints || 0),
+      improvementTrendMax: Number(source?.improvementTrendMax || 5),
+      totalTests: Number(source?.totalTests || 0),
+      evaluatedTests: Number(source?.evaluatedTests || 0),
+      passedTests: Number(source?.passedTests || 0),
+      failedTests: Number(source?.failedTests || 0),
+      absentTests: Number(source?.absentTests || 0),
+      pendingTests: Number(source?.pendingTests || 0),
+      averagePercentage: Number(source?.averagePercentage || 0),
+      improvementLabel: source?.improvementLabel || "No evaluated tests yet",
+      latestTestName: source?.latestTestName || "",
+      latestSubjectLabel: source?.latestSubjectLabel || "",
+      latestPercentage: Number(source?.latestPercentage || 0),
+      latestStatus: source?.latestStatus || "pending",
+      latestPublishedAt: source?.latestPublishedAt || null,
+      hasPublishedTests: Boolean(source?.hasPublishedTests),
+    };
+  }, [summary?.classTestsCategory]);
   const pointsCategories = useMemo(
     () => [
       {
@@ -530,17 +566,50 @@ export default function StudentPointsPage() {
         label: "Class tests",
         shortLabel: "Class Tests",
         description:
-          "This category is reserved for regular academic checks so class test performance can contribute to the total score.",
-        earnedPoints: 0,
+          classTestsCategory.hasPublishedTests
+            ? "This category is now live from the class tests published for your batch, and the scoring is intentionally strict."
+            : "This category stays inactive until admin publishes class tests for your course and year.",
+        earnedPoints: classTestsCategory.earnedPoints,
         maxPoints: 25,
-        status: "planned",
+        status: classTestsCategory.hasPublishedTests ? "live" : "planned",
         icon: BookOpen,
         toneShell:
           "border-violet-100 bg-[linear-gradient(135deg,rgba(245,243,255,0.98),rgba(255,255,255,0.96),rgba(233,213,255,0.88))]",
         rows: [
-          { label: "Average test marks", value: "Up to 15 points" },
-          { label: "Consistency", value: "Up to 5 points" },
-          { label: "Improvement trend", value: "Up to 5 points" },
+          {
+            label: "Latest counted test",
+            value: classTestsCategory.hasPublishedTests
+              ? `${classTestsCategory.latestTestName || "Class test"} • ${classTestsCategory.latestSubjectLabel || "Subject"} • ${classTestsCategory.latestPercentage.toFixed(1)}% • ${String(classTestsCategory.latestStatus || "pending").toUpperCase()}`
+              : "No class test has been published for your batch yet",
+          },
+          {
+            label: "Average performance score",
+            value: classTestsCategory.hasPublishedTests
+              ? `${formatPointsPair(
+                  classTestsCategory.averagePerformancePoints,
+                  classTestsCategory.averagePerformanceMax,
+                )} from ${classTestsCategory.averagePercentage.toFixed(1)}% average with stricter bands`
+              : "Up to 15 points, but only strong averages unlock the higher bands",
+          },
+          {
+            label: "Consistency and improvement",
+            value: classTestsCategory.hasPublishedTests
+              ? `${formatPointsPair(
+                  classTestsCategory.consistencyPoints +
+                    classTestsCategory.improvementTrendPoints,
+                  classTestsCategory.consistencyMax +
+                    classTestsCategory.improvementTrendMax,
+                )} from ${classTestsCategory.totalTests} published test${
+                  classTestsCategory.totalTests === 1 ? "" : "s"
+                } with strict completion and trend rules`
+              : "Up to 10 points, but absences, weak pass rate, and too-few tests reduce it sharply",
+          },
+          {
+            label: "Trend note",
+            value: classTestsCategory.hasPublishedTests
+              ? classTestsCategory.improvementLabel
+              : "Improvement trend activates once evaluated class tests start appearing",
+          },
         ],
       },
       {
@@ -603,24 +672,22 @@ export default function StudentPointsPage() {
       attendanceCategory,
       attendanceScore.confirmedPercentage,
       personalityCategory,
+      classTestsCategory,
       resultsCategory,
     ],
   );
-  const visibleFrameworkMaxPoints = useMemo(
-    () =>
-      pointsCategories.reduce(
-        (sum, category) => sum + Number(category?.maxPoints || 0),
-        0,
-      ),
-    [pointsCategories],
+  const overallFrameworkMaxPoints = Number(
+    summary?.overallFrameworkMaxPoints ||
+      leaderboard?.yourOverallFrameworkMaxPoints ||
+      TOTAL_STUDENT_POINTS,
   );
-  const overallFrameworkPoints = useMemo(
-    () =>
+  const overallFrameworkPoints = Number(
+    summary?.overallFrameworkPoints ??
+      leaderboard?.yourOverallFrameworkPoints ??
       pointsCategories.reduce(
         (sum, category) => sum + Number(category?.earnedPoints || 0),
         0,
       ),
-    [pointsCategories],
   );
   const visibleOverallFrameworkPoints = Number(overallFrameworkPoints || 0);
   const resumeBuilderUnlocked =
@@ -796,16 +863,19 @@ export default function StudentPointsPage() {
       {
         step: "Assignments",
         rule:
-          "Assignments will carry 20 points in total: on-time submission up to 10, completion rate up to 5, and marks or quality up to 5.",
+          "Assignments are currently reserved as a 15-point category in this page structure and will begin counting only after assignment records are added to the portal.",
         meaning:
           "Reserved in the system now. It will start contributing when assignment submission and grading data exist in the portal.",
       },
       {
         step: "Class tests",
         rule:
-          "Class tests will carry 25 points: average performance up to 15, consistency up to 5, and improvement trend up to 5.",
-        meaning:
-          "Reserved in the system now. It will start contributing when class test records are added to the portal.",
+          "Class tests carry 25 points with strict rules: average performance up to 15 uses stepped score bands, consistency up to 5 needs strong completion and pass rate across multiple tests, and improvement trend up to 5 starts only after at least three evaluated tests.",
+        meaning: classTestsCategory.hasPublishedTests
+          ? `Live now from ${classTestsCategory.totalTests} published class test${
+              classTestsCategory.totalTests === 1 ? "" : "s"
+            }. Current average is ${classTestsCategory.averagePercentage.toFixed(1)}%, and low scores or absences will keep this category tight.`
+          : "Reserved in the system now. It will start contributing when class test records are added to the portal, but the scoring will stay stricter than attendance.",
       },
       {
         step: "Results",
@@ -820,15 +890,18 @@ export default function StudentPointsPage() {
       {
         step: "Current live ranking",
         rule:
-          "The leaderboard on this page is still driven by the live attendance engine until assignments, class tests, and results become active categories.",
+          "The leaderboard on this page now ranks students by total overall student points across every live category currently storing portal data.",
         meaning:
-          "This keeps current ranking visible without inventing academic data that does not exist in the portal yet.",
+          "This keeps the ranking tied to real scored categories instead of only attendance.",
       },
     ],
     [
       attendanceCategory.earnedPoints,
       attendanceCategory.maxPoints,
       hasLiveResultPoints,
+      classTestsCategory.hasPublishedTests,
+      classTestsCategory.totalTests,
+      classTestsCategory.averagePercentage,
       resultsCategory.assignmentStatus,
       resultsCategory.latestPercentage,
       resultsCategory.latestResultName,
@@ -847,11 +920,10 @@ export default function StudentPointsPage() {
             Student Points System
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-600 md:text-base">
-            Your student points page is currently showing the visible scoring
-            categories only. Attendance and consistency are live now from{" "}
-            {pointsStartLabel}, and
-            result points begin only after admin selects one saved batch result
-            for your course and year.
+            Your student points page now follows the backend overall score used
+            for ranking. Attendance and consistency are live now from{" "}
+            {pointsStartLabel}, and result points begin only after admin selects
+            one saved batch result for your course and year.
           </p>
         </div>
       </div>
@@ -878,12 +950,12 @@ export default function StudentPointsPage() {
                 <p className="mt-2 text-4xl font-bold text-amber-700">
                   {formatPointsPair(
                     visibleOverallFrameworkPoints,
-                    visibleFrameworkMaxPoints,
+                    overallFrameworkMaxPoints,
                   )}
                 </p>
                 <p className="mt-2 text-xs text-gray-500">
-                  Visible student points are currently focused on attendance,
-                  reserved academic categories, and result scoring.
+                  Overall points now combine every live student category that
+                  currently has real portal data.
                 </p>
               </div>
 
@@ -928,14 +1000,14 @@ export default function StudentPointsPage() {
                   <Trophy className="h-5 w-5" />
                 </span>
                 <p className="mt-4 text-sm font-medium text-gray-600">
-                  Current Live Category Rank
+                  Current Overall Rank
                 </p>
                 <p className="mt-2 text-4xl font-bold text-orange-700">
                   {leaderboard.yourRank ? `#${leaderboard.yourRank}` : "-"}
                 </p>
                 <p className="mt-2 text-xs text-gray-500">
-                  Live leaderboard uses attendance-category points until the
-                  full academic ranking is expanded later.
+                  Ranking now uses total overall student points, not only
+                  attendance.
                 </p>
               </div>
             </div>
@@ -961,13 +1033,13 @@ export default function StudentPointsPage() {
                   </p>
                   <p className="mt-3 text-2xl font-bold text-slate-950">
                     {hasLiveResultPoints
-                      ? "Attendance and results live"
-                      : "Attendance live"}
+                      ? "Multiple categories live"
+                      : "Attendance-led rollout"}
                   </p>
                   <p className="mt-2 text-sm text-gray-600">
-                    Assignments and class tests are still waiting for portal
-                    records, while results begin scoring only after one saved
-                    batch result is assigned by admin.
+                    Assignments stay reserved until their own module is live,
+                    while the total shown here now matches the backend overall
+                    score used in ranking.
                   </p>
                 </div>
               </div>
@@ -1074,11 +1146,11 @@ export default function StudentPointsPage() {
                     your profile right now.
                   </p>
                   <p className="mt-2 text-sm text-gray-600">
-                    Your live attendance category is{" "}
+                    Your current overall points are{" "}
                     <span className="font-semibold text-amber-700">
                       {formatPointsPair(
-                        attendanceCategory.earnedPoints,
-                        attendanceCategory.maxPoints,
+                        visibleOverallFrameworkPoints,
+                        overallFrameworkMaxPoints,
                       )}{" "}
                       right now
                     </span>
@@ -1211,14 +1283,12 @@ export default function StudentPointsPage() {
                   <p className="mt-3 text-2xl font-bold text-slate-950">
                     {formatPointsPair(
                       visibleOverallFrameworkPoints,
-                      TOTAL_STUDENT_POINTS,
+                      overallFrameworkMaxPoints,
                     )}
                   </p>
                   <p className="mt-2 text-sm text-gray-600">
-                    Overall student points visible now. Attendance is active,
-                    and result
-                    points activate whenever admin assigns a saved result for
-                    your batch.
+                    Overall student points now come from the same backend total
+                    used in ranking, not from a separate page-only calculation.
                   </p>
                 </div>
               </div>
@@ -1459,12 +1529,12 @@ export default function StudentPointsPage() {
                 <div className="mt-4 rounded-[24px] border border-white/80 bg-white/82 p-4 shadow-sm">
                   <p className="text-sm font-semibold text-slate-900">
                     {leaderboard.motivation ||
-                      "Attend regularly to improve your points rank."}
+                      "Keep building live category points to improve your overall rank."}
                   </p>
                   {leaderboard.scoreGapToNextRank > 0 ? (
                     <p className="mt-1 text-xs leading-5 text-gray-500">
                       {formatLeaderboardScore(leaderboard.scoreGapToNextRank)}{" "}
-                      more category point
+                      more overall point
                       {Number(leaderboard.scoreGapToNextRank) === 1 ? "" : "s"}{" "}
                       will move you closer to the next rank.
                     </p>
@@ -1554,15 +1624,14 @@ export default function StudentPointsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
-                      Attendance Leaderboard
+                      Overall Student Points Leaderboard
                     </p>
                     <h2 className="mt-2 text-2xl font-bold text-slate-950">
-                      Top 5 live attendance-category leaders
+                      Top 5 overall student-points leaders
                     </h2>
                     <p className="mt-2 text-sm leading-6 text-gray-600">
-                      This ranking is still based on the live attendance engine.
-                      It will broaden into the full academic points model after
-                      the other categories start storing data.
+                      This ranking is now based on total overall student points
+                      from every live category currently available in the portal.
                     </p>
                   </div>
                   <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
@@ -1629,20 +1698,18 @@ export default function StudentPointsPage() {
                           </div>
                           <div className="w-full text-left sm:w-auto sm:max-w-[180px] sm:shrink-0 sm:text-right">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
-                              Attendance Category
+                              Overall Points
                             </p>
                             <p className="mt-2 text-lg font-bold text-slate-950">
                               {formatPointsPair(
-                                student.attendanceCategoryPoints ??
-                                  student.attendanceScore,
-                                student.attendanceCategoryBreakdown?.maxPoints || 25,
+                                student.overallFrameworkPoints,
+                                student.overallFrameworkMaxPoints || TOTAL_STUDENT_POINTS,
                               )}
                             </p>
                             <p className="mt-1 text-xs leading-5 text-gray-500">
-                              {formatLeaderboardPercentage(
-                                student.confirmedOverallPercentage,
-                              )}{" "}
-                              coverage in the live category
+                              Attendance {student.attendanceCategoryPoints}/25 •
+                              Class tests {student.classTestsCategoryPoints || 0}/25 •
+                              Results {student.resultsCategoryPoints || 0}/25
                             </p>
                           </div>
                         </div>
@@ -1663,11 +1730,11 @@ export default function StudentPointsPage() {
                       Near You
                     </p>
                     <h2 className="mt-2 text-2xl font-bold text-slate-950">
-                      Students around your live attendance-category rank
+                      Students around your overall student-points rank
                     </h2>
                     <p className="mt-2 text-sm leading-6 text-gray-600">
-                      Track the students just above and below you while the full
-                      academic categories are still being rolled out.
+                      Track the students just above and below you based on total
+                      live student points.
                     </p>
                   </div>
                   <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
@@ -1713,11 +1780,16 @@ export default function StudentPointsPage() {
                               <p className="mt-1 break-words text-[11px] font-medium text-gray-500">
                                 {student.course} • Year {student.year}
                               </p>
-                              <p className="mt-1 break-words text-[11px] font-medium text-gray-500">
-                                {getLeaderboardTierNote(student)}
-                              </p>
-                            </div>
+                            <p className="mt-1 break-words text-[11px] font-medium text-gray-500">
+                              {formatPointsPair(
+                                student.overallFrameworkPoints,
+                                student.overallFrameworkMaxPoints || TOTAL_STUDENT_POINTS,
+                              )}{" "}
+                              overall • Attendance {student.attendanceCategoryPoints || 0}/25 •
+                              Class tests {student.classTestsCategoryPoints || 0}/25
+                            </p>
                           </div>
+                        </div>
                           <div className="w-full text-left sm:w-auto sm:shrink-0 sm:text-right">
                             <span
                               className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getLeaderboardTierShell(
@@ -1728,20 +1800,17 @@ export default function StudentPointsPage() {
                               {student.tierLabel}
                             </span>
                             <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
-                              Attendance Category
+                              Overall Points
                             </p>
                             <p className="mt-2 text-lg font-bold text-slate-950">
                               {formatPointsPair(
-                                student.attendanceCategoryPoints ??
-                                  student.attendanceScore,
-                                student.attendanceCategoryBreakdown?.maxPoints || 25,
+                                student.overallFrameworkPoints,
+                                student.overallFrameworkMaxPoints || TOTAL_STUDENT_POINTS,
                               )}
                             </p>
                             <p className="mt-1 text-xs leading-5 text-gray-500">
-                              {formatLeaderboardPercentage(
-                                student.confirmedOverallPercentage,
-                              )}{" "}
-                              coverage in the live category
+                              {student.liveCategoryCount || 0} live categor
+                              {Number(student.liveCategoryCount || 0) === 1 ? "y" : "ies"}
                             </p>
                           </div>
                         </div>

@@ -19,6 +19,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Sparkles,
+  Target,
   Trophy,
 } from "lucide-react";
 
@@ -57,6 +58,11 @@ export default function StudentLayoutClient({ children }) {
       name: "Results",
       href: "/dashboard/student/results",
       icon: BarChart3,
+    },
+    {
+      name: "Class Tests",
+      href: "/dashboard/student/class-tests",
+      icon: Target,
     },
     {
       name: "Portal Feedback",

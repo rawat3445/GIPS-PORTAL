@@ -18,6 +18,7 @@ import {
   PanelLeftOpen,
   ShieldCheck,
   Sparkles,
+  Target,
   Users,
 } from "lucide-react";
 import { trackDashboardPageView } from "../../lib/activityClient";
@@ -113,6 +114,12 @@ export default function AdminLayoutClient({ children }) {
       href: "/dashboard/admin/results",
       icon: BookOpen,
       isActive: pathname.startsWith("/dashboard/admin/results"),
+    },
+    {
+      name: "Class Tests",
+      href: "/dashboard/admin/class-tests",
+      icon: Target,
+      isActive: pathname.startsWith("/dashboard/admin/class-tests"),
     },
     {
       name: "Messages",

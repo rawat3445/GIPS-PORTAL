@@ -1,15 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
   Bug,
+  BookOpen,
   ChevronDown,
   ChevronUp,
   GraduationCap,
   ShieldCheck,
   Sparkles,
+  Target,
   TrendingUp,
   UserPlus,
   UserRoundCheck,
@@ -752,6 +755,71 @@ export default function AdminDashboard() {
           {metricCards.map((card) => (
             <MetricCard key={card.label} {...card} />
           ))}
+        </div>
+
+        <div>
+          <SectionEyebrow label="Academic Tools" icon={Target} accent="amber" />
+          <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+                Quick access to publishing workflows
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-gray-600">
+                Open the academic modules you update most often without hunting
+                through the sidebar.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <Link
+            href="/dashboard/admin/class-tests"
+            className="rounded-[28px] border border-amber-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(255,247,237,0.95),rgba(254,243,199,0.82))] p-5 shadow-[0_24px_55px_-40px_rgba(15,23,42,0.3)] transition hover:-translate-y-1"
+          >
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+              <Target className="h-5 w-5" />
+            </span>
+            <p className="mt-4 text-lg font-semibold text-slate-950">
+              Manage Class Tests
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Publish batch-wise class tests with course, year, subject,
+              pass-fail status, total marks, and student numbers.
+            </p>
+          </Link>
+
+          <Link
+            href="/dashboard/admin/results"
+            className="rounded-[28px] border border-violet-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(245,243,255,0.95),rgba(233,213,255,0.78))] p-5 shadow-[0_24px_55px_-40px_rgba(15,23,42,0.3)] transition hover:-translate-y-1"
+          >
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 text-violet-700">
+              <BookOpen className="h-5 w-5" />
+            </span>
+            <p className="mt-4 text-lg font-semibold text-slate-950">
+              Manage Results
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Open the full result workflow for subject-wise marks, practicals,
+              print view, and result-point selection.
+            </p>
+          </Link>
+
+          <Link
+            href="/dashboard/admin/course-catalog"
+            className="rounded-[28px] border border-blue-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(239,246,255,0.95),rgba(219,234,254,0.8))] p-5 shadow-[0_24px_55px_-40px_rgba(15,23,42,0.3)] transition hover:-translate-y-1"
+          >
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+              <GraduationCap className="h-5 w-5" />
+            </span>
+            <p className="mt-4 text-lg font-semibold text-slate-950">
+              Course Catalog
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Update subjects, materials, notices, and faculty information for
+              each course and year.
+            </p>
+          </Link>
         </div>
 
         <div>

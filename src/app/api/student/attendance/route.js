@@ -3,9 +3,11 @@ import connectDB from "../../../lib/db";
 import Attendance from "../../../models/Attendance";
 import Holiday from "../../../models/Holiday";
 import ResultPointAssignment from "../../../models/ResultPointAssignment";
+import StudentClassTest from "../../../models/StudentClassTest";
 import StudentPersonalityProfile from "../../../models/StudentPersonalityProfile";
 import StudentResult from "../../../models/StudentResult";
 import User from "../../../models/User";
+import { buildClassTestsCategory } from "../../../lib/classTests";
 import { buildPersonalitySummary } from "../../../lib/personalityDevelopment";
 import { TOTAL_STUDENT_POINTS } from "../../../lib/studentResume";
 import {
@@ -29,6 +31,15 @@ const RESULT_CATEGORY_MAX_POINTS = 25;
 const RESULT_PERCENTAGE_MAX_POINTS = 15;
 const RESULT_PASS_BONUS_MAX_POINTS = 5;
 const RESULT_PERFORMANCE_BONUS_MAX_POINTS = 5;
+const ENABLE_PERSONALITY_POINTS_IN_FRAMEWORK = false;
+
+function getFrameworkPersonalityPoints(personalityDevelopment) {
+  if (!ENABLE_PERSONALITY_POINTS_IN_FRAMEWORK) {
+    return 0;
+  }
+
+  return Number(personalityDevelopment?.score?.totalPoints || 0);
+}
 
 function getResultPerformanceBonus(percentage) {
   const value = Number(percentage || 0);
@@ -737,6 +748,42 @@ function buildLeaderboardMessage({
   )} attendance coverage is below the 75% target. Consistent present days will help you recover and climb in the live ranking.`;
 }
 
+function buildOverallPointsLeaderboardMessage({
+  rank,
+  overallFrameworkPoints,
+  overallFrameworkMaxPoints,
+  standings,
+  liveCategoryCount,
+}) {
+  if (!Array.isArray(standings) || !standings.length) {
+    return "Overall student-points ranking will appear once enough scored records are available.";
+  }
+
+  if (rank === 1) {
+    return `You are leading the overall student-points ranking with ${overallFrameworkPoints}/${overallFrameworkMaxPoints} points across ${liveCategoryCount} live categor${
+      liveCategoryCount === 1 ? "y" : "ies"
+    }.`;
+  }
+
+  const higherRankEntry = standings[Math.max(0, rank - 2)] || null;
+  const scoreGap =
+    higherRankEntry &&
+    Number(higherRankEntry.overallFrameworkPoints || 0) > overallFrameworkPoints
+      ? Number(higherRankEntry.overallFrameworkPoints || 0) -
+        overallFrameworkPoints
+      : 0;
+
+  if (scoreGap > 0) {
+    return `${overallFrameworkPoints}/${overallFrameworkMaxPoints} overall student points across ${liveCategoryCount} live categor${
+      liveCategoryCount === 1 ? "y" : "ies"
+    }. You are ${scoreGap} point${
+      scoreGap === 1 ? "" : "s"
+    } behind the student just above you.`;
+  }
+
+  return `${overallFrameworkPoints}/${overallFrameworkMaxPoints} overall student points are now driving this ranking. More live categories will make the board more competitive over time.`;
+}
+
 function buildAttendanceLeaderboardMessage({
   rank,
   confirmedOverallPercentage,
@@ -845,7 +892,17 @@ export async function GET(request) {
           ? calendarEndDate
           : pointsScoringMonthEndDate;
 
-      const [holidayMap, pointsHolidayMap, docs, allStudents, allLeaderboardDocs, allLeaderboardHolidays] =
+      const [
+        holidayMap,
+        pointsHolidayMap,
+        docs,
+        allStudents,
+        allLeaderboardDocs,
+        allLeaderboardHolidays,
+        allPersonalityProfiles,
+        allClassTests,
+        allResultPointAssignments,
+      ] =
         await Promise.all([
           getHolidayMapForContext({
             fromDate: ATTENDANCE_START_DATE,
@@ -892,7 +949,42 @@ export async function GET(request) {
               studentId: 1,
             })
             .lean(),
+          StudentPersonalityProfile.find({})
+            .select({ studentId: 1, weeklyGoals: 1, activities: 1, reflections: 1, practiceSessions: 1, voiceSessions: 1, weeklyFocus: 1, careerGoal: 1, selfIntroduction: 1, strengths: 1, growthAreas: 1 })
+            .lean(),
+          StudentClassTest.find({})
+            .select({
+              classTestName: 1,
+              course: 1,
+              year: 1,
+              subjectCode: 1,
+              subjectName: 1,
+              totalMarks: 1,
+              passingMarks: 1,
+              extraCriteria: 1,
+              testDate: 1,
+              publishedAt: 1,
+              createdAt: 1,
+              students: 1,
+            })
+            .lean(),
+          ResultPointAssignment.find({})
+            .select("course year resultId resultName")
+            .lean(),
         ]);
+
+      const assignedResultIds = Array.from(
+        new Set(
+          allResultPointAssignments
+            .map((assignment) => String(assignment?.resultId || ""))
+            .filter(Boolean),
+        ),
+      );
+      const assignedResults = assignedResultIds.length
+        ? await StudentResult.find({
+            _id: { $in: assignedResultIds },
+          }).lean()
+        : [];
 
       const recordMap = new Map();
       docs.forEach((doc) => {
@@ -921,6 +1013,25 @@ export async function GET(request) {
         const studentYear = Number(student?.year);
         return Boolean(studentCourse) && Number.isFinite(studentYear) && studentYear > 0;
       });
+      const personalityProfileMap = new Map(
+        (Array.isArray(allPersonalityProfiles) ? allPersonalityProfiles : []).map(
+          (profile) => [String(profile.studentId), profile],
+        ),
+      );
+      const resultAssignmentMap = new Map(
+        (Array.isArray(allResultPointAssignments) ? allResultPointAssignments : []).map(
+          (assignment) => [
+            getLeaderboardGroupKey(assignment.course, assignment.year),
+            assignment,
+          ],
+        ),
+      );
+      const resultDocMap = new Map(
+        (Array.isArray(assignedResults) ? assignedResults : []).map((result) => [
+          String(result._id),
+          result,
+        ]),
+      );
       const leaderboardStatsMap = new Map(
         leaderboardStudents.map((student) => [
           String(student._id),
@@ -1138,7 +1249,7 @@ export async function GET(request) {
         ).length,
         bestStreak: streaks.best,
       });
-      const [personalityProfile, resultPointAssignment] = await Promise.all([
+      const [personalityProfile, resultPointAssignment, classTests] = await Promise.all([
         StudentPersonalityProfile.findOne({
           studentId: me._id,
         }).lean(),
@@ -1148,11 +1259,17 @@ export async function GET(request) {
         })
           .select("resultId resultName")
           .lean(),
+        StudentClassTest.find({
+          course,
+          year,
+          "students.studentId": me._id,
+        }).lean(),
       ]);
       const personalityDevelopment = buildPersonalitySummary(
         personalityProfile || {},
         me,
       );
+      const classTestsCategory = buildClassTestsCategory(classTests, me._id);
       const selectedResult = resultPointAssignment?.resultId
         ? await StudentResult.findOne({
             _id: resultPointAssignment.resultId,
@@ -1313,6 +1430,43 @@ export async function GET(request) {
             ).length,
             bestStreak: studentStreaks.best,
           });
+          const studentPersonalityDevelopment = buildPersonalitySummary(
+            personalityProfileMap.get(studentId) || {},
+            student,
+          );
+          const studentClassTestsCategory = buildClassTestsCategory(
+            (Array.isArray(allClassTests) ? allClassTests : []).filter(
+              (test) =>
+                String(test?.course || "").toUpperCase() === stats.course &&
+                Number(test?.year || 0) === stats.year,
+            ),
+            studentId,
+          );
+          const batchAssignment =
+            resultAssignmentMap.get(getLeaderboardGroupKey(stats.course, stats.year)) ||
+            null;
+          const batchResult =
+            batchAssignment?.resultId
+              ? resultDocMap.get(String(batchAssignment.resultId)) || null
+              : null;
+          const studentResultsCategory = buildResultCategory(
+            batchResult,
+            studentId,
+            batchResult ? batchAssignment : null,
+          );
+          const studentPersonalityFrameworkPoints =
+            getFrameworkPersonalityPoints(studentPersonalityDevelopment);
+          const studentOverallFrameworkPoints =
+            studentAttendanceCategory.totalPoints +
+            Number(studentClassTestsCategory?.totalPoints || 0) +
+            studentPersonalityFrameworkPoints +
+            Number(studentResultsCategory?.totalPoints || 0);
+          const studentLiveCategoryCount = [
+            true,
+            Boolean(studentClassTestsCategory?.hasPublishedTests),
+            studentPersonalityFrameworkPoints > 0,
+            Boolean(studentResultsCategory?.hasPublishedResult),
+          ].filter(Boolean).length;
           const overallPercentage =
             stats.workingDays === 0
               ? 0
@@ -1352,6 +1506,22 @@ export async function GET(request) {
             },
             attendanceCategoryPoints: studentAttendanceCategory.totalPoints,
             attendanceCategoryBreakdown: studentAttendanceCategory,
+            classTestsCategoryPoints: Number(
+              studentClassTestsCategory?.totalPoints || 0,
+            ),
+            classTestsCategoryBreakdown: studentClassTestsCategory,
+            personalityCategoryPoints: studentPersonalityFrameworkPoints,
+            personalityCategoryBreakdown: {
+              totalPoints: studentPersonalityFrameworkPoints,
+              maxPoints: Number(
+                studentPersonalityDevelopment?.score?.maxPoints || 10,
+              ),
+            },
+            resultsCategoryPoints: Number(studentResultsCategory?.totalPoints || 0),
+            resultsCategoryBreakdown: studentResultsCategory,
+            overallFrameworkPoints: studentOverallFrameworkPoints,
+            overallFrameworkMaxPoints: TOTAL_STUDENT_POINTS,
+            liveCategoryCount: studentLiveCategoryCount,
             pointsPresentDays: studentPointsTotals.present,
             pointsAbsentDays: studentPointsTotals.absent,
             pointsWorkingDays: studentPointsTotals.workingDays,
@@ -1369,13 +1539,26 @@ export async function GET(request) {
           attendanceScoreBreakdown: entry.attendanceCategoryBreakdown,
           attendanceCategoryPoints: entry.attendanceCategoryPoints,
           attendanceCategoryBreakdown: entry.attendanceCategoryBreakdown,
+          classTestsCategoryPoints: entry.classTestsCategoryPoints,
+          classTestsCategoryBreakdown: entry.classTestsCategoryBreakdown,
+          personalityCategoryPoints: entry.personalityCategoryPoints,
+          personalityCategoryBreakdown: entry.personalityCategoryBreakdown,
+          resultsCategoryPoints: entry.resultsCategoryPoints,
+          resultsCategoryBreakdown: entry.resultsCategoryBreakdown,
+          overallFrameworkPoints: entry.overallFrameworkPoints,
+          overallFrameworkMaxPoints: entry.overallFrameworkMaxPoints,
+          liveCategoryCount: entry.liveCategoryCount,
           presentDays: entry.pointsPresentDays,
           absentDays: entry.pointsAbsentDays,
           workingDays: entry.pointsWorkingDays,
         }))
         .sort(
           (a, b) =>
-            b.attendanceScore - a.attendanceScore ||
+            b.overallFrameworkPoints - a.overallFrameworkPoints ||
+            b.liveCategoryCount - a.liveCategoryCount ||
+            b.resultsCategoryPoints - a.resultsCategoryPoints ||
+            b.classTestsCategoryPoints - a.classTestsCategoryPoints ||
+            b.attendanceCategoryPoints - a.attendanceCategoryPoints ||
             b.confirmedOverallPercentage - a.confirmedOverallPercentage ||
             b.overallPercentage - a.overallPercentage ||
             b.presentDays - a.presentDays ||
@@ -1409,9 +1592,18 @@ export async function GET(request) {
         isCurrentUser: entry.isCurrentUser,
         rank: entry.rank,
         title: entry.title,
+        overallFrameworkPoints: entry.overallFrameworkPoints,
+        overallFrameworkMaxPoints: entry.overallFrameworkMaxPoints,
+        liveCategoryCount: entry.liveCategoryCount,
         attendanceScore: entry.attendanceScore,
         attendanceCategoryPoints: entry.attendanceCategoryPoints,
         attendanceCategoryBreakdown: entry.attendanceCategoryBreakdown,
+        classTestsCategoryPoints: entry.classTestsCategoryPoints,
+        classTestsCategoryBreakdown: entry.classTestsCategoryBreakdown,
+        personalityCategoryPoints: entry.personalityCategoryPoints,
+        personalityCategoryBreakdown: entry.personalityCategoryBreakdown,
+        resultsCategoryPoints: entry.resultsCategoryPoints,
+        resultsCategoryBreakdown: entry.resultsCategoryBreakdown,
         confirmedOverallPercentage: entry.confirmedOverallPercentage,
         confirmedMarkedDays: entry.confirmedMarkedDays,
         overallPercentage: entry.overallPercentage,
@@ -1437,15 +1629,39 @@ export async function GET(request) {
         currentUserIndex > 0 ? leaderboardEntries[currentUserIndex - 1] : null;
 
       const leaderboard = {
-        scope: "attendanceCategory",
+        scope: "overallFrameworkPoints",
         totalStudents: leaderboardEntries.length,
         yourRank: currentUserRanking?.rank ?? null,
         yourTitle: currentUserRanking?.title || getLeaderboardTitle(1),
+        yourOverallFrameworkPoints:
+          currentUserRanking?.overallFrameworkPoints ??
+          (attendanceCategory.totalPoints +
+            Number(classTestsCategory?.totalPoints || 0) +
+            getFrameworkPersonalityPoints(personalityDevelopment) +
+            Number(resultsCategory?.totalPoints || 0)),
+        yourOverallFrameworkMaxPoints: TOTAL_STUDENT_POINTS,
+        yourLiveCategoryCount:
+          currentUserRanking?.liveCategoryCount ??
+          [
+            true,
+            Boolean(classTestsCategory?.hasPublishedTests),
+            getFrameworkPersonalityPoints(personalityDevelopment) > 0,
+            Boolean(resultsCategory?.hasPublishedResult),
+          ].filter(Boolean).length,
         yourAttendanceScore:
           currentUserRanking?.attendanceScore ?? attendanceCategory.totalPoints,
         yourAttendanceCategoryPoints:
           currentUserRanking?.attendanceCategoryPoints ??
           attendanceCategory.totalPoints,
+        yourClassTestsCategoryPoints:
+          currentUserRanking?.classTestsCategoryPoints ??
+          Number(classTestsCategory?.totalPoints || 0),
+        yourPersonalityCategoryPoints:
+          currentUserRanking?.personalityCategoryPoints ??
+          getFrameworkPersonalityPoints(personalityDevelopment),
+        yourResultsCategoryPoints:
+          currentUserRanking?.resultsCategoryPoints ??
+          Number(resultsCategory?.totalPoints || 0),
         yourConfirmedOverallPercentage:
           currentUserRanking?.confirmedOverallPercentage ??
           attendanceScore.confirmedPercentage,
@@ -1472,16 +1688,27 @@ export async function GET(request) {
           currentUserRanking && higherRankEntry
             ? Math.max(
                 0,
-                higherRankEntry.attendanceScore - currentUserRanking.attendanceScore,
+                higherRankEntry.overallFrameworkPoints -
+                  currentUserRanking.overallFrameworkPoints,
               )
             : 0,
-        motivation: buildLeaderboardMessage({
+        motivation: buildOverallPointsLeaderboardMessage({
           rank: currentUserRanking?.rank ?? 1,
-          attendanceScore:
-            currentUserRanking?.attendanceScore ?? attendanceCategory.totalPoints,
-          confirmedOverallPercentage:
-            currentUserRanking?.confirmedOverallPercentage ??
-            attendanceScore.confirmedPercentage,
+          overallFrameworkPoints:
+            currentUserRanking?.overallFrameworkPoints ??
+            (attendanceCategory.totalPoints +
+              Number(classTestsCategory?.totalPoints || 0) +
+              getFrameworkPersonalityPoints(personalityDevelopment) +
+              Number(resultsCategory?.totalPoints || 0)),
+          overallFrameworkMaxPoints: TOTAL_STUDENT_POINTS,
+          liveCategoryCount:
+            currentUserRanking?.liveCategoryCount ??
+            [
+              true,
+              Boolean(classTestsCategory?.hasPublishedTests),
+              getFrameworkPersonalityPoints(personalityDevelopment) > 0,
+              Boolean(resultsCategory?.hasPublishedResult),
+            ].filter(Boolean).length,
           standings: leaderboardEntries,
         }),
         topStudents: leaderboardEntries.slice(0, 5).map(toPublicLeaderboardEntry),
@@ -1580,7 +1807,8 @@ export async function GET(request) {
         pointsStartDate: POINTS_START_DATE,
         overallFrameworkPoints:
           attendanceCategory.totalPoints +
-          Number(personalityDevelopment?.score?.totalPoints || 0) +
+          Number(classTestsCategory?.totalPoints || 0) +
+          getFrameworkPersonalityPoints(personalityDevelopment) +
           Number(resultsCategory?.totalPoints || 0),
         overallFrameworkMaxPoints: TOTAL_STUDENT_POINTS,
         rules: {
@@ -1591,6 +1819,7 @@ export async function GET(request) {
         overall,
         attendanceScore,
         attendanceCategory,
+        classTestsCategory,
         personalityDevelopment: {
           ...personalityDevelopment,
           categoryPoints: Number(personalityDevelopment?.score?.totalPoints || 0),
