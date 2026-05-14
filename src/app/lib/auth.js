@@ -1,5 +1,8 @@
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
+import connectDB from "./db";
+import User from "../models/User";
+import { evaluateStudentLoginAccess } from "./studentAccess";
 
 async function getDecodedToken() {
   const cookieStore = await cookies();
@@ -50,5 +53,32 @@ export async function requireStudent() {
     return { ok: false };
   }
 
-  return { ok: true, decoded };
+  await connectDB();
+  const user = await User.findById(decoded.id).select(
+    "role course year studentLoginWindowStartDate studentLoginResetAt studentLastLoginAt studentLoginBlocked studentLoginBlockedAt",
+  );
+
+  if (!user || String(user.role || "").toLowerCase() !== "student") {
+    return { ok: false };
+  }
+
+  const accessState = await evaluateStudentLoginAccess(user);
+
+  if (accessState.isBlocked) {
+    if (!user.studentLoginBlocked) {
+      await User.collection.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            studentLoginBlocked: true,
+            studentLoginBlockedAt: new Date(),
+          },
+        },
+      );
+    }
+
+    return { ok: false };
+  }
+
+  return { ok: true, decoded, user };
 }

@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken";
 import connectDB from "../../../lib/db";
 import User from "../../../models/User";
 import { logActivity } from "../../../lib/activity";
+import { evaluateStudentLoginAccess } from "../../../lib/studentAccess";
+import { toISODate } from "../../../lib/attendanceEvents";
 
 function isBcryptHash(value) {
   return /^\$2[aby]\$\d{2}\$/.test(String(value || "").trim());
@@ -168,6 +170,31 @@ export async function POST(req) {
     }
 
     const role = String(user.role || "").toLowerCase();
+    const accessState = await evaluateStudentLoginAccess(user);
+
+    if (accessState.isBlocked) {
+      if (!user.studentLoginBlocked) {
+        user.studentLoginBlocked = true;
+        user.studentLoginBlockedAt = new Date();
+        await user.save();
+      }
+
+      return NextResponse.json(
+        {
+          message:
+            "Your student login access window has ended. Please contact admin to reset access.",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (role === "student") {
+      const loginDate = new Date();
+      user.studentLoginWindowStartDate = toISODate(loginDate);
+      user.studentLastLoginAt = loginDate;
+      await user.save();
+    }
+
     const redirectTo =
       role === "admin"
         ? "/dashboard/admin"

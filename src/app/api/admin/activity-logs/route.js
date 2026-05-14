@@ -3,6 +3,11 @@ import connectDB from "../../../lib/db";
 import ActivityLog from "../../../models/ActivityLog";
 import User from "../../../models/User";
 import { requireAdmin } from "../../../lib/auth";
+import {
+  STUDENT_LOGIN_ACCESS_START_DATE,
+  resolveEffectiveStudentWindowStartDate,
+  resolveStudentLoginWindowEndDate,
+} from "../../../lib/studentAccess";
 
 const IST_TIME_ZONE = "Asia/Kolkata";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -121,6 +126,8 @@ function calculateDaysSince(lastLoginAt) {
 }
 
 async function buildStudentLoginReport({ reportDays, inactiveDays }) {
+  const today = new Date();
+  const todayISO = getDateKeyInTimeZone(today);
   const dayKeys = getRecentDayKeys(reportDays);
   const oldestDayKey = dayKeys.at(-1);
   const reportStartDate = oldestDayKey
@@ -129,7 +136,9 @@ async function buildStudentLoginReport({ reportDays, inactiveDays }) {
 
   const [studentUsers, dailyActivityRows, lastLoginRows] = await Promise.all([
     User.find({ role: "student" })
-      .select("name email enrollmentNo course year")
+      .select(
+        "name email enrollmentNo course year studentLastLoginAt studentLoginWindowStartDate studentLoginResetAt studentLoginBlocked studentLoginBlockedAt",
+      )
       .sort({ course: 1, year: 1, name: 1 })
       .lean(),
     ActivityLog.aggregate([
@@ -234,9 +243,9 @@ async function buildStudentLoginReport({ reportDays, inactiveDays }) {
     };
   });
 
-  const today = daily[0] || {
-    dayKey: getDateKeyInTimeZone(new Date()),
-    label: formatDayLabel(getDateKeyInTimeZone(new Date())),
+  const todaySnapshot = daily[0] || {
+    dayKey: todayISO,
+    label: formatDayLabel(todayISO),
     loggedInCount: 0,
     loggedOutCount: 0,
     loginEventCount: 0,
@@ -248,15 +257,49 @@ async function buildStudentLoginReport({ reportDays, inactiveDays }) {
   const lastLoginMap = new Map(
     lastLoginRows.map((row) => [
       String(row._id),
-      row.lastLoginAt ? new Date(row.lastLoginAt).toISOString() : null,
+      {
+        lastLoginAt: row.lastLoginAt
+          ? new Date(row.lastLoginAt).toISOString()
+          : null,
+      },
     ]),
   );
 
-  const inactiveStudents = studentUsers
-    .map((student) => {
-      const lastLoginAt = lastLoginMap.get(String(student._id)) || null;
+  const enrichedStudents = await Promise.all(
+    studentUsers.map(async (student) => {
+      const loginSummary = lastLoginMap.get(String(student._id)) || {};
+      const lastLoginAt =
+        loginSummary.lastLoginAt ||
+        (student.studentLastLoginAt
+          ? new Date(student.studentLastLoginAt).toISOString()
+          : null);
       const lastLoginDate = lastLoginAt ? new Date(lastLoginAt) : null;
       const daysSinceLastLogin = calculateDaysSince(lastLoginDate);
+      const effectiveWindowStartDate = resolveEffectiveStudentWindowStartDate({
+        storedWindowStartDate: student.studentLoginWindowStartDate,
+        resetAt: student.studentLoginResetAt,
+        firstLoginAt: lastLoginAt,
+      });
+      const accessWindowEndDate = effectiveWindowStartDate
+        ? await resolveStudentLoginWindowEndDate({
+            startDate: effectiveWindowStartDate,
+            course: student.course,
+            year: student.year,
+            studentId: student._id,
+          })
+        : "";
+      const isBlocked = Boolean(student.studentLoginBlocked);
+      const windowExpired =
+        Boolean(accessWindowEndDate) && todayISO > accessWindowEndDate;
+      const accessStatus = !effectiveWindowStartDate
+        ? todayISO >= STUDENT_LOGIN_ACCESS_START_DATE
+          ? "not_started"
+          : "scheduled"
+        : isBlocked
+          ? "blocked"
+          : windowExpired
+            ? "expired"
+            : "active";
 
       return {
         studentId: String(student._id),
@@ -270,8 +313,17 @@ async function buildStudentLoginReport({ reportDays, inactiveDays }) {
         isInactive:
           daysSinceLastLogin === null ||
           Number(daysSinceLastLogin) >= Number(inactiveDays),
+        accessStatus,
+        accessWindowStartDate: effectiveWindowStartDate || null,
+        accessWindowEndDate: accessWindowEndDate || null,
+        blockedAt: student.studentLoginBlockedAt
+          ? new Date(student.studentLoginBlockedAt).toISOString()
+          : null,
       };
-    })
+    }),
+  );
+
+  const inactiveStudents = enrichedStudents
     .filter((student) => student.isInactive)
     .sort((a, b) => {
       if (!a.lastLoginAt && !b.lastLoginAt) {
@@ -287,17 +339,53 @@ async function buildStudentLoginReport({ reportDays, inactiveDays }) {
       );
     });
 
+  const allStudents = [...enrichedStudents].sort((a, b) => {
+    const accessPriority = {
+      blocked: 0,
+      expired: 1,
+      active: 2,
+      scheduled: 3,
+    };
+    const aPriority = accessPriority[a.accessStatus] ?? 9;
+    const bPriority = accessPriority[b.accessStatus] ?? 9;
+
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority;
+    }
+
+    if (!a.lastLoginAt && !b.lastLoginAt) {
+      return a.name.localeCompare(b.name);
+    }
+
+    if (!a.lastLoginAt) return -1;
+    if (!b.lastLoginAt) return 1;
+
+    return (
+      new Date(b.lastLoginAt).getTime() - new Date(a.lastLoginAt).getTime() ||
+      a.name.localeCompare(b.name)
+    );
+  });
+
   return {
     generatedAt: new Date().toISOString(),
     reportDays,
     inactiveDays,
+    accessStartDate: STUDENT_LOGIN_ACCESS_START_DATE,
     totalStudents,
-    today,
+    today: todaySnapshot,
     daily,
     inactiveStudentCount: inactiveStudents.length,
     neverLoggedInCount: inactiveStudents.filter((student) => !student.lastLoginAt)
       .length,
+    blockedStudentCount: enrichedStudents.filter(
+      (student) =>
+        student.accessStatus === "blocked" || student.accessStatus === "expired",
+    ).length,
+    activeWindowStudentCount: enrichedStudents.filter(
+      (student) => student.accessStatus === "active",
+    ).length,
     inactiveStudents: inactiveStudents.slice(0, 80),
+    allStudents: allStudents.slice(0, 200),
   };
 }
 

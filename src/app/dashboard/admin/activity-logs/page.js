@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  AlertTriangle,
+  Ban,
   CalendarDays,
   Clock3,
   Filter,
   LogIn,
   LogOut,
   Search,
+  ShieldCheck,
   UserRound,
   UserX,
   Users,
@@ -114,6 +117,31 @@ function getInactiveTone(daysSinceLastLogin, hasLogin) {
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+function getAccessStatusChip(status) {
+  if (status === "blocked" || status === "expired") {
+    return "border-rose-200 bg-rose-50 text-rose-700";
+  }
+
+  if (status === "active") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+
+  if (status === "scheduled" || status === "not_started") {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function formatAccessStatus(status) {
+  if (status === "blocked") return "Blocked";
+  if (status === "expired") return "Expired";
+  if (status === "active") return "Active Window";
+  if (status === "not_started") return "Not Started";
+  if (status === "scheduled") return "Scheduled";
+  return "Unknown";
+}
+
 function createEmptyStudentReport(reportDays, inactiveDays) {
   return {
     reportDays: Number(reportDays || 7),
@@ -121,6 +149,9 @@ function createEmptyStudentReport(reportDays, inactiveDays) {
     totalStudents: 0,
     inactiveStudentCount: 0,
     neverLoggedInCount: 0,
+    blockedStudentCount: 0,
+    activeWindowStudentCount: 0,
+    accessStartDate: "",
     today: {
       label: "Today",
       loggedInCount: 0,
@@ -132,6 +163,7 @@ function createEmptyStudentReport(reportDays, inactiveDays) {
     },
     daily: [],
     inactiveStudents: [],
+    allStudents: [],
   };
 }
 
@@ -159,6 +191,7 @@ export default function AdminActivityLogsPage() {
   const [actionType, setActionType] = useState("");
   const [reportDays, setReportDays] = useState("7");
   const [inactiveDays, setInactiveDays] = useState("7");
+  const [studentTab, setStudentTab] = useState("attention");
 
   useEffect(() => {
     async function loadLogs() {
@@ -210,6 +243,9 @@ export default function AdminActivityLogsPage() {
   const inactiveStudents = Array.isArray(studentLoginReport?.inactiveStudents)
     ? studentLoginReport.inactiveStudents
     : [];
+  const allStudents = Array.isArray(studentLoginReport?.allStudents)
+    ? studentLoginReport.allStudents
+    : [];
   const todaySnapshot = studentLoginReport?.today || {
     label: "Today",
     loggedInCount: 0,
@@ -219,6 +255,54 @@ export default function AdminActivityLogsPage() {
     loginPercentage: 0,
     logoutPercentage: 0,
   };
+  const studentTabOptions = useMemo(
+    () => [
+      {
+        key: "attention",
+        label: "Needs Attention",
+        count: inactiveStudents.length,
+      },
+      {
+        key: "blocked",
+        label: "Blocked / Expired",
+        count: allStudents.filter(
+          (student) =>
+            student.accessStatus === "blocked" ||
+            student.accessStatus === "expired",
+        ).length,
+      },
+      {
+        key: "never",
+        label: "Never Logged In",
+        count: allStudents.filter((student) => !student.lastLoginAt).length,
+      },
+      {
+        key: "all",
+        label: "All Students",
+        count: allStudents.length,
+      },
+    ],
+    [allStudents, inactiveStudents.length],
+  );
+  const visibleStudents = useMemo(() => {
+    if (studentTab === "blocked") {
+      return allStudents.filter(
+        (student) =>
+          student.accessStatus === "blocked" ||
+          student.accessStatus === "expired",
+      );
+    }
+
+    if (studentTab === "never") {
+      return allStudents.filter((student) => !student.lastLoginAt);
+    }
+
+    if (studentTab === "all") {
+      return allStudents;
+    }
+
+    return inactiveStudents;
+  }, [allStudents, inactiveStudents, studentTab]);
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
@@ -380,6 +464,20 @@ export default function AdminActivityLogsPage() {
                 tone: "text-rose-700",
                 icon: UserX,
               },
+              {
+                label: "Blocked Access",
+                value: studentLoginReport.blockedStudentCount || 0,
+                note: "Students whose 7 working-day window ended",
+                tone: "text-rose-700",
+                icon: Ban,
+              },
+              {
+                label: "Active Window",
+                value: studentLoginReport.activeWindowStudentCount || 0,
+                note: "Window starts from each student's latest login",
+                tone: "text-emerald-700",
+                icon: ShieldCheck,
+              },
             ].map((item) => {
               const Icon = item.icon;
 
@@ -405,6 +503,25 @@ export default function AdminActivityLogsPage() {
                 </div>
               );
             })}
+          </div>
+
+          <div className="mt-6 rounded-3xl border border-amber-100 bg-amber-50/70 px-5 py-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">
+                  Login Access Rule
+                </p>
+                <h3 className="mt-2 text-lg font-semibold text-slate-950">
+                  Student access is tracked with 7 working days
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  Each student gets 7 working days starting from the latest successful login. If admin resets the student password, the next login starts a fresh 7-day window. Sundays and holidays are skipped.
+                </p>
+              </div>
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-amber-700 shadow-sm">
+                <AlertTriangle className="h-5 w-5" />
+              </span>
+            </div>
           </div>
 
           <div className="mt-6 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
@@ -475,25 +592,43 @@ export default function AdminActivityLogsPage() {
             <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/70">
               <div className="border-b border-slate-200 px-5 py-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-700">
-                  Inactive Students
+                  Student Access Review
                 </p>
                 <h3 className="mt-2 text-lg font-semibold text-slate-950">
-                  No login in the last {studentLoginReport.inactiveDays} day
-                  {Number(studentLoginReport.inactiveDays) === 1 ? "" : "s"}
+                  Student login access and inactivity
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  This is based on the student&apos;s most recent login date in the
-                  database, using India calendar days.
+                  Includes students with no login in the last {studentLoginReport.inactiveDays} day
+                  {Number(studentLoginReport.inactiveDays) === 1 ? "" : "s"}, plus their current access-window state.
                 </p>
               </div>
 
-              {inactiveStudents.length === 0 ? (
+              <div className="border-b border-slate-200 bg-white/80 px-5 py-3">
+                <div className="flex flex-wrap gap-2">
+                  {studentTabOptions.map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setStudentTab(tab.key)}
+                      className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition ${
+                        studentTab === tab.key
+                          ? "bg-slate-900 text-white"
+                          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {tab.label} ({tab.count})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {visibleStudents.length === 0 ? (
                 <div className="px-5 py-8 text-sm text-emerald-700">
-                  Nice. Every student has logged in within the selected alert range.
+                  No students found in this tab right now.
                 </div>
               ) : (
                 <div className="max-h-[520px] divide-y divide-slate-200 overflow-y-auto">
-                  {inactiveStudents.map((student) => {
+                  {visibleStudents.map((student) => {
                     const tone = getInactiveTone(
                       student.daysSinceLastLogin,
                       Boolean(student.lastLoginAt),
@@ -512,6 +647,11 @@ export default function AdminActivityLogsPage() {
                               >
                                 {formatDaysAgo(student.daysSinceLastLogin)}
                               </span>
+                              <span
+                                className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getAccessStatusChip(student.accessStatus)}`}
+                              >
+                                {formatAccessStatus(student.accessStatus)}
+                              </span>
                             </div>
                             <p className="mt-1 text-sm text-slate-600">
                               {student.course} • Year {student.year}
@@ -520,6 +660,20 @@ export default function AdminActivityLogsPage() {
                             <p className="mt-1 break-all text-xs text-slate-500">
                               {student.email || "-"}
                             </p>
+                            <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-3">
+                              <p>
+                                <span className="font-semibold text-slate-700">Window Start:</span>{" "}
+                                {student.accessWindowStartDate || "Not started"}
+                              </p>
+                              <p>
+                                <span className="font-semibold text-slate-700">Window End:</span>{" "}
+                                {student.accessWindowEndDate || "-"}
+                              </p>
+                              <p>
+                                <span className="font-semibold text-slate-700">Blocked At:</span>{" "}
+                                {student.blockedAt ? formatDateTime(student.blockedAt) : "-"}
+                              </p>
+                            </div>
                           </div>
 
                           <div className="sm:text-right">
@@ -623,6 +777,9 @@ export default function AdminActivityLogsPage() {
                         Target {log.targetRole || "user"}
                       </span>
                     ) : null}
+                    <span className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+                      {log.actionType || "event"}
+                    </span>
                   </div>
                   <p className="mt-2 text-sm font-medium text-slate-900">
                     {log.actionLabel}

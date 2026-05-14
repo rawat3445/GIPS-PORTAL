@@ -15,6 +15,7 @@ import {
   isRemoteImageUrl,
   uploadStudentProfileImage,
 } from "../../../../lib/cloudinary";
+import { toISODate } from "../../../../lib/attendanceEvents";
 
 export const runtime = "nodejs";
 
@@ -202,6 +203,15 @@ export async function PATCH(req, { params }) {
 
     if (typeof body.password === "string" && body.password.trim()) {
       updates.password = await bcrypt.hash(body.password.trim(), 10);
+      if (user.role === "student") {
+        const resetDate = toISODate(new Date());
+        updates.studentLoginBlocked = false;
+        updates.studentLoginBlockedAt = null;
+        updates.studentLoginWindowStartDate = resetDate;
+        updates.studentLoginResetAt = resetDate;
+        updates.studentLastLoginAt = null;
+        pushChangedField(changedFields, "student login access reset");
+      }
       pushChangedField(changedFields, "password");
     }
 

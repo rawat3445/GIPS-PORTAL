@@ -16,7 +16,7 @@ import {
   LogOut,
   Menu,
   MessageSquare,
-  PanelLeftClose,
+  PanelLeftClose, 
   PanelLeftOpen,
   Sparkles,
   Target,

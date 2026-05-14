@@ -104,6 +104,33 @@ const userSchema = new mongoose.Schema(
         );
       },
     },
+
+    studentLoginWindowStartDate: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    studentLoginResetAt: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    studentLastLoginAt: {
+      type: Date,
+      default: null,
+    },
+
+    studentLoginBlocked: {
+      type: Boolean,
+      default: false,
+    },
+
+    studentLoginBlockedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true },
 );
@@ -119,6 +146,11 @@ if (
   (!existingUserModel.schema.path("profileImage") ||
     !existingUserModel.schema.path("profileImagePublicId") ||
     !existingUserModel.schema.path("facultyType") ||
+    !existingUserModel.schema.path("studentLoginWindowStartDate") ||
+    !existingUserModel.schema.path("studentLoginResetAt") ||
+    !existingUserModel.schema.path("studentLastLoginAt") ||
+    !existingUserModel.schema.path("studentLoginBlocked") ||
+    !existingUserModel.schema.path("studentLoginBlockedAt") ||
     !existingUserModel.schema.path("designation") ||
     !String(existingAssignedCourseRequired || "").includes("facultyType") ||
     !String(existingPhoneRequired || "").includes("facultyType"))
