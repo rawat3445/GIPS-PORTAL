@@ -120,6 +120,24 @@ function getEventTypeClasses(eventType) {
   return "border-amber-200 bg-amber-50 text-amber-800";
 }
 
+function getApprovalStatusLabel(status) {
+  if (status === "denied") return "Denied";
+  if (status === "pending") return "Pending Approval";
+  return "Approved";
+}
+
+function getApprovalStatusClasses(status) {
+  if (status === "denied") {
+    return "border-red-200 bg-red-50 text-red-800";
+  }
+
+  if (status === "pending") {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+
+  return "border-green-200 bg-green-50 text-green-800";
+}
+
 function getBuilderScopeLabel(scopeType) {
   if (scopeType === "student") return "Only Selected Students";
   if (scopeType === "courseYear") return "One Year of Selected Course";
@@ -508,10 +526,20 @@ function AttendanceSummaryModal({
 }
 
 export default function AdminAttendancePage() {
+  return <AdminAttendancePageContent />;
+}
+
+export function AdminAttendancePageContent({
+  initialStatus = "",
+  pageTitle = "Attendance",
+  pageDescription = "View attendance of all students across all courses",
+  lockStatusFilter = false,
+}) {
   const [attendance, setAttendance] = useState([]);
   const [course, setCourse] = useState("");
   const [year, setYear] = useState("");
   const [date, setDate] = useState(getTodayISO());
+  const [approvalStatus, setApprovalStatus] = useState(initialStatus);
   const [eventFromDate, setEventFromDate] = useState(getTodayISO());
   const [eventToDate, setEventToDate] = useState(getTodayISO());
   const [eventScopeType, setEventScopeType] = useState("global");
@@ -531,6 +559,9 @@ export default function AdminAttendancePage() {
   const [holidayError, setHolidayError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reviewLoadingId, setReviewLoadingId] = useState("");
+  const [reviewMessage, setReviewMessage] = useState("");
+  const [reviewError, setReviewError] = useState("");
   const eventBuilderPreset = getAdminBuilderPreset(eventScopeType, eventType);
 
   const handleEventBuilderPresetChange = (preset) => {
@@ -604,6 +635,44 @@ export default function AdminAttendancePage() {
     : holidayInfo
     ? `An event already applies on ${date} for ${getAppliedEventLabel(holidayInfo)}: ${holidayInfo.title || getEventTypeLabel(holidayInfo.eventType)}`
     : "Pick an attendance date to preview active events, then create a new event range below.";
+
+  useEffect(() => {
+    setApprovalStatus(initialStatus);
+  }, [initialStatus]);
+
+  const reviewAttendance = useCallback(async (attendanceId, decision) => {
+    try {
+      setReviewLoadingId(attendanceId);
+      setReviewMessage("");
+      setReviewError("");
+
+      const res = await fetch("/api/admin/attendance", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ attendanceId, decision }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to review attendance");
+      }
+
+      setAttendance((prev) =>
+        prev.map((item) => (item._id === attendanceId ? data.attendance : item)),
+      );
+      setReviewMessage(
+        data.message ||
+          (decision === "approve"
+            ? "Attendance approved successfully"
+            : "Attendance denied successfully"),
+      );
+    } catch (err) {
+      setReviewError(err.message || "Failed to review attendance");
+    } finally {
+      setReviewLoadingId("");
+    }
+  }, []);
 
   useEffect(() => {
     if (eventScopeType !== "student") {
@@ -683,6 +752,7 @@ export default function AdminAttendancePage() {
       if (course) params.append("course", course);
       if (year) params.append("year", year);
       if (date) params.append("date", date);
+      if (approvalStatus) params.append("status", approvalStatus);
 
       const res = await fetch(`/api/admin/attendance?${params.toString()}`, {
         credentials: "include",
@@ -698,7 +768,7 @@ export default function AdminAttendancePage() {
     } finally {
       setLoading(false);
     }
-  }, [course, date, year]);
+  }, [approvalStatus, course, date, year]);
 
   const fetchHolidayInfo = useCallback(async (nextDate = date) => {
     if (!nextDate) {
@@ -970,14 +1040,14 @@ export default function AdminAttendancePage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-950">Attendance</h1>
+        <h1 className="text-2xl font-bold text-gray-950">{pageTitle}</h1>
         <p className="text-sm font-medium text-gray-700">
-          View attendance of all students across all courses
+          {pageDescription}
         </p>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <select
             value={course}
             onChange={(e) => setCourse(e.target.value)}
@@ -1010,6 +1080,23 @@ export default function AdminAttendancePage() {
             onChange={(e) => setDate(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+
+          {lockStatusFilter ? (
+            <div className="flex items-center rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
+              Pending approval only
+            </div>
+          ) : (
+            <select
+              value={approvalStatus}
+              onChange={(e) => setApprovalStatus(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Status</option>
+              <option value="pending">Pending Approval</option>
+              <option value="approved">Approved</option>
+              <option value="denied">Denied</option>
+            </select>
+          )}
 
           <button
             onClick={fetchAttendance}
@@ -1397,6 +1484,18 @@ export default function AdminAttendancePage() {
             {holidayError}
           </div>
         )}
+
+        {reviewMessage && (
+          <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
+            {reviewMessage}
+          </div>
+        )}
+
+        {reviewError && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            {reviewError}
+          </div>
+        )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
@@ -1433,12 +1532,52 @@ export default function AdminAttendancePage() {
                 className="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm"
               >
                 <div className="bg-gray-100 px-4 py-3 border-b border-gray-300">
-                  <p className="text-base font-semibold text-gray-950">
-                    {item.course} | Year {item.year} | {item.date}
-                  </p>
-                  <p className="text-sm font-medium text-gray-700">
-                    Marked by: {item.markedBy?.name || "Unknown"}
-                  </p>
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-base font-semibold text-gray-950">
+                        {item.course} | Year {item.year} | {item.date}
+                      </p>
+                      <p className="text-sm font-medium text-gray-700">
+                        Marked by: {item.markedBy?.name || "Unknown"}
+                      </p>
+                      {item.reviewedBy?.name ? (
+                        <p className="mt-1 text-xs text-gray-600">
+                          Reviewed by: {item.reviewedBy.name}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="flex flex-col items-start gap-2 lg:items-end">
+                      <span
+                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getApprovalStatusClasses(
+                          item.approvalStatus,
+                        )}`}
+                      >
+                        {getApprovalStatusLabel(item.approvalStatus)}
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => reviewAttendance(item._id, "approve")}
+                          disabled={reviewLoadingId === item._id}
+                          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                        >
+                          {reviewLoadingId === item._id ? "Saving..." : "Approve"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => reviewAttendance(item._id, "deny")}
+                          disabled={reviewLoadingId === item._id}
+                          className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          {reviewLoadingId === item._id ? "Saving..." : "Deny"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  {item.reviewNote ? (
+                    <p className="mt-2 text-xs text-gray-600">Review note: {item.reviewNote}</p>
+                  ) : null}
                 </div>
 
                 <div className="overflow-x-auto">

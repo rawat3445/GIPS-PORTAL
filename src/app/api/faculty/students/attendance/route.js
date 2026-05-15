@@ -16,6 +16,11 @@ import {
   WINTER_VACATION_TO,
 } from "../../../../lib/attendanceEvents";
 
+const APPROVED_OR_LEGACY_ATTENDANCE_QUERY = [
+  { approvalStatus: "approved" },
+  { approvalStatus: { $exists: false } },
+];
+
 function monthLabel(monthKey) {
   const [year, month] = monthKey.split("-").map(Number);
   return new Intl.DateTimeFormat("en-US", {
@@ -53,6 +58,7 @@ async function buildStudentAttendanceSummary(student) {
     year: Number(student.year),
     date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
     "records.studentId": student._id,
+    $or: APPROVED_OR_LEGACY_ATTENDANCE_QUERY,
   })
     .select({ date: 1, records: 1 })
     .lean();

@@ -22,6 +22,26 @@ const AttendanceSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "denied"],
+      default: "approved",
+      index: true,
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    reviewedAt: {
+      type: Date,
+      default: null,
+    },
+    reviewNote: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     records: { type: [AttendanceRecordSchema], default: [] },
   },
   { timestamps: true }

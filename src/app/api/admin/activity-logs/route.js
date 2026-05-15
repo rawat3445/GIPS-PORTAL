@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "../../../lib/db";
 import ActivityLog from "../../../models/ActivityLog";
+import Attendance from "../../../models/Attendance";
 import User from "../../../models/User";
 import { requireAdmin } from "../../../lib/auth";
 import {
@@ -123,6 +124,106 @@ function getDayDifferenceInTimeZone(fromDate, toDate = new Date()) {
 function calculateDaysSince(lastLoginAt) {
   if (!lastLoginAt) return null;
   return getDayDifferenceInTimeZone(lastLoginAt);
+}
+
+function serializeAttendanceStudent(student, status) {
+  return {
+    studentId: String(student?._id || ""),
+    name: String(student?.name || "").trim(),
+    enrollmentNo: String(student?.enrollmentNo || "").trim(),
+    course: String(student?.course || "").trim(),
+    year: Number(student?.year || 0),
+    status,
+  };
+}
+
+async function enrichAttendanceLog(log) {
+  if (String(log?.actionType || "") !== "attendance_marked") {
+    return log;
+  }
+
+  const metadata = log?.metadata && typeof log.metadata === "object" ? log.metadata : {};
+  const presentStudents = Array.isArray(metadata.presentStudents)
+    ? metadata.presentStudents
+    : [];
+  const absentStudents = Array.isArray(metadata.absentStudents)
+    ? metadata.absentStudents
+    : [];
+
+  if (presentStudents.length > 0 || absentStudents.length > 0) {
+    return log;
+  }
+
+  const attendanceId = String(metadata.attendanceId || "").trim();
+  const fallbackCourse = String(metadata.course || "").trim().toUpperCase();
+  const fallbackYear = Number(metadata.year || 0);
+  const fallbackDate = String(metadata.date || "").trim();
+
+  const attendanceDoc = attendanceId
+    ? await Attendance.findById(attendanceId).lean()
+    : await Attendance.findOne({
+        course: fallbackCourse,
+        year: fallbackYear,
+        date: fallbackDate,
+      }).lean();
+
+  if (!attendanceDoc || !Array.isArray(attendanceDoc.records) || attendanceDoc.records.length === 0) {
+    return log;
+  }
+
+  const studentIds = attendanceDoc.records
+    .map((record) => String(record?.studentId || "").trim())
+    .filter(Boolean);
+
+  if (studentIds.length === 0) {
+    return log;
+  }
+
+  const students = await User.find({ _id: { $in: studentIds } })
+    .select("name enrollmentNo course year")
+    .lean();
+  const studentMap = new Map(students.map((student) => [String(student._id), student]));
+
+  const enrichedPresentStudents = [];
+  const enrichedAbsentStudents = [];
+
+  attendanceDoc.records.forEach((record) => {
+    const studentId = String(record?.studentId || "").trim();
+    const status = String(record?.status || "").trim().toLowerCase();
+    const student = studentMap.get(studentId);
+    if (!student) return;
+
+    const serializedStudent = serializeAttendanceStudent(student, status);
+    if (status === "present") {
+      enrichedPresentStudents.push(serializedStudent);
+    } else if (status === "absent") {
+      enrichedAbsentStudents.push(serializedStudent);
+    }
+  });
+
+  return {
+    ...log,
+    metadata: {
+      ...metadata,
+      submissionMode: metadata.submissionMode || "saved",
+      presentCount: enrichedPresentStudents.length,
+      absentCount: enrichedAbsentStudents.length,
+      changedCount: Number(metadata.changedCount || 0),
+      newlyMarkedCount:
+        metadata.newlyMarkedCount !== undefined
+          ? Number(metadata.newlyMarkedCount || 0)
+          : attendanceDoc.records.length,
+      recordCount:
+        metadata.recordCount !== undefined
+          ? Number(metadata.recordCount || 0)
+          : attendanceDoc.records.length,
+      presentStudents: enrichedPresentStudents,
+      absentStudents: enrichedAbsentStudents,
+      changedStudents: Array.isArray(metadata.changedStudents)
+        ? metadata.changedStudents
+        : [],
+    },
+  };
 }
 
 async function buildStudentLoginReport({ reportDays, inactiveDays }) {
@@ -436,11 +537,13 @@ export async function GET(request) {
       ];
     }
 
-    const [logs, studentLoginReport, exactUserStats] = await Promise.all([
+    const [rawLogs, studentLoginReport, exactUserStats] = await Promise.all([
       ActivityLog.find(query).sort({ createdAt: -1 }).limit(limit).lean(),
       buildStudentLoginReport({ reportDays, inactiveDays }),
       buildExactUserStats(),
     ]);
+
+    const logs = await Promise.all(rawLogs.map((log) => enrichAttendanceLog(log)));
 
     return NextResponse.json({
       logs: JSON.parse(JSON.stringify(logs)),

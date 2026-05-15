@@ -25,6 +25,11 @@ import {
   WINTER_VACATION_TO,
 } from "../../../lib/attendanceEvents";
 
+const APPROVED_OR_LEGACY_ATTENDANCE_QUERY = [
+  { approvalStatus: "approved" },
+  { approvalStatus: { $exists: false } },
+];
+
 const POINTS_START_DATE = "2026-04-01";
 const POINTS_START_MONTH_KEY = POINTS_START_DATE.slice(0, 7);
 const RESULT_CATEGORY_MAX_POINTS = 25;
@@ -922,6 +927,7 @@ export async function GET(request) {
             course,
             year,
             date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
+            $or: APPROVED_OR_LEGACY_ATTENDANCE_QUERY,
           })
             .select({ date: 1, records: 1 })
             .lean(),
@@ -933,6 +939,7 @@ export async function GET(request) {
             .lean(),
           Attendance.find({
             date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
+            $or: APPROVED_OR_LEGACY_ATTENDANCE_QUERY,
           })
             .select({ course: 1, year: 1, date: 1, records: 1 })
             .lean(),
@@ -1871,6 +1878,7 @@ export async function GET(request) {
         course,
         year,
         date,
+        $or: APPROVED_OR_LEGACY_ATTENDANCE_QUERY,
       }).lean();
 
       const record = doc?.records?.find(
@@ -1890,6 +1898,7 @@ export async function GET(request) {
         course,
         year,
         date: { $gte: from, $lte: to },
+        $or: APPROVED_OR_LEGACY_ATTENDANCE_QUERY,
       })
         .select({ date: 1, records: 1 })
         .lean();

@@ -104,6 +104,12 @@ export default function AdminLayoutClient({ children }) {
       isActive: pathname.startsWith("/dashboard/admin/activity-logs"),
     },
     {
+      name: "Faculty Activity",
+      href: "/dashboard/admin/faculty-activity",
+      icon: GraduationCap,
+      isActive: pathname.startsWith("/dashboard/admin/faculty-activity"),
+    },
+    {
       name: "Course Catalog",
       href: "/dashboard/admin/course-catalog",
       icon: BookOpen,
@@ -137,7 +143,15 @@ export default function AdminLayoutClient({ children }) {
           name: "Student Attendance",
           href: "/dashboard/admin/attendance",
           icon: CalendarDays,
-          isActive: pathname === "/dashboard/admin/attendance",
+          isActive:
+            pathname === "/dashboard/admin/attendance" ||
+            pathname === "/dashboard/admin/attendance/pending",
+        },
+        {
+          name: "Pending Approval",
+          href: "/dashboard/admin/attendance/pending",
+          icon: Activity,
+          isActive: pathname === "/dashboard/admin/attendance/pending",
         },
         {
           name: "Faculty Attendance",

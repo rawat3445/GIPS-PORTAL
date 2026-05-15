@@ -16,6 +16,12 @@ import {
   WINTER_VACATION_FROM,
   WINTER_VACATION_TO,
 } from "../../../lib/attendanceEvents";
+import { logActivity } from "../../../lib/activity";
+
+const APPROVED_OR_LEGACY_ATTENDANCE_QUERY = [
+  { approvalStatus: "approved" },
+  { approvalStatus: { $exists: false } },
+];
 
 function monthLabel(monthKey) {
   const [year, month] = monthKey.split("-").map(Number);
@@ -44,6 +50,7 @@ async function buildStudentAttendanceSummary(student) {
     year: Number(student.year),
     date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
     "records.studentId": student._id,
+    $or: APPROVED_OR_LEGACY_ATTENDANCE_QUERY,
   })
     .select({ date: 1, records: 1 })
     .lean();
@@ -220,6 +227,7 @@ export async function GET(req) {
     const to = searchParams.get("to");
     const studentId = searchParams.get("studentId");
     const view = searchParams.get("view");
+    const status = String(searchParams.get("status") || "").trim().toLowerCase();
 
     if (view === "summary" && studentId) {
       const student = await User.findOne({
@@ -251,9 +259,14 @@ export async function GET(req) {
       query.date = { $gte: from, $lte: to };
     }
 
+    if (status === "pending" || status === "approved" || status === "denied") {
+      query.approvalStatus = status;
+    }
+
     const attendance = await Attendance.find(query)
       .populate("records.studentId", "name email enrollmentNo course year")
       .populate("markedBy", "name email")
+      .populate("reviewedBy", "name email")
       .sort({ date: -1, course: 1, year: 1 })
       .lean();
 
@@ -262,6 +275,98 @@ export async function GET(req) {
     return NextResponse.json(
       { message: error.message || "Server error" },
       { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(req) {
+  try {
+    const token = req.cookies.get("token")?.value;
+
+    if (!token) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (String(decoded.role || "").toLowerCase() !== "admin") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    await connectDB();
+
+    const body = await req.json().catch(() => ({}));
+    const attendanceId = String(body?.attendanceId || "").trim();
+    const decision = String(body?.decision || "").trim().toLowerCase();
+    const reviewNote = String(body?.reviewNote || "").trim();
+
+    if (!attendanceId || !["approve", "deny"].includes(decision)) {
+      return NextResponse.json(
+        { message: "attendanceId and valid decision are required" },
+        { status: 400 },
+      );
+    }
+
+    const adminUser = await User.findById(decoded.id)
+      .select("name email role")
+      .lean();
+
+    const nextStatus = decision === "approve" ? "approved" : "denied";
+    const attendance = await Attendance.findByIdAndUpdate(
+      attendanceId,
+      {
+        $set: {
+          approvalStatus: nextStatus,
+          reviewedBy: decoded.id,
+          reviewedAt: new Date(),
+          reviewNote,
+        },
+      },
+      { new: true },
+    )
+      .populate("markedBy", "name email role")
+      .populate("reviewedBy", "name email role")
+      .lean();
+
+    if (!attendance) {
+      return NextResponse.json({ message: "Attendance not found" }, { status: 404 });
+    }
+
+    await logActivity({
+      actor: adminUser,
+      actionType: decision === "approve" ? "attendance_approved" : "attendance_denied",
+      actionLabel: decision === "approve" ? "Approved attendance" : "Denied attendance",
+      target: attendance.markedBy || null,
+      path: "/dashboard/admin/attendance",
+      details: [
+        `${decision === "approve" ? "Approved" : "Denied"} ${attendance.course} Year ${attendance.year} attendance for ${attendance.date}`,
+        `Faculty: ${attendance.markedBy?.name || "Unknown"}`,
+        reviewNote ? `Note: ${reviewNote}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | "),
+      metadata: {
+        attendanceId: attendance._id,
+        course: attendance.course,
+        year: attendance.year,
+        date: attendance.date,
+        approvalStatus: nextStatus,
+        reviewNote,
+        recordCount: Array.isArray(attendance.records) ? attendance.records.length : 0,
+      },
+    });
+
+    return NextResponse.json({
+      message:
+        decision === "approve"
+          ? "Attendance approved successfully"
+          : "Attendance denied successfully",
+      attendance,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { message: error.message || "Server error" },
+      { status: 500 },
     );
   }
 }

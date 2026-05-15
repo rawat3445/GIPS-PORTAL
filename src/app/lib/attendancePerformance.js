@@ -8,6 +8,11 @@ import {
   toISODate,
 } from "./attendanceEvents";
 
+const APPROVED_OR_LEGACY_ATTENDANCE_QUERY = [
+  { approvalStatus: "approved" },
+  { approvalStatus: { $exists: false } },
+];
+
 export async function buildStudentAttendancePerformance(
   student,
   { endDate } = {}
@@ -40,6 +45,7 @@ export async function buildStudentAttendancePerformance(
     year,
     date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
     "records.studentId": studentId,
+    $or: APPROVED_OR_LEGACY_ATTENDANCE_QUERY,
   })
     .select({ date: 1, records: 1 })
     .lean();

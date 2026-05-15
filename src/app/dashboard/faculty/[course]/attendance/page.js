@@ -955,7 +955,7 @@ export default function MarkAttendancePage() {
         throw new Error(data.message || "Failed to save attendance");
       }
 
-      setSubmitMessage("Attendance saved successfully");
+      setSubmitMessage("Attendance submitted successfully and is now pending admin approval");
     } catch (error) {
       setSubmitError(error.message || "Failed to save attendance");
     } finally {
