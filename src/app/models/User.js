@@ -122,6 +122,11 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    studentLastActivityAt: {
+      type: Date,
+      default: null,
+    },
+
     studentLoginBlocked: {
       type: Boolean,
       default: false,
@@ -149,6 +154,7 @@ if (
     !existingUserModel.schema.path("studentLoginWindowStartDate") ||
     !existingUserModel.schema.path("studentLoginResetAt") ||
     !existingUserModel.schema.path("studentLastLoginAt") ||
+    !existingUserModel.schema.path("studentLastActivityAt") ||
     !existingUserModel.schema.path("studentLoginBlocked") ||
     !existingUserModel.schema.path("studentLoginBlockedAt") ||
     !existingUserModel.schema.path("designation") ||

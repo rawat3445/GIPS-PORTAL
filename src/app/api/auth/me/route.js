@@ -17,7 +17,7 @@ export async function GET(req) {
     await connectDB();
 
     const user = await User.findById(decoded.id).select(
-      "name email role assignedCourse facultyType designation phone course year enrollmentNo profileImage studentLoginWindowStartDate studentLoginResetAt studentLoginBlocked studentLoginBlockedAt",
+      "name email role assignedCourse facultyType designation phone course year enrollmentNo profileImage studentLoginWindowStartDate studentLoginResetAt studentLastLoginAt studentLastActivityAt studentLoginBlocked studentLoginBlockedAt",
     );
 
     if (!user) {

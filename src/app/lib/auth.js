@@ -55,7 +55,7 @@ export async function requireStudent() {
 
   await connectDB();
   const user = await User.findById(decoded.id).select(
-    "role course year studentLoginWindowStartDate studentLoginResetAt studentLastLoginAt studentLoginBlocked studentLoginBlockedAt",
+    "role course year studentLoginWindowStartDate studentLoginResetAt studentLastLoginAt studentLastActivityAt studentLoginBlocked studentLoginBlockedAt",
   );
 
   if (!user || String(user.role || "").toLowerCase() !== "student") {

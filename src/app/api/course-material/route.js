@@ -3,9 +3,21 @@ import connectDB from "../../lib/db";
 import CourseCatalog from "../../models/CourseCatalog";
 import { getAuthenticatedUserFromRequest } from "../../lib/activity";
 import { buildCourseResourceAccessUrl } from "../../lib/cloudinary";
+import { buildR2ResourceAccessUrl } from "../../lib/r2";
+import { fetchCourseResourceFromGCS } from "../../lib/gcs";
 
 function normalizeValue(value) {
   return String(value || "").trim();
+}
+
+function normalizeStorageProvider(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function sanitizeHeaderFileName(value) {
+  return String(value || "")
+    .replace(/[\r\n"]/g, "")
+    .trim();
 }
 
 function findMaterialByPublicId(catalog, publicId) {
@@ -91,12 +103,48 @@ export async function GET(request) {
       );
     }
 
-    const accessUrl = buildCourseResourceAccessUrl({
-      resourcePublicId: material.resourcePublicId,
-      uploadedFileName: material.uploadedFileName,
-      uploadedMimeType: material.uploadedMimeType,
-      attachment: shouldDownload,
-    });
+    if (normalizeStorageProvider(material.storageProvider) === "gcs") {
+      const upstream = await fetchCourseResourceFromGCS(material.resourcePublicId);
+
+      if (!upstream.ok) {
+        const errorText = await upstream.text().catch(() => "");
+        return NextResponse.json(
+          { message: errorText || "Unable to open course file" },
+          { status: upstream.status || 500 },
+        );
+      }
+
+      const fileName = sanitizeHeaderFileName(
+        material.uploadedFileName || material.title || "course-resource",
+      );
+      const contentType =
+        upstream.headers.get("content-type") ||
+        material.uploadedMimeType ||
+        "application/octet-stream";
+
+      return new NextResponse(upstream.body, {
+        status: 200,
+        headers: {
+          "Content-Type": contentType,
+          "Content-Disposition": `${shouldDownload ? "attachment" : "inline"}; filename="${fileName}"`,
+          "Cache-Control": "private, max-age=300",
+        },
+      });
+    }
+
+    const accessUrl =
+      normalizeStorageProvider(material.storageProvider) === "r2"
+        ? buildR2ResourceAccessUrl({
+            objectKey: material.resourcePublicId,
+            uploadedFileName: material.uploadedFileName,
+            attachment: shouldDownload,
+          })
+        : buildCourseResourceAccessUrl({
+            resourcePublicId: material.resourcePublicId,
+            uploadedFileName: material.uploadedFileName,
+            uploadedMimeType: material.uploadedMimeType,
+            attachment: shouldDownload,
+          });
 
     return NextResponse.redirect(accessUrl);
   } catch (error) {

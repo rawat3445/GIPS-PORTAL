@@ -210,6 +210,7 @@ export async function PATCH(req, { params }) {
         updates.studentLoginWindowStartDate = resetDate;
         updates.studentLoginResetAt = resetDate;
         updates.studentLastLoginAt = null;
+        updates.studentLastActivityAt = null;
         pushChangedField(changedFields, "student login access reset");
       }
       pushChangedField(changedFields, "password");

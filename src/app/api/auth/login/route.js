@@ -192,6 +192,7 @@ export async function POST(req) {
       const loginDate = new Date();
       user.studentLoginWindowStartDate = toISODate(loginDate);
       user.studentLastLoginAt = loginDate;
+      user.studentLastActivityAt = loginDate;
       await user.save();
     }
 

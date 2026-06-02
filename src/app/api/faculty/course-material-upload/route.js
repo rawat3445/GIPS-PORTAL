@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import connectDB from "../../../lib/db";
 import User from "../../../models/User";
 import { requireFaculty } from "../../../lib/auth";
-import { uploadCourseResource } from "../../../lib/cloudinary";
+import { uploadCourseResourceToGCS } from "../../../lib/gcs";
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_FILE_SIZE_BYTES = 250 * 1024 * 1024;
 const FILE_KIND_BY_MIME_TYPE = new Map([
   ["application/pdf", "pdf"],
   ["application/msword", "doc"],
@@ -98,7 +98,7 @@ export async function POST(request) {
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
       return NextResponse.json(
-        { message: "File must be 10 MB or smaller" },
+        { message: "File must be 250 MB or smaller" },
         { status: 400 },
       );
     }
@@ -112,7 +112,7 @@ export async function POST(request) {
       );
     }
 
-    const uploadedFile = await uploadCourseResource(file, {
+    const uploadedFile = await uploadCourseResourceToGCS(file, {
       course,
       year,
     });

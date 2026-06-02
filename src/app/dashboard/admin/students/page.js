@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import QRCode from "qrcode";
 import ProfileAvatar from "../../../components/ProfileAvatar";
 import { resizeImageToAvatarDataUrl } from "../../../lib/avatarUpload";
 
@@ -252,12 +253,625 @@ function AttendanceSummaryModal({
   );
 }
 
+function StudentQrPanel({ student }) {
+  const [qrDataUrl, setQrDataUrl] = useState("");
+  const [qrError, setQrError] = useState("");
+  const [signatureDataUrl, setSignatureDataUrl] = useState("");
+  const courseLabel = COURSE_NAMES[student.course] || student.course || "Student";
+  const initials = String(student.name || "S").charAt(0).toUpperCase();
+
+  function handlePrintCard() {
+    if (typeof window === "undefined" || !qrDataUrl) {
+      return;
+    }
+
+    const photoMarkup = student.profileImage
+      ? `<img src="${student.profileImage}" alt="${student.name}" class="photo-image" />`
+      : `<div class="photo-fallback">${String(student.name || "S")
+          .charAt(0)
+          .toUpperCase()}</div>`;
+
+    const printWindow = window.open("", "_blank", "width=1000,height=800");
+    if (!printWindow) {
+      return;
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${student.name} ID Card</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              font-family: Arial, sans-serif;
+              background: #f4f7fb;
+              color: #0f172a;
+              padding: 24px;
+            }
+            .wrap {
+              display: flex;
+              justify-content: center;
+            }
+            .card {
+              position: relative;
+              overflow: hidden;
+              width: 86mm;
+              min-height: 136mm;
+              border-radius: 18px;
+              background:
+                radial-gradient(circle at 12% 78%, rgba(255,255,255,0.18) 0, rgba(255,255,255,0) 22%),
+                radial-gradient(circle at 92% 28%, rgba(255,255,255,0.16) 0, rgba(255,255,255,0) 19%),
+                linear-gradient(180deg, #eff8fb 0%, #d9f6f6 18%, #8ce1dd 58%, #61caca 100%);
+              box-shadow: 0 18px 48px rgba(15, 23, 42, 0.24);
+            }
+            .card::before {
+              content: "";
+              position: absolute;
+              inset: 0;
+              background:
+                radial-gradient(circle at 18% 38%, rgba(255,255,255,0.2) 0, rgba(255,255,255,0) 18%),
+                radial-gradient(circle at 78% 68%, rgba(255,255,255,0.16) 0, rgba(255,255,255,0) 22%);
+              pointer-events: none;
+            }
+            .inner {
+              position: relative;
+              z-index: 1;
+              padding: 18px 16px 20px;
+            }
+            .header {
+              display: flex;
+              gap: 12px;
+              align-items: flex-start;
+              background: rgba(255,255,255,0.82);
+              border-radius: 16px;
+              padding: 10px 12px;
+            }
+            .logo {
+              width: 74px;
+              height: 74px;
+              object-fit: contain;
+              flex-shrink: 0;
+            }
+            .college {
+              font-size: 10px;
+              line-height: 1.35;
+              color: #0f172a;
+            }
+            .college strong {
+              display: block;
+              font-size: 12px;
+              font-weight: 700;
+            }
+            .photo-wrap {
+              display: flex;
+              justify-content: center;
+              margin-top: 20px;
+            }
+            .photo {
+              width: 142px;
+              height: 142px;
+              border-radius: 999px;
+              overflow: hidden;
+              background: rgba(255,255,255,0.95);
+              border: 8px solid rgba(255,255,255,0.82);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: #0f172a;
+              font-size: 52px;
+              font-weight: 700;
+            }
+            .photo-image {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+              display: block;
+            }
+            .photo-fallback {
+              width: 100%;
+              height: 100%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .name {
+              margin-top: 16px;
+              text-align: center;
+              font-size: 19px;
+              font-weight: 800;
+              color: #111827;
+              letter-spacing: 0.02em;
+              text-transform: uppercase;
+            }
+            .course {
+              margin-top: 6px;
+              text-align: center;
+              font-size: 11px;
+              font-weight: 700;
+              color: #1f2937;
+            }
+            .meta {
+              margin-top: 18px;
+              display: grid;
+              gap: 9px;
+            }
+            .row {
+              border-radius: 12px;
+              background: rgba(255,255,255,0.45);
+              padding: 10px 12px;
+              color: #0f172a;
+            }
+            .row-label {
+              font-size: 9px;
+              font-weight: 700;
+              letter-spacing: 0.14em;
+              text-transform: uppercase;
+              color: rgba(15,23,42,0.62);
+            }
+            .row-value {
+              margin-top: 4px;
+              font-size: 12px;
+              font-weight: 700;
+              line-height: 1.4;
+              word-break: break-word;
+            }
+            .qr-wrap {
+              margin-top: 22px;
+              display: flex;
+              justify-content: center;
+            }
+            .qr-box {
+              background: white;
+              border-radius: 18px;
+              padding: 10px;
+              width: 148px;
+              box-shadow: 0 10px 24px rgba(15,23,42,0.16);
+            }
+            .qr-box img {
+              width: 100%;
+              display: block;
+            }
+            .qr-note {
+              margin-top: 10px;
+              text-align: center;
+              font-size: 10px;
+              line-height: 1.45;
+              color: #1f2937;
+            }
+            .authority {
+              margin-top: 18px;
+              display: flex;
+              align-items: flex-end;
+              justify-content: space-between;
+              gap: 16px;
+            }
+            .signature-box {
+              display: flex;
+              flex-direction: column;
+              align-items: flex-start;
+            }
+            .signature-box img {
+              width: 104px;
+              height: auto;
+              display: block;
+              opacity: 0.92;
+            }
+            .signature-label {
+              margin-top: 4px;
+              font-size: 10px;
+              color: #1f2937;
+            }
+            .authority-box {
+              text-align: right;
+              color: #1f2937;
+            }
+            .authority-title {
+              font-size: 10px;
+              letter-spacing: 0.14em;
+              text-transform: uppercase;
+              color: rgba(15,23,42,0.62);
+            }
+            .authority-role {
+              margin-top: 5px;
+              font-size: 12px;
+              font-weight: 800;
+            }
+            .authority-org {
+              margin-top: 2px;
+              font-size: 10px;
+              line-height: 1.4;
+            }
+            .print-actions {
+              text-align: center;
+              margin-top: 18px;
+            }
+            .print-actions button {
+              border: none;
+              background: #0f172a;
+              color: white;
+              border-radius: 10px;
+              padding: 10px 16px;
+              cursor: pointer;
+              font-weight: 600;
+            }
+            @page {
+              size: A4 portrait;
+              margin: 12mm;
+            }
+            @media print {
+              body { background: white; padding: 0; }
+              .print-actions { display: none; }
+              .card { box-shadow: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="wrap">
+            <div>
+              <div class="card">
+                <div class="inner">
+                  <div class="header">
+                    <img class="logo" src="/collage_logo.png" alt="GIPS Logo" />
+                    <div class="college">
+                      <strong>Garhwal Institute of Paramedical Sciences, Pauri Garhwal</strong>
+                      Affiliated to HNB Uttarakhand Medical Education University, Dehradun
+                    </div>
+                  </div>
+
+                  <div class="photo-wrap">
+                    <div class="photo">
+                      ${photoMarkup}
+                    </div>
+                  </div>
+
+                  <div class="name">${student.name || "-"}</div>
+                  <div class="course">${courseLabel} | Year ${student.year || "-"}</div>
+
+                  <div class="meta">
+                    <div class="row">
+                      <div class="row-label">Enrollment Number</div>
+                      <div class="row-value">${student.enrollmentNo || "-"}</div>
+                    </div>
+                    <div class="row">
+                      <div class="row-label">Email</div>
+                      <div class="row-value">${student.email || "-"}</div>
+                    </div>
+                    <div class="row">
+                      <div class="row-label">Phone</div>
+                      <div class="row-value">${student.phone || "-"}</div>
+                    </div>
+                  </div>
+
+                  <div class="qr-wrap">
+                    <div>
+                      <div class="qr-box">
+                        <img src="${qrDataUrl}" alt="QR Code" />
+                      </div>
+                      <div class="qr-note">Scan for attendance</div>
+                    </div>
+                  </div>
+
+                  <div class="authority">
+                    <div class="signature-box">
+                      <img src="${signatureDataUrl || "/signature-vice-principal.jpeg"}" alt="Vice Principal Signature" />
+                      <div class="signature-label">Signature</div>
+                    </div>
+                    <div class="authority-box">
+                      <div class="authority-title">Issuing Authority</div>
+                      <div class="authority-role">Principal</div>
+                      <div class="authority-org">Garhwal Institute of Paramedical Sciences</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="print-actions">
+                <button onclick="window.print()">Print ID Card</button>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+  }
+
+  useEffect(() => {
+    let active = true;
+
+    async function generateQr() {
+      try {
+        const res = await fetch(`/api/admin/users/${student._id}/qr`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message || "Unable to load student QR");
+        }
+
+        const token = String(data.token || "").trim();
+        if (!token) {
+          throw new Error("QR token was empty");
+        }
+
+        const dataUrl = await QRCode.toDataURL(token, {
+          width: 360,
+          margin: 2,
+          errorCorrectionLevel: "M",
+          color: {
+            dark: "#0f172a",
+            light: "#ffffff",
+          },
+        });
+
+        if (active) {
+          setQrDataUrl(dataUrl);
+          setQrError("");
+        }
+      } catch (error) {
+        if (active) {
+          setQrDataUrl("");
+          setQrError(error.message || "Unable to generate student QR");
+        }
+      }
+    }
+
+    generateQr();
+
+    return () => {
+      active = false;
+    };
+  }, [student]);
+
+  useEffect(() => {
+    let active = true;
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+
+    image.onload = () => {
+      if (!active) {
+        return;
+      }
+
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = image.naturalWidth || image.width;
+        canvas.height = image.naturalHeight || image.height;
+
+        const context = canvas.getContext("2d");
+        if (!context) {
+          setSignatureDataUrl("");
+          return;
+        }
+
+        context.drawImage(image, 0, 0);
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const { data } = imageData;
+
+        for (let index = 0; index < data.length; index += 4) {
+          const red = data[index];
+          const green = data[index + 1];
+          const blue = data[index + 2];
+          const alpha = data[index + 3];
+
+          if (alpha === 0) {
+            continue;
+          }
+
+          const isNearlyWhite = red > 235 && green > 235 && blue > 235;
+          if (isNearlyWhite) {
+            data[index + 3] = 0;
+            continue;
+          }
+
+          const average = (red + green + blue) / 3;
+          data[index] = 20;
+          data[index + 1] = 24;
+          data[index + 2] = 39;
+          data[index + 3] = average < 180 ? 255 : Math.max(0, 255 - (average - 180) * 3);
+        }
+
+        context.putImageData(imageData, 0, 0);
+        setSignatureDataUrl(canvas.toDataURL("image/png"));
+      } catch {
+        setSignatureDataUrl("");
+      }
+    };
+
+    image.onerror = () => {
+      if (active) {
+        setSignatureDataUrl("");
+      }
+    };
+
+    image.src = "/signature-vice-principal.jpeg";
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return (
+    <div className="space-y-5 px-4 py-4 md:px-6 md:py-6">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+            Admin ID Card
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            Preview, print, and use this QR for attendance scanning.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handlePrintCard}
+          disabled={!qrDataUrl}
+          className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Print ID Card
+        </button>
+      </div>
+
+      <div className="mx-auto max-w-[440px] overflow-hidden rounded-[32px] border border-cyan-100 bg-[radial-gradient(circle_at_15%_78%,rgba(255,255,255,0.22),transparent_22%),radial-gradient(circle_at_92%_28%,rgba(255,255,255,0.18),transparent_18%),linear-gradient(180deg,#eef8fb_0%,#d8f5f5_18%,#8be0dd_58%,#61c9ca_100%)] p-4 text-slate-900 shadow-[0_30px_80px_-46px_rgba(15,23,42,0.35)] md:p-5">
+        <div className="rounded-[22px] bg-white/80 p-3 shadow-sm backdrop-blur">
+          <div className="flex items-start gap-3">
+            <img
+              src="/collage_logo.png"
+              alt="GIPS Logo"
+              className="h-20 w-20 flex-shrink-0 object-contain"
+            />
+            <div className="min-w-0">
+              <p className="text-xl font-bold leading-tight text-slate-900">
+                Garhwal Institute of Paramedical Sciences, Pauri Garhwal
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                Affiliated to HNB Uttarakhand Medical Education University,
+                Dehradun
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-center">
+          <div className="relative h-40 w-40 overflow-hidden rounded-full border-[10px] border-white/85 bg-white shadow-[0_18px_40px_-20px_rgba(15,23,42,0.3)]">
+            {student.profileImage ? (
+              <img
+                src={student.profileImage}
+                alt={student.name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-5xl font-bold text-slate-700">
+                {initials}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-5 text-center">
+          <h3 className="text-3xl font-black uppercase tracking-wide text-slate-950">
+            {student.name}
+          </h3>
+          <p className="mt-2 text-lg font-semibold text-slate-800">
+            {courseLabel}
+          </p>
+          <p className="mt-1 text-base font-semibold text-slate-700">
+            Year {student.year || "-"}
+          </p>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-3">
+          <div className="rounded-2xl bg-white/45 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+              Enrollment Number
+            </p>
+            <p className="mt-1 text-base font-bold text-slate-900">
+              {student.enrollmentNo || "-"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-white/45 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+              Email
+            </p>
+            <p className="mt-1 break-words text-sm font-semibold text-slate-900">
+              {student.email || "-"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-white/45 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+              Phone
+            </p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">
+              {student.phone || "-"}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-7 flex justify-center">
+          <div>
+            <div className="rounded-[22px] bg-white p-3 shadow-[0_16px_34px_-18px_rgba(15,23,42,0.28)]">
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt={`QR for ${student.name}`}
+                  className="h-36 w-36 rounded-2xl bg-white object-contain"
+                />
+              ) : (
+                <div className="flex h-36 w-36 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-sm text-slate-500">
+                  {qrError || "Generating QR..."}
+                </div>
+              )}
+            </div>
+            <p className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+              QR at bottom center
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex items-end justify-between gap-4">
+          <div className="text-left">
+            <img
+              src={signatureDataUrl || "/signature-vice-principal.jpeg"}
+              alt="Vice Principal Signature"
+              className="w-24 opacity-90"
+            />
+            <p className="-mt-1 text-xs text-slate-700">Signature</p>
+          </div>
+
+          <div className="text-right">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+              Issuing Authority
+            </p>
+            <p className="mt-1 text-base font-extrabold text-slate-900">
+              Principal
+            </p>
+            <p className="mt-1 text-sm text-slate-700">
+              Garhwal Institute of Paramedical Sciences
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+            Print Note
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-700">
+            Use the print button above for a direct browser print or save it as
+            PDF first. This is the fastest way to make a physical ID card from
+            the admin panel.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">
+            Canva Tip
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-700">
+            If you want a more branded card, first print or save this card as a
+            PDF, then recreate the same size in Canva and place the QR and
+            student details into your final design.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StudentsPage() {
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedStudentView, setSelectedStudentView] = useState("details");
   const [editingStudent, setEditingStudent] = useState(null);
   const [editForm, setEditForm] = useState({
     name: "",
@@ -569,7 +1183,10 @@ export default function StudentsPage() {
                         />
                         <button
                           type="button"
-                          onClick={() => setSelectedStudent(student)}
+                          onClick={() => {
+                            setSelectedStudent(student);
+                            setSelectedStudentView("details");
+                          }}
                           className="text-left text-blue-700 hover:text-blue-900 hover:underline"
                         >
                           {student.name}
@@ -616,104 +1233,140 @@ export default function StudentsPage() {
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedStudent(null)}
-                className="self-end rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 sm:self-auto"
-              >
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setSelectedStudentView("details")}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                    selectedStudentView === "details"
+                      ? "bg-blue-600 text-white"
+                      : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 px-4 py-4 sm:grid-cols-2 md:px-6 md:py-6">
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Full Name
-                </p>
-                <p className="mt-2 text-sm font-semibold text-gray-900">
-                  {selectedStudent.name || "-"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Email
-                </p>
-                <p className="mt-2 text-sm font-medium text-gray-900">
-                  {selectedStudent.email || "-"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Enrollment Number
-                </p>
-                <p className="mt-2 text-sm font-medium text-gray-900">
-                  {selectedStudent.enrollmentNo || "-"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Phone
-                </p>
-                <p className="mt-2 text-sm font-medium text-gray-900">
-                  {selectedStudent.phone || "-"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Course Code
-                </p>
-                <p className="mt-2 text-sm font-medium text-gray-900">
-                  {selectedStudent.course || "-"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Course Name
-                </p>
-                <p className="mt-2 text-sm font-medium text-gray-900">
-                  {COURSE_NAMES[selectedStudent.course] || "-"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Year
-                </p>
-                <p className="mt-2 text-sm font-medium text-gray-900">
-                  {selectedStudent.year ? `Year ${selectedStudent.year}` : "-"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Registered On
-                </p>
-                <p className="mt-2 text-sm font-medium text-gray-900">
-                  {selectedStudent.createdAt
-                    ? new Date(selectedStudent.createdAt).toLocaleDateString()
-                    : "-"}
-                </p>
+                  Details
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedStudentView("qr")}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                    selectedStudentView === "qr"
+                      ? "bg-sky-600 text-white"
+                      : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  Student QR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedStudent(null)}
+                  className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                >
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
+
+            {selectedStudentView === "details" ? (
+              <div className="grid grid-cols-1 gap-4 px-4 py-4 sm:grid-cols-2 md:px-6 md:py-6">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Full Name
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-gray-900">
+                    {selectedStudent.name || "-"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Email
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-gray-900">
+                    {selectedStudent.email || "-"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Enrollment Number
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-gray-900">
+                    {selectedStudent.enrollmentNo || "-"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Phone
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-gray-900">
+                    {selectedStudent.phone || "-"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Course Code
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-gray-900">
+                    {selectedStudent.course || "-"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Course Name
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-gray-900">
+                    {COURSE_NAMES[selectedStudent.course] || "-"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Year
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-gray-900">
+                    {selectedStudent.year ? `Year ${selectedStudent.year}` : "-"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Registered On
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-gray-900">
+                    {selectedStudent.createdAt
+                      ? new Date(selectedStudent.createdAt).toLocaleDateString()
+                      : "-"}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <StudentQrPanel student={selectedStudent} />
+            )}
 
             <div className="flex flex-col gap-3 border-t border-gray-200 px-4 py-4 sm:flex-row sm:flex-wrap sm:justify-end md:px-6">
+              <Link
+                href={`/dashboard/admin/attendance/scan?course=${encodeURIComponent(
+                  selectedStudent.course || "",
+                )}&year=${encodeURIComponent(String(selectedStudent.year || ""))}`}
+                className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100"
+              >
+                Open Admin QR Scanner
+              </Link>
               <button
                 type="button"
                 onClick={() => openEditStudent(selectedStudent)}

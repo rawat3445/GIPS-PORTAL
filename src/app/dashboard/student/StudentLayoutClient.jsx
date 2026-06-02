@@ -73,7 +73,6 @@ export default function StudentLayoutClient({ children }) {
       name: "My Courses",
       href: "/dashboard/student/courses",
       icon: BookOpen,
-      badge: "Soon",
     },
     {
       name: "Assignments",

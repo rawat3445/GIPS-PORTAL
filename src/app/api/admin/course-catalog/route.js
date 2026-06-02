@@ -20,6 +20,21 @@ function buildTeachingFacultyQuery(course) {
   };
 }
 
+function normalizeCatalogForAdmin(catalogDoc, { course, year } = {}) {
+  if (!catalogDoc) {
+    return {
+      ...createEmptyCourseCatalog({ course, year }),
+      isConfigured: false,
+    };
+  }
+
+  return {
+    ...catalogDoc,
+    publishStatus: String(catalogDoc.publishStatus || "published").toLowerCase(),
+    isConfigured: true,
+  };
+}
+
 export async function GET(request) {
   const auth = await requireAdmin();
   if (!auth.ok) {
@@ -52,12 +67,7 @@ export async function GET(request) {
 
     return NextResponse.json({
       catalog: JSON.parse(
-        JSON.stringify(
-          catalogDoc || {
-            ...createEmptyCourseCatalog({ course, year }),
-            isConfigured: false,
-          },
-        ),
+        JSON.stringify(normalizeCatalogForAdmin(catalogDoc, { course, year })),
       ),
       teachingFaculty: JSON.parse(JSON.stringify(teachingFacultyDocs || [])),
     });
@@ -81,6 +91,7 @@ export async function POST(request) {
 
     const body = await request.json();
     const payload = sanitizeCourseCatalogPayload(body);
+    const action = String(body?.action || "").trim().toLowerCase();
 
     if (!payload.course || !payload.year) {
       return NextResponse.json(
@@ -90,14 +101,54 @@ export async function POST(request) {
     }
 
     const actor = await User.findById(auth.decoded.id).select("name");
+    const existingCatalog = await CourseCatalog.findOne({
+      course: payload.course,
+      year: payload.year,
+    })
+      .select("publishStatus publishedAt publishedBy publishedByName")
+      .lean();
+    const nextPublishStatus =
+      action === "publish"
+        ? "published"
+        : action === "unpublish"
+          ? "draft"
+          : String(
+              payload.publishStatus ||
+                existingCatalog?.publishStatus ||
+                "draft",
+            ).toLowerCase() === "published"
+            ? "published"
+            : "draft";
+    const nextPublishedAt =
+      nextPublishStatus === "published"
+        ? action === "publish" || !existingCatalog?.publishedAt
+          ? new Date()
+          : existingCatalog.publishedAt
+        : null;
+    const nextPublishedBy =
+      nextPublishStatus === "published"
+        ? action === "publish" || !existingCatalog?.publishedBy
+          ? auth.decoded.id
+          : existingCatalog.publishedBy
+        : null;
+    const nextPublishedByName =
+      nextPublishStatus === "published"
+        ? action === "publish" || !existingCatalog?.publishedByName
+          ? actor?.name || "Admin"
+          : existingCatalog.publishedByName
+        : "";
 
     const catalog = await CourseCatalog.findOneAndUpdate(
       { course: payload.course, year: payload.year },
       {
         $set: {
           ...payload,
+          publishStatus: nextPublishStatus,
           updatedBy: auth.decoded.id,
           updatedByName: actor?.name || "Admin",
+          publishedAt: nextPublishedAt,
+          publishedBy: nextPublishedBy,
+          publishedByName: nextPublishedByName,
         },
       },
       {
@@ -109,8 +160,20 @@ export async function POST(request) {
     ).lean();
 
     return NextResponse.json({
-      message: "Course catalog saved successfully",
-      catalog: JSON.parse(JSON.stringify(catalog)),
+      message:
+        action === "publish"
+          ? "Course catalog published successfully"
+          : action === "unpublish"
+            ? "Course catalog moved to draft successfully"
+            : "Course catalog saved successfully",
+      catalog: JSON.parse(
+        JSON.stringify(
+          normalizeCatalogForAdmin(catalog, {
+            course: payload.course,
+            year: payload.year,
+          }),
+        ),
+      ),
     });
   } catch (error) {
     console.error("SAVE COURSE CATALOG ERROR:", error);

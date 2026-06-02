@@ -5,9 +5,12 @@
   "scripts": {
     "predev": "node scripts/generate-build-version.mjs",
     "dev": "next dev",
+    "dev:https": "next dev --hostname 0.0.0.0 --experimental-https",
+    "dev:https:phone": "set NEXT_DIST_DIR=.next-phone&& next dev --hostname 0.0.0.0 --port 3001 --experimental-https --experimental-https-key certificates/localhost-key.pem --experimental-https-cert certificates/localhost.pem",
     "prebuild": "node scripts/generate-build-version.mjs",
     "build": "next build",
     "start": "next start",
+    "start:phone": "next start --hostname 0.0.0.0 --port 3002",
     "lint": "eslint"
   },
   "dependencies": {
@@ -16,11 +19,13 @@
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "cookie-parser": "^1.4.7",
+    "html5-qrcode": "^2.3.8",
     "jose": "^6.1.3",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.557.0",
     "mongoose": "^9.0.1",
     "next": "16.0.8",
+    "qrcode": "^1.5.4",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "react-hook-form": "^7.68.0",

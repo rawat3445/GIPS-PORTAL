@@ -19,7 +19,6 @@ import {
   RESOURCE_TYPE_OPTIONS,
   getCourseName,
 } from "../../../lib/courseCatalog";
-import StudentComingSoonPage from "../StudentComingSoonPage";
 
 const QUICK_LINKS = [
   { href: "/dashboard/student/attendance", label: "Attendance", icon: CalendarDays },
@@ -392,11 +391,5 @@ export function StudentCoursesWorkspace() {
 }
 
 export default function StudentCoursesPage() {
-  return (
-    <StudentComingSoonPage
-      title="My Courses"
-      description="The full course workspace is being polished right now. Your existing course content is kept safely in place and we will continue building this page next."
-      accent="emerald"
-    />
-  );
+  return <StudentCoursesWorkspace />;
 }

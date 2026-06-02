@@ -21,16 +21,21 @@ function isWorkingAccessDate(date, holidayMap) {
 export function resolveEffectiveStudentWindowStartDate({
   storedWindowStartDate,
   resetAt: _resetAt,
+  firstActivityAt,
   firstLoginAt,
 }) {
-  const normalizedStoredStartDate = safeIsoDate(storedWindowStartDate);
-
-  if (normalizedStoredStartDate) {
-    return normalizedStoredStartDate;
+  if (firstActivityAt) {
+    return toISODate(new Date(firstActivityAt));
   }
 
   if (firstLoginAt) {
     return toISODate(new Date(firstLoginAt));
+  }
+
+  const normalizedStoredStartDate = safeIsoDate(storedWindowStartDate);
+
+  if (normalizedStoredStartDate) {
+    return normalizedStoredStartDate;
   }
 
   return "";
@@ -112,6 +117,7 @@ export async function evaluateStudentLoginAccess(user, todayISO = toISODate(new 
   const windowStartDate = resolveEffectiveStudentWindowStartDate({
     storedWindowStartDate: user?.studentLoginWindowStartDate,
     resetAt: user?.studentLoginResetAt,
+    firstActivityAt: user?.studentLastActivityAt,
     firstLoginAt: user?.studentLastLoginAt,
   });
 

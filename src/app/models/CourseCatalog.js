@@ -13,6 +13,12 @@ const MaterialSchema = new mongoose.Schema(
       default: "note",
       trim: true,
     },
+    storageProvider: {
+      type: String,
+      enum: ["", "r2", "gcs"],
+      default: "",
+      trim: true,
+    },
     resourceUrl: {
       type: String,
       default: "",
@@ -64,10 +70,21 @@ const SubjectSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    facultyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     facultyName: {
       type: String,
       default: "",
       trim: true,
+    },
+    facultyEmail: {
+      type: String,
+      default: "",
+      trim: true,
+      lowercase: true,
     },
     description: {
       type: String,
@@ -125,6 +142,12 @@ const CourseCatalogSchema = new mongoose.Schema(
       max: 4,
       index: true,
     },
+    publishStatus: {
+      type: String,
+      enum: ["draft", "published"],
+      default: "draft",
+      index: true,
+    },
     semesterLabel: {
       type: String,
       default: "",
@@ -174,6 +197,20 @@ const CourseCatalogSchema = new mongoose.Schema(
       default: null,
     },
     updatedByName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    publishedAt: {
+      type: Date,
+      default: null,
+    },
+    publishedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    publishedByName: {
       type: String,
       default: "",
       trim: true,

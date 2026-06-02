@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
+  Clock3,
   Download,
   ExternalLink,
   FileUp,
@@ -92,11 +93,14 @@ export default function FacultyUploadMaterialsPage() {
     createEditorState(createEmptyCourseCatalog({ year: 1 })),
   );
   const [teachingFaculty, setTeachingFaculty] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [yearSummaries, setYearSummaries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingKey, setUploadingKey] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const didAutoSelectYearRef = useRef(false);
 
   useEffect(() => {
     async function loadCatalog() {
@@ -116,9 +120,33 @@ export default function FacultyUploadMaterialsPage() {
           throw new Error(data.message || "Failed to load course content");
         }
 
+        const summaries = Array.isArray(data.yearSummaries) ? data.yearSummaries : [];
+        setYearSummaries(summaries);
+
+        const preferredYear = String(data.preferredYear || "");
+        const hasCurrentYearContent = summaries.some(
+          (item) =>
+            String(item?.year || "") === String(selectedYear) &&
+            (Number(item?.materialCount || 0) > 0 ||
+              Number(item?.subjectCount || 0) > 0),
+        );
+        const currentYearIsDefault = String(selectedYear) === "1";
+        if (
+          !didAutoSelectYearRef.current &&
+          preferredYear &&
+          preferredYear !== String(selectedYear) &&
+          currentYearIsDefault &&
+          !hasCurrentYearContent
+        ) {
+          didAutoSelectYearRef.current = true;
+          setSelectedYear(preferredYear);
+          return;
+        }
+
         setFaculty(data.faculty || null);
         setForm(createEditorState(data.catalog));
         setTeachingFaculty(Array.isArray(data.teachingFaculty) ? data.teachingFaculty : []);
+        setHistory(Array.isArray(data.history) ? data.history : []);
       } catch (loadError) {
         setError(loadError.message || "Unable to load course content");
         setForm((prev) =>
@@ -130,6 +158,8 @@ export default function FacultyUploadMaterialsPage() {
           ),
         );
         setTeachingFaculty([]);
+        setHistory([]);
+        setYearSummaries([]);
       } finally {
         setLoading(false);
       }
@@ -168,6 +198,8 @@ export default function FacultyUploadMaterialsPage() {
       announcementCount,
     };
   }, [form.announcements, form.subjects]);
+
+  const isPublished = form.publishStatus === "published";
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -227,6 +259,38 @@ export default function FacultyUploadMaterialsPage() {
     }));
   }
 
+  function removeMaterial(subjectIndex, materialIndex) {
+    setForm((prev) => ({
+      ...prev,
+      subjects: prev.subjects.map((item, index) =>
+        index === subjectIndex
+          ? {
+              ...item,
+              materials: item.materials.filter(
+                (_, subIndex) => subIndex !== materialIndex,
+              ),
+            }
+          : item,
+      ),
+    }));
+    setNotice(
+      "Material removed from the draft. Click Save Draft or Publish to apply the deletion.",
+    );
+  }
+
+  function removeUploadedFile(subjectIndex, materialIndex) {
+    updateMaterialFields(subjectIndex, materialIndex, {
+      storageProvider: "",
+      resourceUrl: "",
+      resourcePublicId: "",
+      uploadedFileName: "",
+      uploadedMimeType: "",
+    });
+    setNotice(
+      "Uploaded file removed from the draft. Click Save Draft or Publish to delete the old file from the course content.",
+    );
+  }
+
   async function handleFileUpload(subjectIndex, materialIndex, file) {
     if (!file) return;
 
@@ -258,13 +322,14 @@ export default function FacultyUploadMaterialsPage() {
           form.subjects?.[subjectIndex]?.materials?.[materialIndex]?.title ||
           getBaseTitleFromFileName(uploadedFile.uploadedFileName),
         type: uploadedFile.type || "pdf",
+        storageProvider: uploadedFile.storageProvider || "gcs",
         resourceUrl: uploadedFile.resourceUrl || "",
         resourcePublicId: uploadedFile.resourcePublicId || "",
         uploadedFileName: uploadedFile.uploadedFileName || file.name || "",
         uploadedMimeType: uploadedFile.uploadedMimeType || file.type || "",
       });
       setNotice(
-        "File uploaded to the draft. Click Save Content and Publish to make it available to students.",
+        "File uploaded to the draft. Save or publish this course content to keep the material visible in the catalog.",
       );
     } catch (uploadError) {
       setError(uploadError.message || "Unable to upload file");
@@ -273,7 +338,7 @@ export default function FacultyUploadMaterialsPage() {
     }
   }
 
-  async function handleSave() {
+  async function handleSave(action = "save") {
     try {
       setSaving(true);
       setError("");
@@ -286,6 +351,7 @@ export default function FacultyUploadMaterialsPage() {
         body: JSON.stringify({
           ...form,
           year: Number(selectedYear),
+          action,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -295,6 +361,7 @@ export default function FacultyUploadMaterialsPage() {
       }
 
       setForm(createEditorState(data.catalog));
+      setHistory(Array.isArray(data.history) ? data.history : []);
       setNotice(data.message || "Course content saved");
     } catch (saveError) {
       setError(saveError.message || "Unable to save course content");
@@ -417,21 +484,7 @@ export default function FacultyUploadMaterialsPage() {
                               <input value={material.resourceUrl || ""} onChange={(e) => updateMaterial(subjectIndex, materialIndex, "resourceUrl", e.target.value)} placeholder="Resource URL or uploaded file link" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900" />
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setForm((prev) => ({
-                                    ...prev,
-                                    subjects: prev.subjects.map((item, index) =>
-                                      index === subjectIndex
-                                        ? {
-                                            ...item,
-                                            materials: item.materials.filter(
-                                              (_, subIndex) => subIndex !== materialIndex,
-                                            ),
-                                          }
-                                        : item,
-                                    ),
-                                  }))
-                                }
+                                onClick={() => removeMaterial(subjectIndex, materialIndex)}
                                 className="inline-flex items-center justify-center rounded-2xl bg-rose-100 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-200"
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
@@ -492,10 +545,22 @@ export default function FacultyUploadMaterialsPage() {
                                   "Upload a file to auto-fill the material link, or paste any resource URL manually."
                                 )}
                               </div>
-                              <label className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700">
-                                <input type="checkbox" checked={Boolean(material.isImportant)} onChange={(e) => updateMaterial(subjectIndex, materialIndex, "isImportant", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-emerald-600" />
-                                Mark as important
-                              </label>
+                              <div className="flex flex-wrap items-center gap-3">
+                                {material.resourcePublicId || material.resourceUrl ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeUploadedFile(subjectIndex, materialIndex)}
+                                    className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 transition hover:bg-amber-100"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Remove File
+                                  </button>
+                                ) : null}
+                                <label className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700">
+                                  <input type="checkbox" checked={Boolean(material.isImportant)} onChange={(e) => updateMaterial(subjectIndex, materialIndex, "isImportant", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-emerald-600" />
+                                  Mark as important
+                                </label>
+                              </div>
                             </div>
                           </div>
                         );
@@ -598,6 +663,15 @@ export default function FacultyUploadMaterialsPage() {
                   <Lock className="h-3.5 w-3.5" />
                   Course Locked
                 </span>
+                <span
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] ${
+                    isPublished
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-amber-100 text-amber-700"
+                  }`}
+                >
+                  {isPublished ? "Published" : "Draft"}
+                </span>
               </div>
               <h1 className="mt-4 text-3xl font-bold text-slate-950">Publish My Courses Content</h1>
               <p className="mt-3 text-sm leading-7 text-slate-600">
@@ -616,10 +690,15 @@ export default function FacultyUploadMaterialsPage() {
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
                   {form.updatedByName ? `Last saved by ${form.updatedByName}` : "No published version yet"}
                 </span>
+                {form.publishedAt ? (
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+                    Published {formatDateTime(form.publishedAt)}
+                  </span>
+                ) : null}
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-[170px_190px_auto]">
+            <div className="grid gap-3 sm:grid-cols-[170px_190px_auto_auto_auto]">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Assigned Course</p>
                 <p className="mt-2 text-sm font-semibold text-slate-950">{assignedCourse || "Not assigned"}</p>
@@ -627,13 +706,36 @@ export default function FacultyUploadMaterialsPage() {
               <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-100">
                 {YEAR_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {(() => {
+                      const summary = yearSummaries.find(
+                        (item) => String(item?.year || "") === String(option.value),
+                      );
+                      if (!summary) return option.label;
+
+                      const materialCount = Number(summary.materialCount || 0);
+                      const subjectCount = Number(summary.subjectCount || 0);
+                      if (materialCount > 0) {
+                        return `${option.label} (${materialCount} materials)`;
+                      }
+                      if (subjectCount > 0) {
+                        return `${option.label} (${subjectCount} subjects)`;
+                      }
+                      return option.label;
+                    })()}
                   </option>
                 ))}
               </select>
-              <button type="button" onClick={handleSave} disabled={saving || loading || !assignedCourse} className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60">
+              <button type="button" onClick={() => handleSave("save")} disabled={saving || loading || !assignedCourse} className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60">
                 <Save className="mr-2 h-4 w-4" />
-                {saving ? "Saving..." : "Save Content and Publish"}
+                {saving ? "Saving..." : "Save Draft"}
+              </button>
+              <button type="button" onClick={() => handleSave("publish")} disabled={saving || loading || !assignedCourse} className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60">
+                <Save className="mr-2 h-4 w-4" />
+                {saving ? "Saving..." : "Publish"}
+              </button>
+              <button type="button" onClick={() => handleSave("unpublish")} disabled={saving || loading || !assignedCourse || !isPublished} className="inline-flex items-center justify-center rounded-2xl bg-amber-100 px-5 py-3 text-sm font-semibold text-amber-800 shadow-sm transition hover:bg-amber-200 disabled:opacity-60">
+                <Save className="mr-2 h-4 w-4" />
+                {saving ? "Saving..." : "Move To Draft"}
               </button>
             </div>
           </div>
@@ -644,7 +746,7 @@ export default function FacultyUploadMaterialsPage() {
         {!error ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-800">
             Uploaded files are added to the faculty draft first. Students can open them only
-            after you click <span className="font-semibold">Save Content and Publish</span>.
+            after you click <span className="font-semibold">Publish</span>.
           </div>
         ) : null}
 
@@ -708,6 +810,47 @@ export default function FacultyUploadMaterialsPage() {
               )) : null}
               {!loading && teachingFaculty.length === 0 ? <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">No teaching faculty are assigned to this course yet.</div> : null}
             </div>
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-700">
+                Content History
+              </p>
+              <h2 className="mt-2 text-xl font-bold text-slate-950">
+                Faculty draft and publish history
+              </h2>
+            </div>
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+              <Clock3 className="h-5 w-5" />
+            </span>
+          </div>
+          <div className="mt-5 space-y-3">
+            {history.length > 0 ? (
+              history.map((item) => (
+                <div key={item._id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">
+                        {item.actionLabel}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        {item.details || "Course content updated"}
+                      </p>
+                    </div>
+                    <span className="text-xs font-medium text-slate-500">
+                      {formatDateTime(item.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                No faculty course-content history yet for this course and year.
+              </div>
+            )}
           </div>
         </div>
 

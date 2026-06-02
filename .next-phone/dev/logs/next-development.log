@@ -1,0 +1,11 @@
+[00:00:01.997] Server  LOG      ✓ Ready in 1489ms
+[00:01:45.320] Server  LOG      ○ Compiling / ...
+[00:01:47.277] Server  ERROR   D:\New folder\gips_portal\portal\node_modules\next\dist\server\dev\log-requests.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:01:47.279] Server  ERROR   D:\New folder\gips_portal\portal\node_modules\next\dist\server\dev\next-dev-server.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:01:47.281] Server  ERROR   Error: EPIPE: broken pipe, write
+[00:01:47.282] Server  ERROR   D:\New folder\gips_portal\portal\node_modules\next\dist\server\dev\log-requests.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:01:47.282] Server  ERROR   D:\New folder\gips_portal\portal\node_modules\next\dist\server\dev\next-dev-server.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:01:47.282] Server  ERROR    ⨯ "uncaughtException:" Error: EPIPE: broken pipe, write
+[00:01:47.283] Server  ERROR   D:\New folder\gips_portal\portal\node_modules\next\dist\server\dev\log-requests.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:01:47.284] Server  ERROR   D:\New folder\gips_portal\portal\node_modules\next\dist\server\dev\next-dev-server.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:01:47.284] Server  ERROR    ⨯ "uncaughtException: " Error: EPIPE: broken pipe, write

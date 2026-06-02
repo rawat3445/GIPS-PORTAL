@@ -169,7 +169,7 @@ export async function logActivity({
       }
     }
 
-    return ActivityLog.create({
+    const createdLog = await ActivityLog.create({
       ...actorSnapshot,
       ...targetSnapshot,
       actionType: safeTrim(actionType),
@@ -178,6 +178,19 @@ export async function logActivity({
       details: safeTrim(details),
       metadata: metadata && typeof metadata === "object" ? metadata : {},
     });
+
+    if (actorSnapshot.actorRole === "student" && actorSnapshot.actorId) {
+      await User.collection.updateOne(
+        { _id: actorSnapshot.actorId },
+        {
+          $set: {
+            studentLastActivityAt: createdLog.createdAt || new Date(),
+          },
+        },
+      );
+    }
+
+    return createdLog;
   } catch (error) {
     console.error("ACTIVITY LOG WRITE ERROR:", error);
     return null;

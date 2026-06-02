@@ -52,10 +52,13 @@ const INACTIVE_DAY_OPTIONS = [
   { value: "30", label: "30 days" },
 ];
 
+const IST_TIME_ZONE = "Asia/Kolkata";
+
 function formatDateTime(value) {
   if (!value) return "-";
 
   return new Intl.DateTimeFormat("en-IN", {
+    timeZone: IST_TIME_ZONE,
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -73,7 +76,7 @@ function formatDaysAgo(value) {
   const numericValue = Number(value);
 
   if (!Number.isFinite(numericValue)) {
-    return "No login record";
+    return "No activity record";
   }
 
   if (numericValue <= 0) {
@@ -103,16 +106,16 @@ function getRoleChip(role) {
   return "bg-slate-100 text-slate-700";
 }
 
-function getInactiveTone(daysSinceLastLogin, hasLogin) {
-  if (!hasLogin) {
+function getInactiveTone(daysSinceLastActivity, hasActivity) {
+  if (!hasActivity) {
     return "border-rose-200 bg-rose-50 text-rose-700";
   }
 
-  if (Number(daysSinceLastLogin) >= 15) {
+  if (Number(daysSinceLastActivity) >= 15) {
     return "border-rose-200 bg-rose-50 text-rose-700";
   }
 
-  if (Number(daysSinceLastLogin) >= 7) {
+  if (Number(daysSinceLastActivity) >= 7) {
     return "border-amber-200 bg-amber-50 text-amber-700";
   }
 
@@ -459,12 +462,12 @@ export default function AdminActivityLogsPage({
               <h2 className="mt-4 text-xl font-semibold text-slate-950">
                 Today and past-day login report for students
               </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                This report is student-only. It shows how many students signed in,
-                how many signed out, the percentage out of total students, the raw
-                event count behind those actions, and who has not logged in for the
-                selected past-day range.
-              </p>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  This report is student-only. It shows how many students signed in,
+                  how many signed out, the percentage out of total students, the raw
+                  event count behind those actions, plus which students have been
+                  inactive for the selected past-day range.
+                </p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -490,7 +493,7 @@ export default function AdminActivityLogsPage({
 
               <label className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  No Login Alert
+                  Inactivity Alert
                 </p>
                 <div className="mt-2 flex items-center gap-3">
                   <UserX className="h-4 w-4 text-slate-400" />
@@ -548,7 +551,7 @@ export default function AdminActivityLogsPage({
                 icon: Filter,
               },
               {
-                label: `No Login ${studentLoginReport.inactiveDays}d`,
+                label: `No Activity ${studentLoginReport.inactiveDays}d`,
                 value: studentLoginReport.inactiveStudentCount,
                 note: `${studentLoginReport.neverLoggedInCount} never logged in`,
                 tone: "text-rose-700",
@@ -564,7 +567,7 @@ export default function AdminActivityLogsPage({
               {
                 label: "Active Window",
                 value: studentLoginReport.activeWindowStudentCount || 0,
-                note: "Window starts from each student's latest login",
+                note: "Window follows each student's latest activity",
                 tone: "text-emerald-700",
                 icon: ShieldCheck,
               },
@@ -605,7 +608,7 @@ export default function AdminActivityLogsPage({
                   Student access is tracked with 7 working days
                 </h3>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Each student gets 7 working days starting from the latest successful login. If admin resets the student password, the next login starts a fresh 7-day window. Sundays and holidays are skipped.
+                  Last Login is kept separately for authentication history. Blocking and inactivity now follow each student&apos;s latest recorded portal activity. If admin resets the student password, the next login starts a fresh record. Sundays and holidays are skipped.
                 </p>
               </div>
               <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-amber-700 shadow-sm">
@@ -688,7 +691,7 @@ export default function AdminActivityLogsPage({
                   Student login access and inactivity
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  Includes students with no login in the last {studentLoginReport.inactiveDays} day
+                  Includes students with no activity in the last {studentLoginReport.inactiveDays} day
                   {Number(studentLoginReport.inactiveDays) === 1 ? "" : "s"}, plus their current access-window state.
                 </p>
               </div>
@@ -720,8 +723,8 @@ export default function AdminActivityLogsPage({
                 <div className="max-h-[520px] divide-y divide-slate-200 overflow-y-auto">
                   {visibleStudents.map((student) => {
                     const tone = getInactiveTone(
-                      student.daysSinceLastLogin,
-                      Boolean(student.lastLoginAt),
+                      student.daysSinceLastActivity,
+                      Boolean(student.lastActivityAt),
                     );
 
                     return (
@@ -735,7 +738,7 @@ export default function AdminActivityLogsPage({
                               <span
                                 className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${tone}`}
                               >
-                                {formatDaysAgo(student.daysSinceLastLogin)}
+                                {formatDaysAgo(student.daysSinceLastActivity)}
                               </span>
                               <span
                                 className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${getAccessStatusChip(student.accessStatus)}`}
@@ -750,7 +753,7 @@ export default function AdminActivityLogsPage({
                             <p className="mt-1 break-all text-xs text-slate-500">
                               {student.email || "-"}
                             </p>
-                            <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-3">
+                            <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-4">
                               <p>
                                 <span className="font-semibold text-slate-700">Window Start:</span>{" "}
                                 {student.accessWindowStartDate || "Not started"}
@@ -760,13 +763,31 @@ export default function AdminActivityLogsPage({
                                 {student.accessWindowEndDate || "-"}
                               </p>
                               <p>
+                                <span className="font-semibold text-slate-700">Last Activity:</span>{" "}
+                                {student.lastActivityAt
+                                  ? formatDateTime(student.lastActivityAt)
+                                  : "Never"}
+                              </p>
+                              <p>
                                 <span className="font-semibold text-slate-700">Blocked At:</span>{" "}
                                 {student.blockedAt ? formatDateTime(student.blockedAt) : "-"}
                               </p>
                             </div>
                           </div>
 
-                          <div className="sm:text-right">
+                          <div className="grid gap-3 sm:text-right">
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                Last Activity
+                              </p>
+                              <p className="mt-2 text-sm font-medium text-slate-900">
+                                {student.lastActivityAt
+                                  ? formatDateTime(student.lastActivityAt)
+                                  : "Never"}
+                              </p>
+                            </div>
+
+                            <div>
                             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                               Last Login
                             </p>
@@ -775,6 +796,7 @@ export default function AdminActivityLogsPage({
                                 ? formatDateTime(student.lastLoginAt)
                                 : "Never"}
                             </p>
+                            </div>
                           </div>
                         </div>
                       </div>

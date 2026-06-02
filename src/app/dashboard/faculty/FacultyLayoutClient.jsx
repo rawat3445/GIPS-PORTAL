@@ -8,6 +8,7 @@ import {
   BellRing,
   CalendarCheck2,
   ClipboardCheck,
+  QrCode,
   GraduationCap,
   LayoutDashboard,
   LogOut,
@@ -30,6 +31,25 @@ export default function FacultyLayoutClient({ children }) {
   const markAttendanceHref = assignedCourse
     ? `/dashboard/faculty/${assignedCourse}/attendance`
     : "/dashboard/faculty";
+  const teachingMenuItems = [
+    assignedCourse
+      ? {
+          name: "Mark Attendance",
+          href: markAttendanceHref,
+          icon: CalendarCheck2,
+        }
+      : null,
+    {
+      name: "QR Scanner",
+      href: "/dashboard/faculty/scan-attendance",
+      icon: QrCode,
+    },
+    {
+      name: "My Attendance",
+      href: "/dashboard/faculty/see-attendance",
+      icon: Eye,
+    },
+  ].filter(Boolean);
 
   const primaryMenuItems = [
     {
@@ -45,19 +65,10 @@ export default function FacultyLayoutClient({ children }) {
             icon: Eye,
           },
         ]
-      : [
-          {
-            name: "Mark Attendance",
-            href: markAttendanceHref,
-            icon: CalendarCheck2,
-          },
-          {
-            name: "My Attendance",
-            href: "/dashboard/faculty/see-attendance",
-            icon: Eye,
-          },
-        ]),
-  ];
+      : teachingMenuItems),
+  ].filter(
+    (item, index, list) => list.findIndex((entry) => entry.href === item.href) === index,
+  );
 
   const secondaryMenuItems = [
     ...(isNonTeaching

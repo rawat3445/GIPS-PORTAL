@@ -59,6 +59,7 @@ export function createEmptyMaterial() {
   return {
     title: "",
     type: "note",
+    storageProvider: "",
     resourceUrl: "",
     resourcePublicId: "",
     uploadedFileName: "",
@@ -73,7 +74,9 @@ export function createEmptySubject() {
     code: "",
     name: "",
     credits: "",
+    facultyId: "",
     facultyName: "",
+    facultyEmail: "",
     description: "",
     materials: [],
   };
@@ -95,6 +98,7 @@ export function createEmptyCourseCatalog({ course = "", year = "" } = {}) {
   return {
     course: normalizedCourse,
     year: normalizedYear,
+    publishStatus: "draft",
     semesterLabel: normalizedYear
       ? getDefaultSemesterLabel(normalizedYear)
       : "",
@@ -137,6 +141,11 @@ export function sanitizeCourseCatalogPayload(input) {
                   )
                     ? safeTrim(material?.type).toLowerCase()
                     : "note",
+                  storageProvider: ["r2", "gcs"].includes(
+                    safeTrim(material?.storageProvider).toLowerCase(),
+                  )
+                    ? safeTrim(material?.storageProvider).toLowerCase()
+                    : "",
                   resourceUrl: safeTrim(material?.resourceUrl),
                   resourcePublicId: safeTrim(material?.resourcePublicId),
                   uploadedFileName: safeTrim(material?.uploadedFileName),
@@ -144,14 +153,20 @@ export function sanitizeCourseCatalogPayload(input) {
                   description: safeTrim(material?.description),
                   isImportant: Boolean(material?.isImportant),
                 }))
-                .filter((material) => material.title && material.resourceUrl)
+                .filter(
+                  (material) =>
+                    material.title &&
+                    (material.resourceUrl || material.resourcePublicId),
+                )
             : [];
 
           const normalizedSubject = {
             code: safeTrim(subject?.code).toUpperCase(),
             name: safeTrim(subject?.name),
             credits: normalizePositiveNumber(subject?.credits),
+            facultyId: safeTrim(subject?.facultyId),
             facultyName: safeTrim(subject?.facultyName),
+            facultyEmail: safeTrim(subject?.facultyEmail).toLowerCase(),
             description: safeTrim(subject?.description),
             materials,
           };
@@ -175,6 +190,10 @@ export function sanitizeCourseCatalogPayload(input) {
   return {
     course,
     year,
+    publishStatus:
+      safeTrim(input?.publishStatus).toLowerCase() === "published"
+        ? "published"
+        : "draft",
     semesterLabel:
       safeTrim(input?.semesterLabel) || getDefaultSemesterLabel(year),
     title:

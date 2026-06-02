@@ -20,6 +20,12 @@ function buildTeachingFacultyQuery(course) {
   };
 }
 
+function isPublishedCatalog(catalogDoc) {
+  if (!catalogDoc) return false;
+  const status = String(catalogDoc.publishStatus || "published").toLowerCase();
+  return status === "published";
+}
+
 export async function GET(request) {
   try {
     await connectDB();
@@ -48,9 +54,10 @@ export async function GET(request) {
       User.countDocuments({ role: "student", course, year }),
     ]);
 
-    const catalog = catalogDoc
+    const catalog = isPublishedCatalog(catalogDoc)
       ? {
           ...catalogDoc,
+          publishStatus: String(catalogDoc.publishStatus || "published").toLowerCase(),
           isConfigured: true,
         }
       : {

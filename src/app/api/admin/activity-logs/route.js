@@ -121,9 +121,9 @@ function getDayDifferenceInTimeZone(fromDate, toDate = new Date()) {
   );
 }
 
-function calculateDaysSince(lastLoginAt) {
-  if (!lastLoginAt) return null;
-  return getDayDifferenceInTimeZone(lastLoginAt);
+function calculateDaysSince(activityAt) {
+  if (!activityAt) return null;
+  return getDayDifferenceInTimeZone(activityAt);
 }
 
 function serializeAttendanceStudent(student, status) {
@@ -238,7 +238,7 @@ async function buildStudentLoginReport({ reportDays, inactiveDays }) {
   const [studentUsers, dailyActivityRows, lastLoginRows] = await Promise.all([
     User.find({ role: "student" })
       .select(
-        "name email enrollmentNo course year studentLastLoginAt studentLoginWindowStartDate studentLoginResetAt studentLoginBlocked studentLoginBlockedAt",
+        "name email enrollmentNo course year studentLastLoginAt studentLastActivityAt studentLoginWindowStartDate studentLoginResetAt studentLoginBlocked studentLoginBlockedAt",
       )
       .sort({ course: 1, year: 1, name: 1 })
       .lean(),
@@ -374,11 +374,15 @@ async function buildStudentLoginReport({ reportDays, inactiveDays }) {
         (student.studentLastLoginAt
           ? new Date(student.studentLastLoginAt).toISOString()
           : null);
-      const lastLoginDate = lastLoginAt ? new Date(lastLoginAt) : null;
-      const daysSinceLastLogin = calculateDaysSince(lastLoginDate);
+      const lastActivityAt = student.studentLastActivityAt
+        ? new Date(student.studentLastActivityAt).toISOString()
+        : lastLoginAt;
+      const lastActivityDate = lastActivityAt ? new Date(lastActivityAt) : null;
+      const daysSinceLastActivity = calculateDaysSince(lastActivityDate);
       const effectiveWindowStartDate = resolveEffectiveStudentWindowStartDate({
         storedWindowStartDate: student.studentLoginWindowStartDate,
         resetAt: student.studentLoginResetAt,
+        firstActivityAt: lastActivityAt,
         firstLoginAt: lastLoginAt,
       });
       const accessWindowEndDate = effectiveWindowStartDate
@@ -410,10 +414,11 @@ async function buildStudentLoginReport({ reportDays, inactiveDays }) {
         course: student.course || "",
         year: Number(student.year || 0),
         lastLoginAt,
-        daysSinceLastLogin,
+        lastActivityAt,
+        daysSinceLastActivity,
         isInactive:
-          daysSinceLastLogin === null ||
-          Number(daysSinceLastLogin) >= Number(inactiveDays),
+          daysSinceLastActivity === null ||
+          Number(daysSinceLastActivity) >= Number(inactiveDays),
         accessStatus,
         accessWindowStartDate: effectiveWindowStartDate || null,
         accessWindowEndDate: accessWindowEndDate || null,
@@ -427,15 +432,16 @@ async function buildStudentLoginReport({ reportDays, inactiveDays }) {
   const inactiveStudents = enrichedStudents
     .filter((student) => student.isInactive)
     .sort((a, b) => {
-      if (!a.lastLoginAt && !b.lastLoginAt) {
+      if (!a.lastActivityAt && !b.lastActivityAt) {
         return a.name.localeCompare(b.name);
       }
 
-      if (!a.lastLoginAt) return -1;
-      if (!b.lastLoginAt) return 1;
+      if (!a.lastActivityAt) return -1;
+      if (!b.lastActivityAt) return 1;
 
       return (
-        new Date(a.lastLoginAt).getTime() - new Date(b.lastLoginAt).getTime() ||
+        new Date(a.lastActivityAt).getTime() -
+          new Date(b.lastActivityAt).getTime() ||
         a.name.localeCompare(b.name)
       );
     });
@@ -454,15 +460,16 @@ async function buildStudentLoginReport({ reportDays, inactiveDays }) {
       return aPriority - bPriority;
     }
 
-    if (!a.lastLoginAt && !b.lastLoginAt) {
+    if (!a.lastActivityAt && !b.lastActivityAt) {
       return a.name.localeCompare(b.name);
     }
 
-    if (!a.lastLoginAt) return -1;
-    if (!b.lastLoginAt) return 1;
+    if (!a.lastActivityAt) return -1;
+    if (!b.lastActivityAt) return 1;
 
     return (
-      new Date(b.lastLoginAt).getTime() - new Date(a.lastLoginAt).getTime() ||
+      new Date(b.lastActivityAt).getTime() -
+        new Date(a.lastActivityAt).getTime() ||
       a.name.localeCompare(b.name)
     );
   });
