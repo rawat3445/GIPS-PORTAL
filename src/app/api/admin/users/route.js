@@ -55,10 +55,12 @@ export async function POST(req) {
       facultyType,
       assignedCourse,
       designation,
-      enrollmentNo,
       course,
       year,
       phone,
+      parentContactNo,
+      bloodGroup,
+      session,
       profileImage,
     } = await req.json();
 
@@ -74,9 +76,11 @@ export async function POST(req) {
       .trim()
       .toUpperCase();
     const normalizedDesignation = String(designation || "").trim();
-    const normalizedEnrollmentNo = String(enrollmentNo || "").trim();
     const normalizedCourse = String(course || "").trim().toUpperCase();
     const normalizedPhone = String(phone || "").trim();
+    const normalizedParentContactNo = String(parentContactNo || "").trim();
+    const normalizedBloodGroup = String(bloodGroup || "").trim().toUpperCase();
+    const normalizedSession = String(session || "").trim();
     const normalizedProfileImage = normalizeProfileImage(profileImage);
     const normalizedYear =
       year === undefined || year === null || year === ""
@@ -106,13 +110,20 @@ export async function POST(req) {
         normalizedRole === "faculty" && normalizedFacultyType === "nonTeaching"
           ? normalizedDesignation || undefined
           : undefined,
-      enrollmentNo: normalizedEnrollmentNo || undefined,
       course: normalizedCourse || undefined,
       year: Number.isNaN(normalizedYear) ? undefined : normalizedYear,
       phone:
         normalizedRole === "student" || normalizedRole === "faculty"
           ? normalizedPhone || undefined
           : undefined,
+      parentContactNo:
+        normalizedRole === "student"
+          ? normalizedParentContactNo || undefined
+          : undefined,
+      bloodGroup:
+        normalizedRole === "student" ? normalizedBloodGroup || undefined : undefined,
+      session:
+        normalizedRole === "student" ? normalizedSession || undefined : undefined,
     });
 
     if (uploadedImage?.profileImage) {

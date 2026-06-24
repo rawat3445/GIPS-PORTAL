@@ -59,7 +59,7 @@ export async function getUserById(userId) {
 
   await connectDB();
   return User.findById(userId).select(
-    "name email role enrollmentNo course year assignedCourse facultyType designation",
+    "name email role course year assignedCourse facultyType designation",
   );
 }
 
@@ -110,9 +110,6 @@ export function describeManagedUser(targetUser) {
   ];
 
   if (role === "student") {
-    if (safeTrim(targetUser?.enrollmentNo)) {
-      parts.push(safeTrim(targetUser.enrollmentNo));
-    }
     if (safeTrim(targetUser?.course)) {
       parts.push(safeTrim(targetUser.course).toUpperCase());
     }

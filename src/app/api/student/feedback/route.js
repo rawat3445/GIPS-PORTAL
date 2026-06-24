@@ -31,7 +31,7 @@ export async function POST(request) {
     await connectDB();
 
     const student = await User.findById(auth.decoded.id).select(
-      "name email enrollmentNo course year role",
+      "name email course year role",
     );
 
     if (!student || String(student.role || "").toLowerCase() !== "student") {
@@ -70,7 +70,6 @@ export async function POST(request) {
       studentId: student._id,
       studentName: student.name,
       studentEmail: student.email || "",
-      enrollmentNo: student.enrollmentNo || "",
       course: student.course || "",
       year: Number(student.year) || null,
       feedbackType,

@@ -809,12 +809,6 @@ export default function StudentResumeBuilderPage() {
                       onChange={(e) => setPersonalField("state", e.target.value)}
                     />
                   </Field>
-                  <Field label="Enrollment Number">
-                    <Input
-                      value={resume.personal?.enrollmentNo || ""}
-                      onChange={(e) => setPersonalField("enrollmentNo", e.target.value)}
-                    />
-                  </Field>
                   <Field label="Course">
                     <Input
                       value={resume.personal?.course || ""}

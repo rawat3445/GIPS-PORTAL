@@ -66,7 +66,6 @@ const StudentResultEntrySchema = new mongoose.Schema(
       index: true,
     },
     studentName: { type: String, default: "", trim: true },
-    enrollmentNo: { type: String, default: "", trim: true },
     subjects: {
       type: [SubjectResultSchema],
       default: [],

@@ -9,7 +9,6 @@ export default function RegisterPage() {
     name: "",
     email: "",
     password: "",
-    enrollmentNo: "",
     course: "",
     year: "",
     phone: "",
@@ -85,15 +84,6 @@ export default function RegisterPage() {
             type="password"
             name="password"
             placeholder="Password"
-            required
-            className="w-full rounded-lg border px-4 py-2 focus:ring-2 focus:ring-blue-500"
-            onChange={handleChange}
-          />
-
-          <input
-            type="text"
-            name="enrollmentNo"
-            placeholder="Enrollment Number"
             required
             className="w-full rounded-lg border px-4 py-2 focus:ring-2 focus:ring-blue-500"
             onChange={handleChange}

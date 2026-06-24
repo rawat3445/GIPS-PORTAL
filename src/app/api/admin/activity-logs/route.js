@@ -130,7 +130,6 @@ function serializeAttendanceStudent(student, status) {
   return {
     studentId: String(student?._id || ""),
     name: String(student?.name || "").trim(),
-    enrollmentNo: String(student?.enrollmentNo || "").trim(),
     course: String(student?.course || "").trim(),
     year: Number(student?.year || 0),
     status,
@@ -180,7 +179,7 @@ async function enrichAttendanceLog(log) {
   }
 
   const students = await User.find({ _id: { $in: studentIds } })
-    .select("name enrollmentNo course year")
+    .select("name course year")
     .lean();
   const studentMap = new Map(students.map((student) => [String(student._id), student]));
 
@@ -238,7 +237,7 @@ async function buildStudentLoginReport({ reportDays, inactiveDays }) {
   const [studentUsers, dailyActivityRows, lastLoginRows] = await Promise.all([
     User.find({ role: "student" })
       .select(
-        "name email enrollmentNo course year studentLastLoginAt studentLastActivityAt studentLoginWindowStartDate studentLoginResetAt studentLoginBlocked studentLoginBlockedAt",
+        "name email course year studentLastLoginAt studentLastActivityAt studentLoginWindowStartDate studentLoginResetAt studentLoginBlocked studentLoginBlockedAt",
       )
       .sort({ course: 1, year: 1, name: 1 })
       .lean(),
@@ -410,7 +409,6 @@ async function buildStudentLoginReport({ reportDays, inactiveDays }) {
         studentId: String(student._id),
         name: student.name || "Student",
         email: student.email || "",
-        enrollmentNo: student.enrollmentNo || "",
         course: student.course || "",
         year: Number(student.year || 0),
         lastLoginAt,

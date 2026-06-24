@@ -74,7 +74,7 @@ function escapeHtml(value) {
 
 function getResultFileName(student, result) {
   const safeParts = [
-    student?.enrollmentNo || student?.name || "student-result",
+    student?.name || "student-result",
     result?.resultName || "result",
   ]
     .map((part) =>
@@ -259,10 +259,6 @@ function buildPrintableResultHtml(student, result) {
             <div class="meta-card">
               <div class="meta-label">Student</div>
               <div class="meta-value">${escapeHtml(student?.name || "-")}</div>
-            </div>
-            <div class="meta-card">
-              <div class="meta-label">Enrollment No</div>
-              <div class="meta-value">${escapeHtml(student?.enrollmentNo || "-")}</div>
             </div>
             <div class="meta-card">
               <div class="meta-label">Course / Year</div>
@@ -905,10 +901,6 @@ export default function StudentResultsPage() {
                   <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-4">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Student</p>
                     <p className="mt-2 text-sm font-bold text-slate-950">{data.student?.name || "-"}</p>
-                  </div>
-                  <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-4">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Enrollment No</p>
-                    <p className="mt-2 text-sm font-bold text-slate-950">{data.student?.enrollmentNo || "-"}</p>
                   </div>
                   <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-4">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Course / Year</p>

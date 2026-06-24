@@ -47,7 +47,6 @@ export function createStudentQrToken(student) {
   const payload = {
     v: QR_VERSION,
     s: String(student?._id || "").trim(),
-    e: String(student?.enrollmentNo || "").trim().toUpperCase(),
   };
 
   const body = toBase64Url(JSON.stringify(payload));
@@ -76,14 +75,13 @@ export function verifyStudentQrToken(token) {
     throw new Error("Unsupported QR version");
   }
 
-  if (!payload?.s || !payload?.e) {
+  if (!payload?.s) {
     throw new Error("Incomplete QR payload");
   }
 
   return {
     version: payload.v,
     studentId: String(payload.s).trim(),
-    enrollmentNo: String(payload.e).trim().toUpperCase(),
     course: "",
     year: 0,
     issuedAt: null,

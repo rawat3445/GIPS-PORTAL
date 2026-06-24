@@ -19,7 +19,7 @@ async function getAuthenticatedStudent() {
   await connectDB();
 
   return User.findById(auth.decoded.id).select(
-    "name email role phone course year enrollmentNo profileImage",
+    "name email role phone course year profileImage",
   );
 }
 

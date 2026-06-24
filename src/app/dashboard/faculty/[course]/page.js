@@ -628,7 +628,7 @@ export default function FacultyCoursePage() {
                           {student.name}
                         </button>
                         <p className="mt-1 text-xs text-gray-600">
-                          {student.enrollmentNo || "-"} | {student.course || "-"} | Year{" "}
+                          {student.course || "-"} | Year{" "}
                           {student.year || "-"}
                         </p>
                         <p className="mt-1 text-xs text-gray-500">{student.email}</p>
@@ -651,7 +651,7 @@ export default function FacultyCoursePage() {
               Students ({studentsLoading ? "..." : students.length})
             </h2>
             <p className="text-xs text-gray-500">
-              Showing students enrolled in {course}. Click a student name to
+              Showing students registered in {course}. Click a student name to
               open the full attendance record.
             </p>
           </div>
@@ -674,7 +674,6 @@ export default function FacultyCoursePage() {
                 <thead className="bg-gray-50 text-gray-600">
                   <tr>
                     <th className="text-left px-6 py-3">Name</th>
-                    <th className="text-left px-6 py-3">Enrollment</th>
                     <th className="text-left px-6 py-3">Year</th>
                     <th className="text-left px-6 py-3">Email</th>
                   </tr>
@@ -690,9 +689,6 @@ export default function FacultyCoursePage() {
                         >
                           {s.name}
                         </button>
-                      </td>
-                      <td className="px-6 py-3 text-gray-700">
-                        {s.enrollmentNo || "-"}
                       </td>
                       <td className="px-6 py-3 text-gray-700">
                         {s.year || "-"}

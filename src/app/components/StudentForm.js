@@ -24,10 +24,12 @@ export default function StudentForm({
     name: "",
     email: "",
     password: "",
-    enrollmentNo: "",
     course: "",
     year: "",
+    session: "",
     phone: "",
+    parentContactNo: "",
+    bloodGroup: "",
     profileImage: "",
   });
 
@@ -107,16 +109,6 @@ export default function StudentForm({
           required
         />
 
-        <input
-          type="text"
-          name="enrollmentNo"
-          placeholder="Enrollment No."
-          value={form.enrollmentNo}
-          onChange={handleChange}
-          className="w-full border p-2 rounded"
-          required
-        />
-
         {/* Show only if admin */}
         {!hideCourseField && (
           <select
@@ -158,6 +150,33 @@ export default function StudentForm({
           onChange={handleChange}
           className="w-full border p-2 rounded"
           required
+        />
+
+        <input
+          type="tel"
+          name="parentContactNo"
+          placeholder="Parent Contact No."
+          value={form.parentContactNo}
+          onChange={handleChange}
+          className="w-full border p-2 rounded"
+        />
+
+        <input
+          type="text"
+          name="session"
+          placeholder="Session (e.g. 2026-2027)"
+          value={form.session}
+          onChange={handleChange}
+          className="w-full border p-2 rounded"
+        />
+
+        <input
+          type="text"
+          name="bloodGroup"
+          placeholder="Blood Group"
+          value={form.bloodGroup}
+          onChange={handleChange}
+          className="w-full border p-2 rounded"
         />
 
         <input

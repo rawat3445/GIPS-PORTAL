@@ -672,7 +672,6 @@ export default function AdminResultsPage() {
         {
           studentId: studentToAdd.studentId,
           studentName: studentToAdd.studentName,
-          enrollmentNo: studentToAdd.enrollmentNo,
           resultStatus: "pass",
           remarks: "",
           subjects: [],
@@ -713,7 +712,6 @@ export default function AdminResultsPage() {
         students: students.map((student) => ({
           studentId: student.studentId,
           studentName: student.studentName,
-          enrollmentNo: student.enrollmentNo,
           resultStatus: student.resultStatus || "pass",
           remarks: student.remarks || "",
           subjects: (student.subjects || []).map((subject) => ({
@@ -854,7 +852,6 @@ export default function AdminResultsPage() {
         return `
           <tr>
             <td>${index + 1}</td>
-            <td>${escapeHtml(student.enrollmentNo || "-")}</td>
             <td>${escapeHtml(student.studentName || "Student")}</td>
             ${subjectCells}
             <td>${escapeHtml(String(sumStudentTotal(student)))}</td>
@@ -972,7 +969,7 @@ export default function AdminResultsPage() {
             <p class="meta">Students: ${students.length} | Subjects: ${normalizedSubjects.length} | Grand Total: ${grandTotalMax}</p>
             <div class="legend">
               <strong>Abbreviations:</strong>
-              No. = Serial Number | DD = Enrollment No. | GT = Grand Total | Res = Result | Th = Theory | Pr = Practical | Att = Attendance | PR = Present | AB = Absent | PN = Pending | P = Pass | F = Fail
+              No. = Serial Number | GT = Grand Total | Res = Result | Th = Theory | Pr = Practical | Att = Attendance | PR = Present | AB = Absent | PN = Pending | P = Pass | F = Fail
             </div>
             <table>
               <thead>
@@ -1218,7 +1215,7 @@ export default function AdminResultsPage() {
                 <h2 className="text-lg font-semibold text-slate-950">Student Points Result Control</h2>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Choose which saved result should be counted for student points in each course-year batch. Right now batches are identified from the enrolled student data already in the portal.
+                Choose which saved result should be counted for student points in each course-year batch. Right now batches are identified from the registered student data already in the portal.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:w-[340px]">
@@ -1261,7 +1258,7 @@ export default function AdminResultsPage() {
             </div>
           ) : !batchAssignments.length ? (
             <div className="mt-5 rounded-[22px] border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-sm text-slate-500">
-              No enrolled student batches were found yet.
+              No registered student batches were found yet.
             </div>
           ) : (
             <div className="mt-5 grid gap-3">
@@ -1280,7 +1277,7 @@ export default function AdminResultsPage() {
                           {batch.course} Year {batch.year}
                         </p>
                         <p className="mt-1 text-sm text-slate-500">
-                          {batch.studentCount || 0} enrolled students • {Array.isArray(batch.availableResults) ? batch.availableResults.length : 0} saved results available
+                          {batch.studentCount || 0} registered students • {Array.isArray(batch.availableResults) ? batch.availableResults.length : 0} saved results available
                         </p>
                         <p className="mt-1 text-sm text-slate-600">
                           {batch.assignedResultName
@@ -1408,7 +1405,7 @@ export default function AdminResultsPage() {
                     )
                     .map((student) => (
                       <option key={student.studentId} value={student.studentId}>
-                        {student.studentName} {student.enrollmentNo ? `| ${student.enrollmentNo}` : ""}
+                        {student.studentName}
                       </option>
                     ))}
                 </Select>
@@ -1433,7 +1430,6 @@ export default function AdminResultsPage() {
                 <thead>
                   <tr className="border-b border-slate-200">
                     <th className="px-4 py-3 text-left font-semibold text-slate-600">S.No.</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-600">DD No.</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-600">Student Name</th>
                     {normalizedSubjects.map((subject) => (
                       <th key={subject.subjectCode} className="px-4 py-3 text-center font-semibold text-slate-600">
@@ -1458,7 +1454,6 @@ export default function AdminResultsPage() {
                   {students.map((student, studentIndex) => (
                     <tr key={student.studentId} className="border-b border-slate-100 align-top">
                       <td className="px-4 py-4 font-medium text-slate-700">{studentIndex + 1}</td>
-                      <td className="px-4 py-4 text-slate-600">{student.enrollmentNo || "-"}</td>
                       <td className="px-4 py-4 font-semibold text-slate-950">{student.studentName}</td>
                       {(student.subjects || []).map((subject, subjectIndex) => (
                         <td key={`${student.studentId}-${subject.subjectCode}`} className="px-4 py-4">
@@ -1700,7 +1695,7 @@ export default function AdminResultsPage() {
           </div>
 
             <div className="result-print-hide mt-3 rounded-[18px] border border-slate-200 bg-slate-50/80 px-4 py-3 text-xs leading-6 text-slate-600">
-              <strong>Print abbreviations:</strong> `No.` serial number, `DD` enrollment no., `GT` grand total, `Res` result, `Th` theory, `Pr` practical, `Att` attendance, `PR` present, `AB` absent, `PN` pending, `P` pass, `F` fail.
+              <strong>Print abbreviations:</strong> `No.` serial number, `GT` grand total, `Res` result, `Th` theory, `Pr` practical, `Att` attendance, `PR` present, `AB` absent, `PN` pending, `P` pass, `F` fail.
             </div>
 
             <div className="hidden print:block print:mb-3">
@@ -1717,7 +1712,6 @@ export default function AdminResultsPage() {
                 <thead>
                   <tr className="border-b border-slate-300 bg-slate-50">
                     <th rowSpan={2} className="border-r border-slate-300 px-3 py-3 text-left font-semibold text-slate-700">S.No.</th>
-                    <th rowSpan={2} className="border-r border-slate-300 px-3 py-3 text-left font-semibold text-slate-700">DD No.</th>
                     <th rowSpan={2} className="border-r border-slate-300 px-3 py-3 text-left font-semibold text-slate-700">Name of Student</th>
                     {normalizedSubjects.map((subject) => (
                       <th
@@ -1797,7 +1791,6 @@ export default function AdminResultsPage() {
                   {students.map((student, index) => (
                     <tr key={`preview-${student.studentId}`} className="border-b border-slate-200">
                       <td className="border-r border-slate-200 px-3 py-3 text-slate-700">{index + 1}</td>
-                      <td className="border-r border-slate-200 px-3 py-3 text-slate-700">{student.enrollmentNo || "-"}</td>
                       <td className="border-r border-slate-200 px-3 py-3 font-medium text-slate-900">{student.studentName}</td>
                       {(student.subjects || []).flatMap((subject) => {
                         const columns = [];

@@ -21,7 +21,6 @@ function formatStudent(student, attendancePercentage, markedDays) {
     email: student.email,
     course: student.course || "",
     year: student.year || "",
-    enrollmentNo: student.enrollmentNo || "",
     attendancePercentage,
     markedDays,
   };
@@ -48,7 +47,7 @@ export async function GET(request) {
       role: "student",
       course,
     })
-      .select("name email course year enrollmentNo createdAt")
+      .select("name email course year createdAt")
       .lean();
 
     const performanceStudents = await buildStudentAttendancePerformanceList(

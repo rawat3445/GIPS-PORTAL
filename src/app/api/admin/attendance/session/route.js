@@ -31,7 +31,7 @@ async function buildSessionResponse(sessionId) {
   }
 
   const scans = await AttendanceScanLog.find({ sessionId: session._id })
-    .populate("studentId", "name enrollmentNo course year profileImage")
+    .populate("studentId", "name course year profileImage")
     .sort({ createdAt: -1 })
     .lean();
 
@@ -44,7 +44,6 @@ async function buildSessionResponse(sessionId) {
       student: {
         _id: String(scan.studentId?._id || ""),
         name: String(scan.studentId?.name || "").trim(),
-        enrollmentNo: String(scan.studentId?.enrollmentNo || "").trim(),
         course: String(scan.studentId?.course || "").trim(),
         year: Number(scan.studentId?.year || 0),
         profileImage: String(scan.studentId?.profileImage || "").trim(),
@@ -289,7 +288,7 @@ export async function PATCH(request) {
       course: session.course,
       year: session.year,
     })
-      .select("name enrollmentNo course year")
+      .select("name course year")
       .lean();
 
     if (!students.length) {
@@ -332,10 +331,10 @@ export async function PATCH(request) {
       {
         $set: {
           markedBy: auth.decoded.id,
-          approvalStatus: "approved",
-          reviewedBy: auth.decoded.id,
-          reviewedAt: new Date(),
-          reviewNote: "Approved automatically from admin QR attendance session",
+          approvalStatus: "pending",
+          reviewedBy: null,
+          reviewedAt: null,
+          reviewNote: "",
           records,
         },
       },
@@ -354,13 +353,13 @@ export async function PATCH(request) {
     await logActivity({
       actor: admin,
       actionType: "attendance_marked",
-      actionLabel: "Finalized admin QR attendance",
+      actionLabel: "Submitted admin QR attendance",
       path: "/dashboard/admin/attendance/scan",
       details: [
-        `Finalized admin QR attendance for ${session.course} Year ${session.year} on ${session.date}`,
+        `Submitted admin QR attendance for ${session.course} Year ${session.year} on ${session.date}`,
         `Present: ${session.presentCount}`,
         `Absent: ${session.absentCount}`,
-        "Approval: auto-approved by admin",
+        "Approval: pending admin approval",
       ].join(" | "),
       metadata: {
         sessionId: session._id,
@@ -378,7 +377,7 @@ export async function PATCH(request) {
     const detail = await buildSessionResponse(session._id);
 
     return NextResponse.json({
-      message: "Admin QR attendance finalized and approved",
+      message: "Admin QR attendance submitted for approval",
       attendanceId: attendance._id,
       session: detail,
     });

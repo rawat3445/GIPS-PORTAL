@@ -31,7 +31,7 @@ async function buildSessionResponse(sessionId) {
   }
 
   const scans = await AttendanceScanLog.find({ sessionId: session._id })
-    .populate("studentId", "name enrollmentNo course year profileImage")
+    .populate("studentId", "name course year profileImage")
     .sort({ createdAt: -1 })
     .lean();
 
@@ -44,7 +44,6 @@ async function buildSessionResponse(sessionId) {
       student: {
         _id: String(scan.studentId?._id || ""),
         name: String(scan.studentId?.name || "").trim(),
-        enrollmentNo: String(scan.studentId?.enrollmentNo || "").trim(),
         course: String(scan.studentId?.course || "").trim(),
         year: Number(scan.studentId?.year || 0),
         profileImage: String(scan.studentId?.profileImage || "").trim(),
@@ -328,7 +327,7 @@ export async function PATCH(request) {
       course: session.course,
       year: session.year,
     })
-      .select("name enrollmentNo course year")
+      .select("name course year")
       .lean();
 
     if (!students.length) {

@@ -1395,8 +1395,7 @@ export function AdminAttendancePageContent({
                             {student.name}
                           </p>
                           <p className="mt-1 text-xs text-gray-500">
-                            {student.enrollmentNo || "No enrollment"} | Year{" "}
-                            {student.year || "-"}
+                            Year {student.year || "-"}
                           </p>
                           {student.activeEvent && (
                             <p className="mt-2 text-xs font-medium text-amber-800">
@@ -1585,9 +1584,6 @@ export function AdminAttendancePageContent({
                     <thead className="bg-gray-50 border-b border-gray-300">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
-                          Enrollment
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
                           Name
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
@@ -1604,9 +1600,6 @@ export function AdminAttendancePageContent({
                           key={index}
                           className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50"
                         >
-                          <td className="px-4 py-3 font-medium text-gray-900">
-                            {record.studentId?.enrollmentNo || "-"}
-                          </td>
                           <td className="px-4 py-3 font-medium text-gray-950">
                             <button
                               type="button"

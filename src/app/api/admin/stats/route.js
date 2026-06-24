@@ -18,7 +18,6 @@ function formatStudent(student) {
     email: student.email,
     course: student.course || "",
     year: student.year || "",
-    enrollmentNo: student.enrollmentNo || "",
     createdAt: student.createdAt || null,
   };
 }
@@ -76,7 +75,7 @@ export async function GET() {
         role: "student",
         createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
       })
-        .select("name email course year enrollmentNo createdAt")
+        .select("name email course year createdAt")
         .sort({ createdAt: -1 })
         .lean(),
       Attendance.aggregate([
@@ -85,7 +84,7 @@ export async function GET() {
         { $group: { _id: "$records.studentId" } },
       ]),
       User.find({ role: "student" })
-        .select("name email course year enrollmentNo createdAt")
+        .select("name email course year createdAt")
         .lean(),
     ]);
 
@@ -139,7 +138,7 @@ export async function GET() {
     };
 
     const inactiveStudentDocs = await User.find(inactiveQuery)
-      .select("name email course year enrollmentNo createdAt")
+      .select("name email course year createdAt")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -165,7 +164,7 @@ export async function GET() {
           role: "student",
           course: item._id,
         })
-          .select("name email course year enrollmentNo")
+          .select("name email course year")
           .sort({ name: 1 })
           .lean();
 
@@ -185,7 +184,7 @@ export async function GET() {
           role: "student",
           year: item._id,
         })
-          .select("name email course year enrollmentNo")
+          .select("name email course year")
           .sort({ name: 1 })
           .lean();
 

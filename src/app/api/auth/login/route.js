@@ -19,10 +19,6 @@ function normalizeEmailValue(value) {
   return String(value || "").trim().replace(/\s+/g, "").toLowerCase();
 }
 
-function normalizeEnrollmentValue(value) {
-  return String(value || "").trim().replace(/\s+/g, "").toUpperCase();
-}
-
 function buildIdentifierQuery(identifier) {
   const trimmed = String(identifier || "").trim();
   const emailLikeValue = normalizeEmailValue(trimmed);
@@ -31,20 +27,14 @@ function buildIdentifierQuery(identifier) {
     $or: [
       { email: emailLikeValue },
       { email: new RegExp(`^\\s*${escapeRegex(emailLikeValue)}\\s*$`, "i") },
-      { enrollmentNo: trimmed },
-      { enrollmentNo: new RegExp(`^\\s*${escapeRegex(trimmed)}\\s*$`, "i") },
     ],
   };
 }
 
 function userMatchesIdentifier(user, identifier) {
   const normalizedEmail = normalizeEmailValue(identifier);
-  const normalizedEnrollment = normalizeEnrollmentValue(identifier);
 
-  return (
-    normalizeEmailValue(user?.email) === normalizedEmail ||
-    normalizeEnrollmentValue(user?.enrollmentNo) === normalizedEnrollment
-  );
+  return normalizeEmailValue(user?.email) === normalizedEmail;
 }
 
 async function passwordMatches(user, submittedPassword) {
@@ -113,13 +103,13 @@ export async function POST(req) {
 
     const body = await req.json();
     const identifier = String(
-      body?.email || body?.identifier || body?.enrollmentNo || ""
+      body?.email || body?.identifier || ""
     ).trim();
     const password = String(body?.password || "");
 
     if (!identifier || !password) {
       return NextResponse.json(
-        { message: "Email or enrollment number and password are required" },
+        { message: "Email and password are required" },
         { status: 400 }
       );
     }

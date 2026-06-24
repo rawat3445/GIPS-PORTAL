@@ -13,12 +13,7 @@ import {
 import { logActivity } from "../../../lib/activity";
 
 function formatStudentLabel(student) {
-  const parts = [
-    String(student?.name || "").trim(),
-    String(student?.enrollmentNo || "").trim(),
-  ].filter(Boolean);
-
-  return parts.join(" ");
+  return String(student?.name || "").trim();
 }
 
 function summarizeStudentLabels(students, limit = 5) {
@@ -41,7 +36,6 @@ function serializeStudent(student, extra = {}) {
   return {
     studentId: String(student?._id || extra.studentId || ""),
     name: String(student?.name || extra.name || "").trim(),
-    enrollmentNo: String(student?.enrollmentNo || extra.enrollmentNo || "").trim(),
     course: String(student?.course || extra.course || "").trim(),
     year: Number(student?.year || extra.year || 0),
     ...extra,
@@ -174,7 +168,7 @@ export async function POST(request) {
       _id: { $in: uniqueStudentIds },
       role: "student",
     })
-      .select("name enrollmentNo course year")
+      .select("name course year")
       .lean();
 
     const studentMap = new Map(

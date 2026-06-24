@@ -617,9 +617,6 @@ export default function AdminClassTestsPage() {
                       Student
                     </th>
                     <th className="border border-slate-200 px-4 py-3 text-left font-semibold text-slate-700">
-                      Enrollment
-                    </th>
-                    <th className="border border-slate-200 px-4 py-3 text-left font-semibold text-slate-700">
                       Marks
                     </th>
                     <th className="border border-slate-200 px-4 py-3 text-left font-semibold text-slate-700">
@@ -637,9 +634,6 @@ export default function AdminClassTestsPage() {
                         <p className="font-semibold text-slate-950">
                           {student.studentName}
                         </p>
-                      </td>
-                      <td className="border border-slate-200 px-4 py-4 text-slate-600">
-                        {student.enrollmentNo || "-"}
                       </td>
                       <td className="border border-slate-200 px-4 py-4">
                         <Input

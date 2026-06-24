@@ -20,12 +20,6 @@ const AttendanceScanLogSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    enrollmentNo: {
-      type: String,
-      required: true,
-      trim: true,
-      uppercase: true,
-    },
     course: {
       type: String,
       required: true,

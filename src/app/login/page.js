@@ -1357,7 +1357,7 @@ export default function LoginPage() {
                         className="mb-2 block text-xs font-semibold uppercase tracking-widest"
                         style={{ color: "rgba(255,255,255,0.38)" }}
                       >
-                        Email Address or Enrollment No.
+                        Email Address
                       </label>
                       <div
                         className="input-wrap flex items-center gap-3 px-4 py-3.5"

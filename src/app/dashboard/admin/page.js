@@ -483,11 +483,6 @@ function StudentWatchCard({
                             <span
                               className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${styles.chip}`}
                             >
-                              {student.enrollmentNo || "No enrollment"}
-                            </span>
-                            <span
-                              className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${styles.chip}`}
-                            >
                               {student.course || "-"}
                             </span>
                             <span
@@ -1107,9 +1102,6 @@ export default function AdminDashboard() {
                             {student.email}
                           </p>
                           <div className="mt-3 flex flex-wrap gap-2">
-                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700">
-                              {student.enrollmentNo || "No enrollment"}
-                            </span>
                             <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700">
                               {student.course || "-"}
                             </span>

@@ -12,7 +12,6 @@ export async function POST(req) {
     const name = String(body?.name || "").trim();
     const email = String(body?.email || "").trim().toLowerCase();
     const password = String(body?.password || "");
-    const enrollmentNo = String(body?.enrollmentNo || "").trim();
     const course = String(body?.course || "").trim().toUpperCase();
     const phone = String(body?.phone || "").trim();
     const year =
@@ -20,7 +19,7 @@ export async function POST(req) {
         ? NaN
         : Number(body.year);
 
-    if (!name || !email || !password || !enrollmentNo || !course || !phone) {
+    if (!name || !email || !password || !course || !phone) {
       return NextResponse.json(
         { message: "All student fields are required" },
         { status: 400 }
@@ -43,12 +42,10 @@ export async function POST(req) {
 
     await connectDB();
 
-    const existingUser = await User.findOne({
-      $or: [{ email }, { enrollmentNo }],
-    });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return NextResponse.json(
-        { message: "User already exists with this email or enrollment number" },
+        { message: "User already exists with this email" },
         { status: 400 }
       );
     }
@@ -60,7 +57,6 @@ export async function POST(req) {
       email,
       password: hashedPassword,
       role: "student",
-      enrollmentNo,
       course,
       year,
       phone,

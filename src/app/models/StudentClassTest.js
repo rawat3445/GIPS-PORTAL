@@ -9,7 +9,6 @@ const StudentClassTestEntrySchema = new mongoose.Schema(
       index: true,
     },
     studentName: { type: String, default: "", trim: true },
-    enrollmentNo: { type: String, default: "", trim: true },
     marksObtained: { type: Number, default: 0, min: 0 },
     status: {
       type: String,

@@ -377,7 +377,7 @@ export default function AdminScanAttendancePage() {
 
       setSession(data.session || null);
       setScannerEnabled(false);
-      setMessage(data.message || "Admin QR attendance finalized");
+      setMessage(data.message || "Admin QR attendance submitted for approval");
     } catch (finalizeError) {
       setError(finalizeError.message || "Failed to finalize admin QR attendance");
     } finally {
@@ -651,7 +651,7 @@ export default function AdminScanAttendancePage() {
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-700">
                   If live camera does not start on your phone, capture or upload
-                  a QR photo here, or type the enrollment number below.
+                  a QR photo here.
                 </p>
 
                 <label className="mt-4 inline-flex cursor-pointer items-center justify-center rounded-2xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700">
@@ -679,8 +679,7 @@ export default function AdminScanAttendancePage() {
                   Hardware Scanner Input
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-700">
-                  Scan the student QR here with a USB scanner, or type the
-                  enrollment number and press Enter.
+                  Scan the student QR here with a USB scanner and press Enter.
                 </p>
                 <input
                   type="text"
@@ -692,7 +691,7 @@ export default function AdminScanAttendancePage() {
                       submitScan(manualValue.trim(), "hardware").catch(() => {});
                     }
                   }}
-                  placeholder="Scan QR here or type enrollment number and press Enter"
+                  placeholder="Scan QR here and press Enter"
                   className="mt-4 w-full rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-400"
                 />
               </div>
@@ -760,7 +759,6 @@ export default function AdminScanAttendancePage() {
                               {entry.student?.name || "Student"}
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
-                              {entry.student?.enrollmentNo || "-"} |{" "}
                               {entry.student?.course || "-"} | Year{" "}
                               {entry.student?.year || "-"}
                             </p>

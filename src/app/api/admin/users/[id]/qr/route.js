@@ -17,7 +17,7 @@ export async function GET(_request, { params }) {
 
     const { id } = await params;
     const student = await User.findOne({ _id: id, role: "student" })
-      .select("_id name enrollmentNo email course year")
+      .select("_id name email course year")
       .lean();
 
     if (!student) {
@@ -29,7 +29,6 @@ export async function GET(_request, { params }) {
       student: {
         _id: String(student._id),
         name: String(student.name || "").trim(),
-        enrollmentNo: String(student.enrollmentNo || "").trim(),
         course: String(student.course || "").trim(),
         year: Number(student.year || 0),
       },

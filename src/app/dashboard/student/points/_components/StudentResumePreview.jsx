@@ -85,7 +85,6 @@ function ContactLine({ personal }) {
     safeString(personal.linkedin),
     safeString(personal.github),
     safeString(personal.portfolio),
-    safeString(personal.enrollmentNo),
     [safeString(personal.course), personal.year ? `Year ${personal.year}` : ""]
       .filter(Boolean)
       .join(" | "),
@@ -478,7 +477,6 @@ function ModernTemplate({ resume }) {
             <p className="mt-2 text-sm leading-7 text-white/75">
               {[
                 [safeString(personal.city), safeString(personal.state)].filter(Boolean).join(", "),
-                safeString(personal.enrollmentNo),
                 [safeString(personal.course), personal.year ? `Year ${personal.year}` : ""]
                   .filter(Boolean)
                   .join(" | "),

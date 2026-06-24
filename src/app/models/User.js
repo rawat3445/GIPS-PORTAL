@@ -67,16 +67,6 @@ const userSchema = new mongoose.Schema(
     },
 
     // ================= STUDENT =================
-    enrollmentNo: {
-      type: String,
-      trim: true,
-      unique: true,
-      sparse: true, // ⭐ CRITICAL FIX
-      required: function () {
-        return this.role === "student";
-      },
-    },
-
     course: {
       type: String,
       enum: ["BPT", "BOPTOM", "BMRIT", "DOPTOM", "BOTT"],
@@ -103,6 +93,24 @@ const userSchema = new mongoose.Schema(
           (this.role === "faculty" && this.facultyType === "nonTeaching")
         );
       },
+    },
+
+    parentContactNo: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    bloodGroup: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    session: {
+      type: String,
+      trim: true,
+      default: "",
     },
 
     studentLoginWindowStartDate: {
@@ -151,6 +159,9 @@ if (
   (!existingUserModel.schema.path("profileImage") ||
     !existingUserModel.schema.path("profileImagePublicId") ||
     !existingUserModel.schema.path("facultyType") ||
+    !existingUserModel.schema.path("parentContactNo") ||
+    !existingUserModel.schema.path("bloodGroup") ||
+    !existingUserModel.schema.path("session") ||
     !existingUserModel.schema.path("studentLoginWindowStartDate") ||
     !existingUserModel.schema.path("studentLoginResetAt") ||
     !existingUserModel.schema.path("studentLastLoginAt") ||

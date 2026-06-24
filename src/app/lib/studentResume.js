@@ -60,7 +60,6 @@ export function createResumeDraft(student = {}) {
   const fullName = safeString(student.name);
   const email = safeString(student.email).toLowerCase();
   const phone = safeString(student.phone);
-  const enrollmentNo = safeString(student.enrollmentNo).toUpperCase();
   const profileImage = safeString(student.profileImage);
 
   return {
@@ -77,7 +76,6 @@ export function createResumeDraft(student = {}) {
       github: "",
       portfolio: "",
       profileImage,
-      enrollmentNo,
       course,
       year,
     },
@@ -210,9 +208,6 @@ export function normalizeResumePayload(payload = {}, student = {}) {
       portfolio: safeUrl(personal.portfolio),
       profileImage:
         safeUrl(personal.profileImage) || fallbackDraft.personal.profileImage,
-      enrollmentNo:
-        safeString(personal.enrollmentNo).toUpperCase() ||
-        fallbackDraft.personal.enrollmentNo,
       course:
         safeString(personal.course).toUpperCase() || fallbackDraft.personal.course,
       year: safeNumber(personal.year) ?? fallbackDraft.personal.year,

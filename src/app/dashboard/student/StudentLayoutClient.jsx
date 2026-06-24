@@ -161,7 +161,6 @@ export default function StudentLayoutClient({ children }) {
   }, [me?._id, pathname]);
 
   const studentSubText = [
-    me?.enrollmentNo || "",
     me?.course || "",
     me?.year ? `Year ${me.year}` : "",
   ]

@@ -1571,8 +1571,7 @@ export default function MarkAttendancePage() {
                               {student.name}
                             </p>
                             <p className="mt-1 text-xs text-gray-500">
-                              {student.enrollmentNo || "No enrollment"} | Year{" "}
-                              {student.year || "-"}
+                              Year {student.year || "-"}
                             </p>
                             {student.activeEvent && (
                               <p className="mt-2 text-xs font-medium text-amber-800">
@@ -1671,7 +1670,7 @@ export default function MarkAttendancePage() {
               Student List
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              Only students enrolled in {course}, year {selectedYear} are shown.
+              Only students registered in {course}, year {selectedYear} are shown.
             </p>
           </div>
 
@@ -1698,9 +1697,6 @@ export default function MarkAttendancePage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="text-left py-3 px-6 text-sm font-medium text-gray-600">
-                      Enrollment
-                    </th>
-                    <th className="text-left py-3 px-6 text-sm font-medium text-gray-600">
                       Student Name
                     </th>
                     <th className="text-left py-3 px-6 text-sm font-medium text-gray-600">
@@ -1719,10 +1715,6 @@ export default function MarkAttendancePage() {
 
                     return (
                       <tr key={student._id} className="hover:bg-gray-50">
-                        <td className="py-4 px-6 text-sm font-medium text-gray-900">
-                          {student.enrollmentNo || "-"}
-                        </td>
-
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-3">
                             <ProfileAvatar

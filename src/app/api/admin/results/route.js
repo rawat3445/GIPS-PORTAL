@@ -203,7 +203,6 @@ function buildStudentRow(row, subjects) {
   return {
     studentId: row.studentId,
     studentName: safeString(row.studentName),
-    enrollmentNo: safeString(row.enrollmentNo),
     subjects: normalizedSubjects,
     totalMarks,
     maxMarks,
@@ -258,7 +257,6 @@ function mergeStudentRows(existingStudents, incomingStudents, subjects) {
     rows.set(key, {
       studentId: key,
       studentName: safeString(student?.studentName),
-      enrollmentNo: safeString(student?.enrollmentNo),
       resultStatus: safeString(student?.resultStatus) || "pass",
       remarks: safeString(student?.remarks),
       subjects: normalizeArrayInput(student?.subjects),
@@ -286,7 +284,6 @@ function mergeStudentRows(existingStudents, incomingStudents, subjects) {
     rows.set(key, {
       studentId: key,
       studentName: safeString(student?.studentName || previous?.studentName),
-      enrollmentNo: safeString(student?.enrollmentNo || previous?.enrollmentNo),
       resultStatus:
         safeString(student?.resultStatus) ||
         safeString(previous?.resultStatus) ||
@@ -325,7 +322,7 @@ export async function GET(request) {
       const [resultDoc, students] = await Promise.all([
         StudentResult.findOne({ course, year, resultName }).lean(),
         User.find({ role: "student", course, year })
-          .select("name enrollmentNo course year")
+          .select("name course year")
           .sort({ name: 1 })
           .lean(),
       ]);
@@ -348,10 +345,6 @@ export async function GET(request) {
                 safeString(entry.studentName) ||
                 linkedStudent?.name ||
                 "Student",
-              enrollmentNo:
-                safeString(entry.enrollmentNo) ||
-                linkedStudent?.enrollmentNo ||
-                "",
               resultStatus: entry?.resultStatus || "pass",
               remarks: entry?.remarks || "",
               subjects: buildStudentSubjects(entry || {}, subjectDefinitions),
@@ -360,7 +353,6 @@ export async function GET(request) {
         : students.map((student) => ({
             studentId: String(student._id),
             studentName: student.name || "Student",
-            enrollmentNo: student.enrollmentNo || "",
             resultStatus: "pass",
             remarks: "",
             subjects: buildStudentSubjects({}, subjectDefinitions),
@@ -377,7 +369,6 @@ export async function GET(request) {
         availableStudents: students.map((student) => ({
           studentId: String(student._id),
           studentName: student.name || "Student",
-          enrollmentNo: student.enrollmentNo || "",
         })),
       });
     }

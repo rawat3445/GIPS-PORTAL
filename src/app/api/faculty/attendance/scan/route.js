@@ -58,27 +58,18 @@ export async function POST(request) {
       student = await User.findOne({
         _id: payload.studentId,
         role: "student",
-        enrollmentNo: payload.enrollmentNo,
       })
-        .select("name enrollmentNo course year profileImage")
+        .select("name course year profileImage")
         .lean();
     } catch {
-      const normalizedEnrollmentNo = qrText.toUpperCase();
-      student = await User.findOne({
-        role: "student",
-        enrollmentNo: normalizedEnrollmentNo,
-        course: String(session.course || "").toUpperCase(),
-        year: Number(session.year || 0),
-      })
-        .select("name enrollmentNo course year profileImage")
-        .lean();
+      student = null;
     }
 
     if (!student) {
       return NextResponse.json(
         {
           message:
-            "Student could not be verified from this QR code or enrollment number",
+            "Student could not be verified from this QR code",
         },
         { status: 400 },
       );
@@ -117,7 +108,6 @@ export async function POST(request) {
         sessionId: session._id,
         studentId: student._id,
         scannedBy: auth.decoded.id,
-        enrollmentNo: student.enrollmentNo,
         course: session.course,
         year: session.year,
         date: session.date,
@@ -144,7 +134,6 @@ export async function POST(request) {
       student: {
         _id: String(student._id),
         name: String(student.name || "").trim(),
-        enrollmentNo: String(student.enrollmentNo || "").trim(),
         course: String(student.course || "").trim(),
         year: Number(student.year || 0),
         profileImage: String(student.profileImage || "").trim(),

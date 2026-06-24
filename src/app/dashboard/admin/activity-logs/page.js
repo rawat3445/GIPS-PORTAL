@@ -150,10 +150,7 @@ function formatAccessStatus(status) {
 function formatTrackedStudent(student) {
   if (!student) return "-";
 
-  const parts = [
-    student.name || "Student",
-    student.enrollmentNo ? `(${student.enrollmentNo})` : "",
-  ].filter(Boolean);
+  const parts = [student.name || "Student"].filter(Boolean);
 
   return parts.join(" ");
 }
@@ -748,7 +745,6 @@ export default function AdminActivityLogsPage({
                             </div>
                             <p className="mt-1 text-sm text-slate-600">
                               {student.course} • Year {student.year}
-                              {student.enrollmentNo ? ` • ${student.enrollmentNo}` : ""}
                             </p>
                             <p className="mt-1 break-all text-xs text-slate-500">
                               {student.email || "-"}

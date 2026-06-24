@@ -678,7 +678,6 @@ export default function FacultyScanAttendancePage() {
                 <p className="mt-2 text-sm leading-6 text-slate-700">
                   If you use a USB barcode or QR scanner, place the cursor here and scan
                   the student card. Most scanners type the QR content like a keyboard.
-                  You can also type a student&apos;s enrollment number here and press Enter.
                 </p>
                 <input
                   type="text"
@@ -690,7 +689,7 @@ export default function FacultyScanAttendancePage() {
                       submitScan(manualValue.trim(), "hardware").catch(() => {});
                     }
                   }}
-                  placeholder="Scan QR here or type enrollment number and press Enter"
+                  placeholder="Scan QR here and press Enter"
                   className="mt-4 w-full rounded-2xl border border-orange-200 bg-white px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-400"
                 />
               </div>
@@ -758,7 +757,6 @@ export default function FacultyScanAttendancePage() {
                               {entry.student?.name || "Student"}
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
-                              {entry.student?.enrollmentNo || "-"} |{" "}
                               {entry.student?.course || "-"} | Year{" "}
                               {entry.student?.year || "-"}
                             </p>

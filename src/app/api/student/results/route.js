@@ -22,7 +22,7 @@ export async function GET() {
     await connectDB();
 
     const student = await User.findById(auth.decoded.id).select(
-      "name course year enrollmentNo role",
+      "name course year role",
     );
 
     if (!student || String(student.role || "").toLowerCase() !== "student") {
@@ -82,7 +82,6 @@ export async function GET() {
     return NextResponse.json({
       student: {
         name: student.name,
-        enrollmentNo: student.enrollmentNo || "",
         course: student.course,
         year: student.year,
       },

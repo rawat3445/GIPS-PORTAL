@@ -30,7 +30,6 @@ function normalizeStudentRows(rows, { totalMarks, passingMarks }) {
       return {
         studentId,
         studentName: safeClassTestText(row?.studentName),
-        enrollmentNo: safeClassTestText(row?.enrollmentNo),
         marksObtained: Math.min(marksObtained, Math.max(0, totalMarks)),
         status: normalizeClassTestStudentStatus(status, "pending"),
         remarks: safeClassTestText(row?.remarks),
@@ -63,7 +62,6 @@ function buildStudentRowsForBatch(students, testDoc, { totalMarks, passingMarks 
     return {
       studentId: String(student._id),
       studentName: student.name || "Student",
-      enrollmentNo: student.enrollmentNo || "",
       marksObtained,
       status,
       remarks: safeClassTestText(savedRow?.remarks),
@@ -97,7 +95,7 @@ export async function GET(request) {
           subjectName,
         }).lean(),
         User.find({ role: "student", course, year })
-          .select("name enrollmentNo")
+          .select("name")
           .sort({ name: 1 })
           .lean(),
       ]);

@@ -176,7 +176,6 @@ async function buildStudentAttendanceSummary(student) {
       email: student.email,
       course: student.course,
       year: student.year,
-      enrollmentNo: student.enrollmentNo,
     },
     startDate: ATTENDANCE_START_DATE,
     currentDate: todayISO,
@@ -234,7 +233,7 @@ export async function GET(req) {
         _id: studentId,
         role: "student",
       })
-        .select("name email enrollmentNo course year")
+        .select("name email course year")
         .lean();
 
       if (!student) {
@@ -264,7 +263,7 @@ export async function GET(req) {
     }
 
     const attendance = await Attendance.find(query)
-      .populate("records.studentId", "name email enrollmentNo course year")
+      .populate("records.studentId", "name email course year")
       .populate("markedBy", "name email")
       .populate("reviewedBy", "name email")
       .sort({ date: -1, course: 1, year: 1 })

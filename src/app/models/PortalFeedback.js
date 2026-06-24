@@ -19,11 +19,6 @@ const PortalFeedbackSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
-    enrollmentNo: {
-      type: String,
-      default: "",
-      trim: true,
-    },
     course: {
       type: String,
       default: "",

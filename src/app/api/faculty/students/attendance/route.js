@@ -184,7 +184,6 @@ async function buildStudentAttendanceSummary(student) {
       email: student.email,
       course: student.course,
       year: student.year,
-      enrollmentNo: student.enrollmentNo,
     },
     startDate: ATTENDANCE_START_DATE,
     currentDate: todayISO,
@@ -235,7 +234,7 @@ export async function GET(request) {
       _id: studentId,
       role: "student",
     })
-      .select("name email enrollmentNo course year")
+      .select("name email course year")
       .lean();
 
     if (!student) {

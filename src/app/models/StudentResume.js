@@ -112,7 +112,6 @@ const StudentResumeSchema = new mongoose.Schema(
       github: { type: String, default: "", trim: true },
       portfolio: { type: String, default: "", trim: true },
       profileImage: { type: String, default: "", trim: true },
-      enrollmentNo: { type: String, default: "", trim: true },
       course: { type: String, default: "", trim: true },
       year: { type: Number, default: null },
     },

@@ -127,12 +127,37 @@ export async function PATCH(req, { params }) {
         pushChangedField(changedFields, "phone");
       }
 
-      if (
-        typeof body.enrollmentNo === "string" &&
-        body.enrollmentNo.trim()
-      ) {
-        updates.enrollmentNo = body.enrollmentNo.trim();
-        pushChangedField(changedFields, "enrollment number");
+      if (typeof body.parentContactNo === "string") {
+        const trimmedParentContactNo = body.parentContactNo.trim();
+        if (trimmedParentContactNo) {
+          updates.parentContactNo = trimmedParentContactNo;
+          pushChangedField(changedFields, "parent contact no");
+        } else if (user.parentContactNo) {
+          unsetFields.parentContactNo = 1;
+          pushChangedField(changedFields, "parent contact no");
+        }
+      }
+
+      if (typeof body.bloodGroup === "string") {
+        const trimmedBloodGroup = body.bloodGroup.trim().toUpperCase();
+        if (trimmedBloodGroup) {
+          updates.bloodGroup = trimmedBloodGroup;
+          pushChangedField(changedFields, "blood group");
+        } else if (user.bloodGroup) {
+          unsetFields.bloodGroup = 1;
+          pushChangedField(changedFields, "blood group");
+        }
+      }
+
+      if (typeof body.session === "string") {
+        const trimmedSession = body.session.trim();
+        if (trimmedSession) {
+          updates.session = trimmedSession;
+          pushChangedField(changedFields, "session");
+        } else if (user.session) {
+          unsetFields.session = 1;
+          pushChangedField(changedFields, "session");
+        }
       }
 
       if (typeof body.course === "string" && body.course.trim()) {
