@@ -17,7 +17,6 @@ const COURSE_NAMES = {
 const COLLEGE_NAME = "Garhwal Institute of Paramedical Sciences";
 const COLLEGE_AFFILIATION =
   "Affiliated to HNB Uttarakhand Medical Education University, Dehradun";
-const CARD_ADDRESS = "Near Srikot, Pauri Garhwal, Uttarakhand";
 const CARD_AUTHORITY = "Principal";
 const COLLEGE_PHONE = "+91 7454998289";
 const COLLEGE_WEBSITE = "gips.institute";
@@ -311,15 +310,17 @@ function AttendanceSummaryModal({
   );
 }
 
-function StudentQrPanel({ student }) {
+function StudentQrPanel({ student, onStudentUpdated }) {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [qrError, setQrError] = useState("");
   const [signatureDataUrl, setSignatureDataUrl] = useState("");
+  const [cardAddressSaving, setCardAddressSaving] = useState(false);
+  const [cardAddressMessage, setCardAddressMessage] = useState("");
   const [cardBackFields, setCardBackFields] = useState({
     phone: COLLEGE_PHONE,
     website: COLLEGE_WEBSITE,
     message: CARD_FOUND_MESSAGE,
-    address: CARD_ADDRESS,
+    address: student.studentCardAddress || "",
   });
   const courseLabel =
     COURSE_NAMES[student.course] || student.course || "Student";
@@ -332,6 +333,8 @@ function StudentQrPanel({ student }) {
   const studentCardId = getStudentCardId(student);
   const websiteLabel =
     cardBackFields.website || COLLEGE_WEBSITE;
+  const studentResidentialAddress =
+    cardBackFields.address || "Student residential address not saved";
 
   function handlePrintCard() {
     if (typeof window === "undefined" || !qrDataUrl) {
@@ -770,8 +773,8 @@ function StudentQrPanel({ student }) {
                   </div>
                 </div>
                 <div class="address-box">
-                  <div class="address-label">Address</div>
-                  <div class="address-value">${cardBackFields.address}</div>
+                  <div class="address-label">Student Residential Address</div>
+                  <div class="address-value">${studentResidentialAddress}</div>
                 </div>
               </div>
             </div>
@@ -912,6 +915,47 @@ function StudentQrPanel({ student }) {
     }
 
   }, []);
+
+  useEffect(() => {
+    setCardBackFields({
+      phone: COLLEGE_PHONE,
+      website: COLLEGE_WEBSITE,
+      message: CARD_FOUND_MESSAGE,
+      address: student.studentCardAddress || "",
+    });
+    setCardAddressMessage("");
+  }, [student._id, student.studentCardAddress]);
+
+  async function handleSaveCardAddress() {
+    if (!student?._id) return;
+
+    try {
+      setCardAddressSaving(true);
+      setCardAddressMessage("");
+
+      const res = await fetch(`/api/admin/users/${student._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentCardAddress: cardBackFields.address,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || "Unable to save address");
+      }
+
+      if (data?.user) {
+        onStudentUpdated?.(data.user);
+      }
+      setCardAddressMessage("Student residential address saved.");
+    } catch (error) {
+      setCardAddressMessage(error.message || "Unable to save address");
+    } finally {
+      setCardAddressSaving(false);
+    }
+  }
 
   return (
     <div className="space-y-5 px-4 py-4 md:px-6 md:py-6">
@@ -1135,10 +1179,10 @@ function StudentQrPanel({ student }) {
             </div>
             <div className="relative z-[2] mt-1 rounded-[10px] border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(239,246,255,0.86))] px-[6px] py-[4px] text-center">
               <p className="text-[5px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                Address
+                Student Residential Address
               </p>
               <p className="mt-0.5 text-[7px] font-semibold leading-[1.05] text-slate-900">
-                {cardBackFields.address}
+                {studentResidentialAddress}
               </p>
             </div>
           </div>
@@ -1200,7 +1244,7 @@ function StudentQrPanel({ student }) {
           </div>
           <div className="md:col-span-2">
             <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">
-              Address
+              Student Residential Address
             </label>
             <textarea
               value={cardBackFields.address}
@@ -1212,9 +1256,35 @@ function StudentQrPanel({ student }) {
               }
               rows={2}
               className="w-full rounded-xl border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(239,246,255,0.84))] px-3 py-2.5 text-sm font-medium text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_24px_-18px_rgba(14,116,144,0.45)] outline-none placeholder:text-slate-400 focus:border-sky-200 focus:ring-2 focus:ring-sky-400/40"
+              placeholder="Enter this student's residential address"
             />
           </div>
         </div>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-slate-600">
+            College phone, website and message stay as default; only this
+            student's residential address is saved.
+          </p>
+          <button
+            type="button"
+            onClick={handleSaveCardAddress}
+            disabled={cardAddressSaving}
+            className="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {cardAddressSaving ? "Saving..." : "Save Address"}
+          </button>
+        </div>
+        {cardAddressMessage ? (
+          <p
+            className={`mt-2 text-sm font-medium ${
+              cardAddressMessage.includes("saved")
+                ? "text-emerald-700"
+                : "text-red-600"
+            }`}
+          >
+            {cardAddressMessage}
+          </p>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -1303,6 +1373,17 @@ export default function StudentsPage() {
     } catch {
       alert("Server error");
     }
+  }
+
+  function handleStudentUpdated(updatedStudent) {
+    setStudents((prev) =>
+      prev.map((student) =>
+        student._id === updatedStudent._id ? updatedStudent : student,
+      ),
+    );
+    setSelectedStudent((prev) =>
+      prev?._id === updatedStudent._id ? updatedStudent : prev,
+    );
   }
 
   useEffect(() => {
@@ -1763,7 +1844,10 @@ export default function StudentsPage() {
                 </div>
               </div>
             ) : (
-              <StudentQrPanel student={selectedStudent} />
+              <StudentQrPanel
+                student={selectedStudent}
+                onStudentUpdated={handleStudentUpdated}
+              />
             )}
 
             <div className="flex flex-col gap-3 border-t border-gray-200 px-4 py-4 sm:flex-row sm:flex-wrap sm:justify-end md:px-6">

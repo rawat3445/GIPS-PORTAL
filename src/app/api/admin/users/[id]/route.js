@@ -138,6 +138,17 @@ export async function PATCH(req, { params }) {
         }
       }
 
+      if (typeof body.studentCardAddress === "string") {
+        const trimmedStudentCardAddress = body.studentCardAddress.trim();
+        if (trimmedStudentCardAddress) {
+          updates.studentCardAddress = trimmedStudentCardAddress;
+          pushChangedField(changedFields, "student residential address");
+        } else if (user.studentCardAddress) {
+          unsetFields.studentCardAddress = 1;
+          pushChangedField(changedFields, "student residential address");
+        }
+      }
+
       if (typeof body.bloodGroup === "string") {
         const trimmedBloodGroup = body.bloodGroup.trim().toUpperCase();
         if (trimmedBloodGroup) {

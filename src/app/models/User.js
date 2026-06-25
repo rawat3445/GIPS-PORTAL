@@ -101,6 +101,12 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    studentCardAddress: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     bloodGroup: {
       type: String,
       trim: true,
@@ -160,6 +166,7 @@ if (
     !existingUserModel.schema.path("profileImagePublicId") ||
     !existingUserModel.schema.path("facultyType") ||
     !existingUserModel.schema.path("parentContactNo") ||
+    !existingUserModel.schema.path("studentCardAddress") ||
     !existingUserModel.schema.path("bloodGroup") ||
     !existingUserModel.schema.path("session") ||
     !existingUserModel.schema.path("studentLoginWindowStartDate") ||
