@@ -12,6 +12,7 @@ import {
   ClipboardList,
   CreditCard,
   GraduationCap,
+  IdCard,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -45,6 +46,11 @@ export default function StudentLayoutClient({ children }) {
       name: "Student Points",
       href: "/dashboard/student/points",
       icon: Trophy,
+    },
+    {
+      name: "ID Card",
+      href: "/dashboard/student/id-card",
+      icon: IdCard,
     },
   ];
 
