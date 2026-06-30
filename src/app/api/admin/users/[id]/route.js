@@ -209,6 +209,17 @@ export async function PATCH(req, { params }) {
         }
       }
 
+      if (typeof body.facultyCardAddress === "string") {
+        const trimmedFacultyCardAddress = body.facultyCardAddress.trim();
+        if (trimmedFacultyCardAddress) {
+          updates.facultyCardAddress = trimmedFacultyCardAddress;
+          pushChangedField(changedFields, "faculty address");
+        } else if (user.facultyCardAddress) {
+          unsetFields.facultyCardAddress = 1;
+          pushChangedField(changedFields, "faculty address");
+        }
+      }
+
       if (nextFacultyType === "nonTeaching") {
         unsetFields.assignedCourse = 1;
         pushChangedField(changedFields, "assigned course");

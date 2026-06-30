@@ -21,6 +21,9 @@ const CARD_AUTHORITY = "Principal";
 const COLLEGE_PHONE = "+91 7454998289";
 const COLLEGE_WEBSITE = "gips.institute";
 const CARD_FOUND_MESSAGE = "If found, please return to GIPS";
+const ID_CARD_WIDTH_PX = 204;
+const ID_CARD_HEIGHT_PX = 324;
+const ID_CARD_GAP_PX = 20;
 
 const ATTENDANCE_START_MONTH = "2026-01";
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -107,6 +110,534 @@ function getStatusLabel(status) {
     default:
       return "Not Marked";
   }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function sanitizeFileName(value) {
+  return String(value || "student-id-card")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "student-id-card";
+}
+
+function readBlobAsDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Unable to read image file"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function loadImageAsDataUrl(src) {
+  if (!src) {
+    return "";
+  }
+
+  if (String(src).startsWith("data:")) {
+    return src;
+  }
+
+  const response = await fetch(src, { cache: "force-cache" });
+  if (!response.ok) {
+    throw new Error("Unable to load card image");
+  }
+
+  const blob = await response.blob();
+  return readBlobAsDataUrl(blob);
+}
+
+function buildIdCardMarkup({
+  student,
+  courseLabel,
+  sessionLabel,
+  bloodGroupLabel,
+  parentContactLabel,
+  studentCardId,
+  phoneLabel,
+  websiteHost,
+  messageLabel,
+  studentResidentialAddress,
+  qrDataUrl,
+  logoUrl,
+  signatureUrl,
+  profileImageUrl,
+}) {
+  const studentName = escapeHtml(student?.name || "-");
+  const initials = escapeHtml(String(student?.name || "S").charAt(0).toUpperCase());
+  const photoMarkup = profileImageUrl
+    ? `<img src="${profileImageUrl}" alt="${studentName}" class="photo-image" />`
+    : `<div class="photo-fallback">${initials}</div>`;
+
+  return `
+    <div class="wrap">
+      <div class="card front">
+        <div class="hero hero-front"></div>
+        <div class="wave-layer wave-one"></div>
+        <div class="wave-layer wave-two"></div>
+        <div class="wave-layer wave-three"></div>
+        <div class="inner">
+          <div class="band"></div>
+          <div class="header header-front">
+            <img class="logo" src="${logoUrl}" alt="GIPS Logo" />
+            <div class="college">
+              <strong>${escapeHtml(COLLEGE_NAME)}</strong>
+              <span>${escapeHtml(COLLEGE_AFFILIATION)}</span>
+            </div>
+          </div>
+
+          <div class="photo-wrap">
+            <div class="photo">
+              ${photoMarkup}
+            </div>
+          </div>
+
+          <div class="name">${studentName}</div>
+          <div class="subline">${escapeHtml(courseLabel)}</div>
+
+          <div class="meta">
+            <div class="row">
+              <div class="row-label">Student ID</div>
+              <div class="row-value">${escapeHtml(studentCardId)}</div>
+            </div>
+            <div class="row">
+              <div class="row-label">Session</div>
+              <div class="row-value">${escapeHtml(sessionLabel)}</div>
+            </div>
+            <div class="row">
+              <div class="row-label">Parent Contact No</div>
+              <div class="row-value">${escapeHtml(parentContactLabel)}</div>
+            </div>
+            <div class="row">
+              <div class="row-label">Blood Group</div>
+              <div class="row-value">${escapeHtml(bloodGroupLabel)}</div>
+            </div>
+          </div>
+
+          <div class="bottom">
+            <div class="signature-box">
+              <img src="${signatureUrl}" alt="Authority Signature" />
+              <div class="signature-label">Signature</div>
+            </div>
+            <div class="authority-meta">
+              <div class="authority-label">Issuing Authority</div>
+              <div class="authority-role">${escapeHtml(CARD_AUTHORITY)}</div>
+              <div class="authority-org">${escapeHtml(COLLEGE_NAME)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card back">
+        <div class="hero hero-back"></div>
+        <div class="wave-layer wave-one"></div>
+        <div class="wave-layer wave-two"></div>
+        <div class="wave-layer wave-three"></div>
+        <div class="inner">
+          <div class="band band-hidden"></div>
+          <div class="back-center">
+            <div class="back-qr">
+              <img src="${qrDataUrl}" alt="QR Code" />
+            </div>
+            <div class="back-note">Scan for attendance</div>
+          </div>
+          <div class="meta">
+            <div class="row">
+              <div class="row-label">College Phone No</div>
+              <div class="row-value">${escapeHtml(phoneLabel)}</div>
+            </div>
+            <div class="row">
+              <div class="row-label">Website</div>
+              <div class="row-value">${escapeHtml(websiteHost)}</div>
+            </div>
+            <div class="row">
+              <div class="row-label">Message</div>
+              <div class="row-value">${escapeHtml(messageLabel)}</div>
+            </div>
+          </div>
+          <div class="address-box">
+            <div class="address-label">Student Residential Address</div>
+            <div class="address-value">${escapeHtml(studentResidentialAddress)}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
+  return `
+    <html>
+      <head>
+        <title>${escapeHtml(title)}</title>
+        <style>
+          * { box-sizing: border-box; }
+          html, body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          body {
+            margin: 0;
+            font-family: "Trebuchet MS", "Arial Narrow", Arial, sans-serif;
+            background: #e2e8f0;
+            color: #0f172a;
+            padding: 24px;
+          }
+          .toolbar {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin: 0 auto 18px;
+          }
+          .toolbar button {
+            border: 0;
+            border-radius: 999px;
+            padding: 12px 18px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            color: #ffffff;
+            background: #0f172a;
+            box-shadow: 0 12px 24px -18px rgba(15, 23, 42, 0.6);
+          }
+          .toolbar button.secondary {
+            background: #0369a1;
+          }
+          .wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: ${ID_CARD_GAP_PX}px;
+            justify-content: center;
+          }
+          .card {
+            position: relative;
+            overflow: hidden;
+            width: 5.4cm;
+            height: 8.56cm;
+            border-radius: 14px;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            background: #ffffff;
+            box-shadow: 0 22px 48px -26px rgba(15, 23, 42, 0.45);
+          }
+          .inner {
+            position: relative;
+            z-index: 2;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 10px 9px;
+          }
+          .hero {
+            position: absolute;
+            inset: 0 0 auto 0;
+            z-index: 0;
+          }
+          .hero-front {
+            height: 108px;
+            background: linear-gradient(90deg, #eab308 0%, #ffffff 54%, #38bdf8 100%);
+          }
+          .hero-back {
+            height: 118px;
+            background: #facc15;
+          }
+          .wave-layer {
+            position: absolute;
+            left: -18px;
+            right: -18px;
+            border-radius: 999px;
+            transform: rotate(-5deg);
+            z-index: 1;
+          }
+          .wave-one {
+            top: 70px;
+            height: 42px;
+            background: linear-gradient(90deg, #164e63 0%, #0f766e 40%, #0ea5e9 100%);
+          }
+          .wave-two {
+            top: 82px;
+            left: -10px;
+            right: -34px;
+            height: 34px;
+            background: linear-gradient(90deg, #38bdf8 0%, #22d3ee 48%, #67e8f9 100%);
+            transform: rotate(-4deg);
+          }
+          .wave-three {
+            top: 92px;
+            left: 20px;
+            right: -10px;
+            height: 26px;
+            background: #ffffff;
+            transform: rotate(-3deg);
+          }
+          .band {
+            height: 7px;
+            border-radius: 999px;
+          }
+          .band-hidden {
+            opacity: 0;
+          }
+          .header {
+            position: relative;
+            z-index: 2;
+            margin-top: 8px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            border-radius: 12px;
+            padding: 6px;
+          }
+          .header-front {
+            border: 1px solid rgba(255, 255, 255, 0.95);
+            background: #facc15;
+          }
+          .logo {
+            width: 28px;
+            height: 28px;
+            flex-shrink: 0;
+            object-fit: contain;
+          }
+          .college {
+            min-width: 0;
+            font-size: 5.5px;
+            line-height: 1.1;
+            color: #dc2626;
+          }
+          .college strong {
+            display: block;
+            font-size: 8px;
+            line-height: 1.05;
+            font-weight: 700;
+            color: #ffffff;
+          }
+          .college span {
+            display: block;
+            margin-top: 2px;
+          }
+          .photo-wrap {
+            margin: 16px auto 0;
+            padding: 0;
+            width: 66px;
+            height: 66px;
+            border-radius: 999px;
+            border: 4px solid rgba(255, 255, 255, 0.9);
+            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(219,234,254,0.92));
+            box-shadow: 0 18px 40px -20px rgba(15, 23, 42, 0.3);
+          }
+          .photo {
+            width: 100%;
+            height: 100%;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.96);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #334155;
+            font-size: 22px;
+            font-weight: 700;
+          }
+          .photo-image {
+            width: 100%;
+            height: 100%;
+            border-radius: 999px;
+            object-fit: cover;
+            display: block;
+          }
+          .photo-fallback {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .name {
+            margin-top: 8px;
+            text-align: center;
+            font-size: 14px;
+            line-height: 1.1;
+            font-weight: 900;
+            color: #020617;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            font-family: "Franklin Gothic Medium", "Arial Narrow", Arial, sans-serif;
+          }
+          .subline {
+            margin-top: 3px;
+            text-align: center;
+            font-size: 7px;
+            font-weight: 700;
+            color: #1f2937;
+          }
+          .meta {
+            margin-top: 6px;
+            display: grid;
+            gap: 2px;
+          }
+          .row {
+            border-radius: 6px;
+            background: linear-gradient(90deg, rgba(224,242,254,0.72), rgba(255,255,255,0.18));
+            border: 1px solid rgba(125, 211, 252, 0.35);
+            border-left: 2px solid rgba(14, 165, 233, 0.9);
+            padding: 2px 4px 2px 5px;
+            color: #0f172a;
+          }
+          .row-label {
+            font-size: 5px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #0369a1;
+          }
+          .row-value {
+            margin-top: 2px;
+            font-size: 7px;
+            font-weight: 700;
+            line-height: 1.05;
+            word-break: break-word;
+            color: #0f172a;
+          }
+          .bottom {
+            margin-top: auto;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 8px;
+          }
+          .signature-box {
+            width: 72px;
+            min-height: 30px;
+            border-radius: 8px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(239,246,255,0.82));
+            padding: 3px 5px;
+            border: 1px solid rgba(255,255,255,0.88);
+          }
+          .signature-box img {
+            width: 100%;
+            height: 14px;
+            object-fit: contain;
+            display: block;
+          }
+          .signature-label {
+            margin-top: 1px;
+            font-size: 3.4px;
+            color: #334155;
+          }
+          .authority-meta {
+            text-align: right;
+          }
+          .authority-label {
+            font-size: 3.9px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #475569;
+          }
+          .authority-role {
+            margin-top: 2px;
+            font-size: 5.6px;
+            font-weight: 800;
+            color: #0f172a;
+          }
+          .authority-org {
+            margin-top: 2px;
+            max-width: 80px;
+            font-size: 3.6px;
+            line-height: 1.25;
+            color: #334155;
+          }
+          .back-center {
+            margin-top: 8px;
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+          }
+          .back-qr {
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(239,246,255,0.9));
+            padding: 8px;
+            box-shadow: 0 18px 36px -24px rgba(15, 23, 42, 0.45);
+          }
+          .back-qr img {
+            display: block;
+            width: 126px;
+            height: 126px;
+            border-radius: 10px;
+            object-fit: contain;
+            background: #ffffff;
+          }
+          .back-note {
+            margin: 0;
+            text-align: center;
+            font-size: 7px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #334155;
+          }
+          .address-box {
+            margin-top: 4px;
+            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(239,246,255,0.86));
+            padding: 4px 6px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.9);
+          }
+          .address-label {
+            font-size: 5px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #64748b;
+          }
+          .address-value {
+            margin-top: 2px;
+            font-size: 7px;
+            font-weight: 600;
+            line-height: 1.05;
+            color: #0f172a;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 12mm;
+          }
+          @media print {
+            body {
+              background: #ffffff;
+              padding: 0;
+            }
+            .toolbar {
+              display: none;
+            }
+            .card {
+              box-shadow: none;
+              break-inside: avoid;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        ${includeToolbar ? `
+          <div class="toolbar">
+            <button type="button" onclick="window.print()">Print</button>
+            <button type="button" class="secondary" onclick="window.close()">Close</button>
+          </div>
+        ` : ""}
+        ${content}
+      </body>
+    </html>
+  `;
 }
 
 function AttendanceSummaryModal({
@@ -316,6 +847,8 @@ function StudentQrPanel({ student, onStudentUpdated }) {
   const [signatureDataUrl, setSignatureDataUrl] = useState("");
   const [cardAddressSaving, setCardAddressSaving] = useState(false);
   const [cardAddressMessage, setCardAddressMessage] = useState("");
+  const [cardDownloadBusy, setCardDownloadBusy] = useState(false);
+  const [cardActionMessage, setCardActionMessage] = useState("");
   const [cardBackFields, setCardBackFields] = useState({
     phone: COLLEGE_PHONE,
     website: COLLEGE_WEBSITE,
@@ -336,455 +869,150 @@ function StudentQrPanel({ student, onStudentUpdated }) {
   const studentResidentialAddress =
     cardBackFields.address || "Student residential address not saved";
 
+  function getCardMarkupAssets(overrides = {}) {
+    const baseOrigin = window.location.origin;
+
+    return {
+      logoUrl: overrides.logoUrl || `${baseOrigin}/collage_logo.png`,
+      signatureUrl:
+        overrides.signatureUrl ||
+        signatureDataUrl ||
+        `${baseOrigin}/signature-vice-principal.jpeg`,
+      profileImageUrl:
+        overrides.profileImageUrl || student.profileImage || "",
+      phoneLabel: cardBackFields.phone || COLLEGE_PHONE,
+      websiteHost: cardBackFields.website || COLLEGE_WEBSITE,
+      messageLabel: cardBackFields.message || CARD_FOUND_MESSAGE,
+    };
+  }
+
   function handlePrintCard() {
     if (typeof window === "undefined" || !qrDataUrl) {
       return;
     }
 
-    const baseOrigin = window.location.origin;
-    const logoUrl = `${baseOrigin}/collage_logo.png`;
-    const fallbackSignatureUrl = `${baseOrigin}/signature-vice-principal.jpeg`;
-    const signatureUrl = signatureDataUrl || fallbackSignatureUrl;
-    const websiteHost = cardBackFields.website || COLLEGE_WEBSITE;
-
-    const photoMarkup = student.profileImage
-      ? `<img src="${student.profileImage}" alt="${student.name}" class="photo-image" />`
-      : `<div class="photo-fallback">${String(student.name || "S")
-          .charAt(0)
-          .toUpperCase()}</div>`;
-
     const printWindow = window.open("", "_blank", "width=1000,height=800");
     if (!printWindow) {
+      setCardActionMessage("Allow popups to open the print preview.");
       return;
     }
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${student.name} ID Card</title>
-          <style>
-            * { box-sizing: border-box; }
-            html, body {
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-            body {
-              margin: 0;
-              font-family: 'Trebuchet MS', 'Arial Narrow', Arial, sans-serif;
-              background: #e2e8f0;
-              color: #0f172a;
-              padding: 24px;
-            }
-            .wrap {
-              display: flex;
-              flex-wrap: wrap;
-              gap: 18px;
-              justify-content: center;
-            }
-            .card {
-              position: relative;
-              overflow: hidden;
-              width: 5.4cm;
-              height: 8.56cm;
-              border-radius: 14px;
-              border: 1px solid rgba(15, 23, 42, 0.08);
-              background: #ffffff;
-              box-shadow: 0 22px 48px -26px rgba(15, 23, 42, 0.45);
-            }
-            .front {
-            }
-            .back {
-            }
-            .inner {
-              position: relative;
-              z-index: 2;
-              height: 100%;
-              display: flex;
-              flex-direction: column;
-              padding: 10px 9px;
-            }
-            .hero {
-              position: absolute;
-              inset: 0 0 auto 0;
-              height: 108px;
-              z-index: 0;
-              background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
-            }
-            .hero-back {
-              height: 118px;
-            }
-            .wave-layer {
-              position: absolute;
-              left: -18px;
-              right: -18px;
-              border-radius: 999px;
-              transform: rotate(-5deg);
-              z-index: 1;
-            }
-            .wave-one {
-              top: 70px;
-              height: 42px;
-              background: linear-gradient(90deg, #164e63 0%, #0f766e 40%, #0ea5e9 100%);
-            }
-            .wave-two {
-              top: 82px;
-              left: -10px;
-              right: -34px;
-              height: 34px;
-              background: linear-gradient(90deg, #38bdf8 0%, #22d3ee 48%, #67e8f9 100%);
-              transform: rotate(-4deg);
-            }
-            .wave-three {
-              top: 92px;
-              left: 20px;
-              right: -10px;
-              height: 26px;
-              background: #ffffff;
-              transform: rotate(-3deg);
-            }
-            .band {
-              height: 7px;
-              border-radius: 999px;
-              background: linear-gradient(90deg, #0f172a 0%, #1d4ed8 45%, #38bdf8 100%);
-              opacity: 0;
-            }
-            .header {
-              margin-top: 8px;
-              display: flex;
-              gap: 8px;
-              align-items: center;
-              padding: 8px;
-              border-radius: 12px;
-              background: rgba(255,255,255,0.08);
-              border: 1px solid rgba(255,255,255,0.12);
-              box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
-            }
-            .logo {
-              width: 28px;
-              height: 28px;
-              flex-shrink: 0;
-              object-fit: contain;
-              filter: drop-shadow(0 2px 6px rgba(15, 23, 42, 0.2));
-            }
-            .college {
-              font-size: 4.2px;
-              line-height: 1.3;
-              color: #f8fafc;
-              font-family: 'Trebuchet MS', 'Arial Narrow', Arial, sans-serif;
-            }
-            .college strong {
-              display: block;
-              font-size: 5px;
-              font-weight: 700;
-              color: #ffffff;
-              font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-            }
-            .photo-wrap {
-              margin: 8px auto 0;
-              padding: 5px;
-              width: 66px;
-              height: 66px;
-              border-radius: 999px;
-              background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(219,234,254,0.92));
-              box-shadow:
-                0 10px 24px -16px rgba(15, 23, 42, 0.45),
-                inset 0 1px 0 rgba(255,255,255,0.92);
-            }
-            .photo {
-              width: 100%;
-              height: 100%;
-              border-radius: 999px;
-              overflow: hidden;
-              background: rgba(255,255,255,0.96);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: #0f172a;
-              font-size: 22px;
-              font-weight: 700;
-            }
-            .photo-image {
-              width: 100%;
-              height: 100%;
-              border-radius: 999px;
-              object-fit: cover;
-              display: block;
-            }
-            .photo-fallback {
-              width: 100%;
-              height: 100%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            }
-            .name {
-              margin-top: 6px;
-              text-align: center;
-              font-size: 11px;
-              line-height: 1.2;
-              font-weight: 800;
-              color: #0f172a;
-              letter-spacing: 0.06em;
-              text-transform: uppercase;
-              font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-            }
-            .subline {
-              margin-top: 3px;
-              text-align: center;
-              font-size: 5px;
-              font-weight: 700;
-              color: #1e293b;
-              font-family: 'Trebuchet MS', Arial, sans-serif;
-            }
-            .meta {
-              margin-top: 6px;
-              display: grid;
-              gap: 2px;
-            }
-            .row {
-              border-radius: 6px;
-              background: linear-gradient(90deg, rgba(224,242,254,0.72), rgba(255,255,255,0.18));
-              border: 1px solid rgba(125, 211, 252, 0.35);
-              border-left: 2px solid rgba(14, 165, 233, 0.9);
-              padding: 2px 4px 2px 5px;
-              color: #0f172a;
-              box-shadow: inset 0 1px 0 rgba(255,255,255,0.28);
-            }
-            .row-label {
-              font-size: 3.4px;
-              font-weight: 700;
-              letter-spacing: 0.08em;
-              text-transform: uppercase;
-              color: #0369a1;
-            }
-            .row-value {
-              margin-top: 1px;
-              font-size: 4.3px;
-              font-weight: 700;
-              line-height: 1.15;
-              word-break: break-word;
-              color: #0f172a;
-            }
-            .bottom {
-              margin-top: auto;
-              display: flex;
-              align-items: flex-end;
-              justify-content: space-between;
-              gap: 8px;
-            }
-            .signature-box {
-              width: 72px;
-              min-height: 30px;
-              border-radius: 8px;
-              background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(239,246,255,0.82));
-              padding: 3px 5px;
-              border: 1px solid rgba(255,255,255,0.88);
-            }
-            .signature-box img {
-              width: 100%;
-              height: 14px;
-              object-fit: contain;
-              display: block;
-            }
-            .signature-label {
-              margin-top: 1px;
-              font-size: 3.4px;
-              color: #334155;
-            }
-            .authority-meta {
-              text-align: right;
-            }
-            .authority-label {
-              font-size: 3.9px;
-              font-weight: 700;
-              letter-spacing: 0.1em;
-              text-transform: uppercase;
-              color: #475569;
-            }
-            .authority-role {
-              margin-top: 2px;
-              font-size: 5.6px;
-              font-weight: 800;
-              color: #0f172a;
-            }
-            .authority-org {
-              margin-top: 2px;
-              max-width: 80px;
-              font-size: 3.6px;
-              line-height: 1.25;
-              color: #334155;
-            }
-            .back-center {
-              margin-top: 10px;
-              display: flex;
-              flex: 1;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              gap: 12px;
-            }
-            .back-qr {
-              padding: 10px;
-              border-radius: 20px;
-              background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(239,246,255,0.9));
-              box-shadow:
-                0 18px 36px -24px rgba(15, 23, 42, 0.45),
-                inset 0 1px 0 rgba(255,255,255,0.92);
-            }
-            .back-qr img {
-              display: block;
-              width: 152px;
-              height: 152px;
-              border-radius: 12px;
-              object-fit: contain;
-            }
-            .back-note {
-              text-align: center;
-              font-size: 5px;
-              margin:2px;
-              font-weight: 700;
-              letter-spacing: 0.12em;
-              text-transform: uppercase;
-              color: #0f172a;
-              font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-            }
-            .address-box {
-              border-radius: 10px;
-              background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(239,246,255,0.86));
-              padding: 2px 2px;
-              margin:2px;
-              text-align: center;
-              border: 1px solid rgba(255,255,255,0.9);
-            }
-            .address-label {
-              font-size: 3.6px;
-              font-weight: 700;
-              letter-spacing: 0.1em;
-              text-transform: uppercase;
-              color: #475569;
-            }
-            .address-value {
-              margin-top: 2px;
-              font-size: 4.4px;
-              font-weight: 700;
-              line-height: 1.18;
-              color: #0f172a;
-            }
-            @page {
-              size: A4 portrait;
-              margin: 12mm;
-            }
-            @media print {
-              body {
-                background: white;
-                padding: 0;
-              }
-              .card {
-                box-shadow: none;
-                break-inside: avoid;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="wrap">
-            <div class="card front">
-              <div class="hero"></div>
-              <div class="wave-layer wave-one"></div>
-              <div class="wave-layer wave-two"></div>
-              <div class="wave-layer wave-three"></div>
-              <div class="inner">
-                <div class="band"></div>
-                <div class="header">
-                  <img class="logo" src="${logoUrl}" alt="GIPS Logo" />
-                  <div class="college">
-                    <strong>${COLLEGE_NAME}</strong>
-                    ${COLLEGE_AFFILIATION}
-                  </div>
-                </div>
+    const markup = buildIdCardMarkup({
+      student,
+      courseLabel,
+      sessionLabel,
+      bloodGroupLabel,
+      parentContactLabel,
+      studentCardId,
+      studentResidentialAddress,
+      qrDataUrl,
+      ...getCardMarkupAssets(),
+    });
 
-                <div class="photo-wrap">
-                  <div class="photo">
-                    ${photoMarkup}
-                  </div>
-                </div>
-
-                <div class="name">${student.name || "-"}</div>
-                <div class="subline">${courseLabel}</div>
-
-                <div class="meta">
-                  <div class="row">
-                    <div class="row-label">Student ID</div>
-                    <div class="row-value">${studentCardId}</div>
-                  </div>
-                  <div class="row">
-                    <div class="row-label">Session</div>
-                    <div class="row-value">${sessionLabel}</div>
-                  </div>
-                  <div class="row">
-                    <div class="row-label">Parent Contact No</div>
-                    <div class="row-value">${parentContactLabel}</div>
-                  </div>
-                  <div class="row">
-                    <div class="row-label">Blood Group</div>
-                    <div class="row-value">${bloodGroupLabel}</div>
-                  </div>
-                </div>
-
-                <div class="bottom">
-                  <div class="signature-box">
-                    <img src="${signatureUrl}" alt="Authority Signature" />
-                    <div class="signature-label">Signature</div>
-                  </div>
-                  <div class="authority-meta">
-                    <div class="authority-label">Issuing Authority</div>
-                    <div class="authority-role">${CARD_AUTHORITY}</div>
-                    <div class="authority-org">${COLLEGE_NAME}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card back">
-              <div class="hero hero-back"></div>
-              <div class="wave-layer wave-one"></div>
-              <div class="wave-layer wave-two"></div>
-              <div class="wave-layer wave-three"></div>
-              <div class="inner">
-                <div class="band"></div>
-                <div class="back-center">
-                  <div class="back-qr">
-                    <img src="${qrDataUrl}" alt="QR Code" />
-                  </div>
-                  <div class="back-note">Scan for attendance</div>
-                </div>
-                <div class="meta">
-                  <div class="row">
-                    <div class="row-label">College Phone No</div>
-                    <div class="row-value">${cardBackFields.phone}</div>
-                  </div>
-                  <div class="row">
-                    <div class="row-label">Website</div>
-                    <div class="row-value">${websiteHost}</div>
-                  </div>
-                  <div class="row">
-                    <div class="row-label">Message</div>
-                    <div class="row-value">${cardBackFields.message}</div>
-                  </div>
-                </div>
-                <div class="address-box">
-                  <div class="address-label">Student Residential Address</div>
-                  <div class="address-value">${studentResidentialAddress}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </body>
-      </html>
-    `);
+    printWindow.document.write(
+      buildIdCardDocument(markup, `${student.name || "Student"} ID Card`, {
+        includeToolbar: true,
+      }),
+    );
 
     printWindow.document.close();
     printWindow.focus();
+    setCardActionMessage("");
+  }
+
+  async function handleDownloadCard() {
+    if (typeof window === "undefined" || !qrDataUrl || cardDownloadBusy) {
+      return;
+    }
+
+    try {
+      setCardDownloadBusy(true);
+      setCardActionMessage("");
+
+      const baseOrigin = window.location.origin;
+      const logoUrl = await loadImageAsDataUrl(`${baseOrigin}/collage_logo.png`);
+      const signatureUrl = signatureDataUrl
+        ? signatureDataUrl
+        : await loadImageAsDataUrl(`${baseOrigin}/signature-vice-principal.jpeg`);
+      const profileImageUrl = student.profileImage
+        ? await loadImageAsDataUrl(student.profileImage).catch(() => "")
+        : "";
+
+      const markup = buildIdCardMarkup({
+        student,
+        courseLabel,
+        sessionLabel,
+        bloodGroupLabel,
+        parentContactLabel,
+        studentCardId,
+        studentResidentialAddress,
+        qrDataUrl,
+        ...getCardMarkupAssets({
+          logoUrl,
+          signatureUrl,
+          profileImageUrl,
+        }),
+      });
+
+      const exportWidth = ID_CARD_WIDTH_PX * 2 + ID_CARD_GAP_PX + 40;
+      const exportHeight = ID_CARD_HEIGHT_PX + 40;
+      const xhtmlDocument = buildIdCardDocument(
+        markup,
+        `${student.name || "Student"} ID Card`,
+      ).replace("<html>", '<html xmlns="http://www.w3.org/1999/xhtml">');
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${exportWidth}" height="${exportHeight}" viewBox="0 0 ${exportWidth} ${exportHeight}">
+          <foreignObject width="100%" height="100%">${xhtmlDocument}</foreignObject>
+        </svg>
+      `;
+      const svgBlob = new Blob([svg], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+      const svgUrl = URL.createObjectURL(svgBlob);
+
+      await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            const scale = 2;
+            canvas.width = exportWidth * scale;
+            canvas.height = exportHeight * scale;
+
+            const context = canvas.getContext("2d");
+            if (!context) {
+              throw new Error("Unable to prepare card download");
+            }
+
+            context.scale(scale, scale);
+            context.drawImage(image, 0, 0, exportWidth, exportHeight);
+
+            const link = document.createElement("a");
+            link.href = canvas.toDataURL("image/png");
+            link.download = `${sanitizeFileName(student.name)}-id-card.png`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            resolve();
+          } catch (error) {
+            reject(error);
+          } finally {
+            URL.revokeObjectURL(svgUrl);
+          }
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(svgUrl);
+          reject(new Error("Unable to render ID card download"));
+        };
+        image.src = svgUrl;
+      });
+
+      setCardActionMessage("ID card download started.");
+    } catch (error) {
+      setCardActionMessage(error.message || "Unable to download ID card");
+    } finally {
+      setCardDownloadBusy(false);
+    }
   }
 
   useEffect(() => {
@@ -970,14 +1198,29 @@ function StudentQrPanel({ student, onStudentUpdated }) {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handlePrintCard}
-          disabled={!qrDataUrl}
-          className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Print ID Card
-        </button>
+        <div className="flex flex-col items-stretch gap-2 sm:items-end">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={handleDownloadCard}
+              disabled={!qrDataUrl || cardDownloadBusy}
+              className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {cardDownloadBusy ? "Downloading..." : "Download ID Card"}
+            </button>
+            <button
+              type="button"
+              onClick={handlePrintCard}
+              disabled={!qrDataUrl}
+              className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Print ID Card
+            </button>
+          </div>
+          {cardActionMessage ? (
+            <p className="text-xs text-slate-500">{cardActionMessage}</p>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
@@ -1263,7 +1506,7 @@ function StudentQrPanel({ student, onStudentUpdated }) {
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-slate-600">
             College phone, website and message stay as default; only this
-            student's residential address is saved.
+            student&apos;s residential address is saved.
           </p>
           <button
             type="button"
