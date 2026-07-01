@@ -62,7 +62,8 @@ export default function AdminScanAttendancePage() {
   const [selectedCourse, setSelectedCourse] = useState("BPT");
   const [selectedDate, setSelectedDate] = useState(getTodayISO());
   const [selectedYear, setSelectedYear] = useState("1");
-  const [session, setSession] = useState(null);
+  const [sessions, setSessions] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [scannerEnabled, setScannerEnabled] = useState(false);
@@ -75,8 +76,6 @@ export default function AdminScanAttendancePage() {
   const lastScanTextRef = useRef("");
   const lastScanAtRef = useRef(0);
   const initialDateRef = useRef(selectedDate);
-  const initialYearRef = useRef(selectedYear);
-  const initialCourseRef = useRef(selectedCourse);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -89,27 +88,29 @@ export default function AdminScanAttendancePage() {
 
     if (COURSE_OPTIONS.some((option) => option.value === course)) {
       setSelectedCourse(course);
-      initialCourseRef.current = course;
     }
 
     if (YEAR_OPTIONS.some((option) => option.value === year)) {
       setSelectedYear(year);
-      initialYearRef.current = year;
     }
   }, []);
 
-  const selectedCourseLabel = useMemo(
+  const activeSession = useMemo(
     () =>
-      COURSE_OPTIONS.find((option) => option.value === selectedCourse)?.label ||
-      selectedCourse,
-    [selectedCourse],
+      sessions.find((entry) => String(entry?._id || "") === activeSessionId) ||
+      sessions.find(
+        (entry) =>
+          String(entry?.course || "").toUpperCase() === selectedCourse &&
+          String(entry?.year || "") === selectedYear,
+      ) ||
+      sessions[0] ||
+      null,
+    [activeSessionId, selectedCourse, selectedYear, sessions],
   );
 
-  async function fetchSession(course, year, date) {
+  async function fetchSessionsForDate(date) {
     const res = await fetch(
-      `/api/admin/attendance/session?course=${encodeURIComponent(
-        course,
-      )}&year=${encodeURIComponent(year)}&date=${encodeURIComponent(
+      `/api/admin/attendance/session?date=${encodeURIComponent(
         date,
       )}&status=open`,
       {
@@ -118,12 +119,12 @@ export default function AdminScanAttendancePage() {
       },
     );
 
-    const data = await res.json().catch(() => null);
+    const data = await res.json().catch(() => []);
     if (!res.ok) {
-      throw new Error(data?.message || "Failed to load admin QR session");
+      throw new Error(data?.message || "Failed to load admin QR sessions");
     }
 
-    return data;
+    return Array.isArray(data) ? data : [];
   }
 
   async function refreshSessionById(sessionId) {
@@ -140,14 +141,42 @@ export default function AdminScanAttendancePage() {
       throw new Error(data.message || "Failed to refresh admin QR session");
     }
 
-    setSession(data);
+    setSessions((prev) => {
+      const existingIndex = prev.findIndex(
+        (entry) => String(entry?._id || "") === String(data?._id || ""),
+      );
+
+      if (existingIndex === -1) {
+        return [data, ...prev];
+      }
+
+      const next = [...prev];
+      next[existingIndex] = data;
+      return next;
+    });
     return data;
+  }
+
+  async function refreshSessionsForDate(date, preferredSessionId = "") {
+    const nextSessions = await fetchSessionsForDate(date);
+    setSessions(nextSessions);
+    if (preferredSessionId) {
+      setActiveSessionId(preferredSessionId);
+    } else if (
+      activeSessionId &&
+      nextSessions.some((entry) => String(entry?._id || "") === activeSessionId)
+    ) {
+      setActiveSessionId(activeSessionId);
+    } else {
+      setActiveSessionId(String(nextSessions[0]?._id || ""));
+    }
+    return nextSessions;
   }
 
   const submitScan = useCallback(
     async (qrText, scanSource) => {
-      if (!session?._id) {
-        throw new Error("Create a session before scanning");
+      if (!selectedDate) {
+        throw new Error("Choose an attendance date before scanning");
       }
 
       setActionLoading(true);
@@ -160,7 +189,8 @@ export default function AdminScanAttendancePage() {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
-            sessionId: session._id,
+            sessionId: activeSession?._id || undefined,
+            date: selectedDate,
             qrText,
             scanSource,
           }),
@@ -174,7 +204,15 @@ export default function AdminScanAttendancePage() {
         setMessage(data.message || "Student scanned successfully");
         setLastAcceptedStudentId(String(data?.student?._id || ""));
         setManualValue("");
-        await refreshSessionById(session._id);
+        if (data?.session?._id) {
+          setSelectedCourse(String(data.session.course || "").trim().toUpperCase());
+          setSelectedYear(String(data.session.year || ""));
+          await refreshSessionsForDate(selectedDate, String(data.session._id));
+        } else if (activeSession?._id) {
+          await refreshSessionById(activeSession._id);
+        } else {
+          await refreshSessionsForDate(selectedDate);
+        }
       } catch (scanError) {
         setError(scanError.message || "Failed to scan student QR");
         throw scanError;
@@ -182,19 +220,16 @@ export default function AdminScanAttendancePage() {
         setActionLoading(false);
       }
     },
-    [session?._id],
+    [activeSession?._id, selectedDate],
   );
 
   useEffect(() => {
     async function bootstrap() {
       try {
         setLoading(true);
-        const existingSession = await fetchSession(
-          initialCourseRef.current,
-          initialYearRef.current,
-          initialDateRef.current,
-        );
-        setSession(existingSession);
+        const openSessions = await fetchSessionsForDate(initialDateRef.current);
+        setSessions(openSessions);
+        setActiveSessionId(String(openSessions[0]?._id || ""));
       } catch (bootstrapError) {
         setError(bootstrapError.message || "Unable to load admin scanner");
       } finally {
@@ -206,24 +241,21 @@ export default function AdminScanAttendancePage() {
   }, []);
 
   useEffect(() => {
-    async function loadMatchingSession() {
+    async function loadSessionsForDate() {
       try {
-        const data = await fetchSession(
-          selectedCourse,
-          selectedYear,
-          selectedDate,
-        );
-        setSession(data);
+        await refreshSessionsForDate(selectedDate);
       } catch (sessionError) {
-        setError(sessionError.message || "Unable to load session");
+        setSessions([]);
+        setActiveSessionId("");
+        setError(sessionError.message || "Unable to load session list");
       }
     }
 
-    loadMatchingSession();
-  }, [selectedCourse, selectedDate, selectedYear]);
+    loadSessionsForDate();
+  }, [selectedDate]);
 
   useEffect(() => {
-    if (!scannerEnabled || !session?._id) {
+    if (!scannerEnabled || !selectedDate) {
       return undefined;
     }
 
@@ -317,7 +349,7 @@ export default function AdminScanAttendancePage() {
           });
       }
     };
-  }, [scannerEnabled, session?._id, submitScan]);
+  }, [scannerEnabled, selectedDate, submitScan]);
 
   async function createOrOpenSession() {
     try {
@@ -341,7 +373,10 @@ export default function AdminScanAttendancePage() {
         throw new Error(data.message || "Failed to create admin QR session");
       }
 
-      setSession(data.session || null);
+      setSelectedCourse(String(data?.session?.course || selectedCourse));
+      setSelectedYear(String(data?.session?.year || selectedYear));
+      setSessions(Array.isArray(data?.sessions) ? data.sessions : []);
+      setActiveSessionId(String(data?.session?._id || ""));
       setMessage(data.message || "Admin QR session is ready");
     } catch (sessionError) {
       setError(sessionError.message || "Failed to create admin QR session");
@@ -350,8 +385,8 @@ export default function AdminScanAttendancePage() {
     }
   }
 
-  async function finalizeSession() {
-    if (!session?._id) {
+  async function finalizeSession(sessionId = activeSession?._id) {
+    if (!sessionId) {
       return;
     }
 
@@ -365,7 +400,7 @@ export default function AdminScanAttendancePage() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          sessionId: session._id,
+          sessionId,
           action: "finalize",
         }),
       });
@@ -375,7 +410,8 @@ export default function AdminScanAttendancePage() {
         throw new Error(data.message || "Failed to finalize admin QR attendance");
       }
 
-      setSession(data.session || null);
+      setSessions(Array.isArray(data?.sessions) ? data.sessions : []);
+      setActiveSessionId(String(data?.sessions?.[0]?._id || ""));
       setScannerEnabled(false);
       setMessage(data.message || "Admin QR attendance submitted for approval");
     } catch (finalizeError) {
@@ -385,8 +421,8 @@ export default function AdminScanAttendancePage() {
     }
   }
 
-  async function cancelSession() {
-    if (!session?._id) {
+  async function cancelSession(sessionId = activeSession?._id) {
+    if (!sessionId) {
       return;
     }
 
@@ -400,7 +436,7 @@ export default function AdminScanAttendancePage() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          sessionId: session._id,
+          sessionId,
           action: "cancel",
         }),
       });
@@ -410,11 +446,44 @@ export default function AdminScanAttendancePage() {
         throw new Error(data.message || "Failed to cancel admin QR session");
       }
 
-      setSession(null);
+      setSessions(Array.isArray(data?.sessions) ? data.sessions : []);
+      setActiveSessionId(String(data?.sessions?.[0]?._id || ""));
       setScannerEnabled(false);
       setMessage(data.message || "Admin QR session cancelled");
     } catch (cancelError) {
       setError(cancelError.message || "Failed to cancel admin QR session");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function finalizeAllSessions() {
+    try {
+      setActionLoading(true);
+      setError("");
+      setMessage("");
+
+      const res = await fetch("/api/admin/attendance/session", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          date: selectedDate,
+          action: "finalize_all",
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to finalize admin QR attendance");
+      }
+
+      setSessions([]);
+      setActiveSessionId("");
+      setScannerEnabled(false);
+      setMessage(data.message || "All admin QR sessions finalized");
+    } catch (finalizeError) {
+      setError(finalizeError.message || "Failed to finalize admin QR attendance");
     } finally {
       setActionLoading(false);
     }
@@ -452,7 +521,21 @@ export default function AdminScanAttendancePage() {
     }
   }
 
-  const scans = Array.isArray(session?.scans) ? session.scans : [];
+  const openSessionCount = sessions.length;
+  const allScans = [...sessions]
+    .flatMap((sessionEntry) =>
+      (Array.isArray(sessionEntry?.scans) ? sessionEntry.scans : []).map((scan) => ({
+        ...scan,
+        sessionCourse: sessionEntry.course,
+        sessionYear: sessionEntry.year,
+        sessionId: sessionEntry._id,
+        sessionCode: sessionEntry.sessionCode,
+      })),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.scannedAt || 0).getTime() - new Date(a.scannedAt || 0).getTime(),
+    );
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#eff6ff_0%,#f8fafc_42%,#fff7ed_100%)] px-4 py-6 md:px-6">
@@ -482,7 +565,7 @@ export default function AdminScanAttendancePage() {
                     Session Setup
                   </p>
                   <h2 className="mt-2 text-xl font-bold text-slate-950">
-                    Choose batch and date
+                    Scan by date, auto-detect batch
                   </h2>
                 </div>
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
@@ -493,7 +576,7 @@ export default function AdminScanAttendancePage() {
               <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Course
+                    Quick Open Course
                   </label>
                   <select
                     value={selectedCourse}
@@ -510,7 +593,7 @@ export default function AdminScanAttendancePage() {
 
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Year
+                    Quick Open Year
                   </label>
                   <select
                     value={selectedYear}
@@ -547,54 +630,43 @@ export default function AdminScanAttendancePage() {
                 >
                   {actionLoading
                     ? "Working..."
-                    : session?._id
-                    ? "Reload / Reopen Session"
-                    : "Create Admin QR Session"}
+                    : "Open Selected Batch Manually"}
                 </button>
 
-                {session?._id ? (
+                <button
+                  type="button"
+                  onClick={() => refreshSessionsForDate(selectedDate)}
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                  Refresh Date Sessions
+                </button>
+
+                {openSessionCount > 0 ? (
                   <button
                     type="button"
-                    onClick={() => refreshSessionById(session._id)}
+                    onClick={finalizeAllSessions}
                     disabled={actionLoading}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                    className="rounded-2xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 disabled:opacity-50"
                   >
-                    <RefreshCcw className="h-4 w-4" />
-                    Refresh
+                    Finalize All Open Sessions
                   </button>
                 ) : null}
               </div>
 
-              {session ? (
-                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      Session Code
-                    </p>
-                    <p className="mt-2 text-lg font-bold text-slate-950">
-                      {session.sessionCode}
-                    </p>
-                  </div>
-
-                  <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      Batch
-                    </p>
-                    <p className="mt-2 text-lg font-bold text-sky-700">
-                      {session.course} Year {session.year}
-                    </p>
-                  </div>
-
-                  <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      Successful Scans
-                    </p>
-                    <p className="mt-2 text-lg font-bold text-emerald-700">
-                      {scans.length}
-                    </p>
-                  </div>
-                </div>
-              ) : null}
+              <div className="mt-5 rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Auto Mode
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">
+                  Keep the scanner on this date. Every scanned student card will
+                  automatically go to that student&apos;s own course and year session.
+                </p>
+                <p className="mt-3 text-sm font-semibold text-sky-700">
+                  Open sessions on {selectedDate}: {openSessionCount}
+                </p>
+              </div>
             </div>
 
             <div className="rounded-[30px] border border-white/80 bg-white/92 p-5 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.28)]">
@@ -616,7 +688,7 @@ export default function AdminScanAttendancePage() {
                 <button
                   type="button"
                   onClick={() => setScannerEnabled((current) => !current)}
-                  disabled={!session?._id || session?.status !== "open"}
+                  disabled={!selectedDate}
                   className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
                 >
                   {scannerEnabled ? "Stop Camera Scanner" : "Start Camera Scanner"}
@@ -624,24 +696,24 @@ export default function AdminScanAttendancePage() {
 
                 <button
                   type="button"
-                  onClick={finalizeSession}
+                  onClick={() => finalizeSession(activeSession?._id)}
                   disabled={
-                    !session?._id || session?.status !== "open" || actionLoading
+                    !activeSession?._id || activeSession?.status !== "open" || actionLoading
                   }
                   className="rounded-2xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 disabled:opacity-50"
                 >
-                  Finalize and Approve
+                  Finalize Active Session
                 </button>
 
                 <button
                   type="button"
-                  onClick={cancelSession}
+                  onClick={() => cancelSession(activeSession?._id)}
                   disabled={
-                    !session?._id || session?.status !== "open" || actionLoading
+                    !activeSession?._id || activeSession?.status !== "open" || actionLoading
                   }
                   className="rounded-2xl border border-red-200 bg-white px-5 py-3 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-50 disabled:opacity-50"
                 >
-                  Cancel Session
+                  Cancel Active Session
                 </button>
               </div>
 
@@ -661,7 +733,7 @@ export default function AdminScanAttendancePage() {
                     accept="image/*"
                     capture="environment"
                     onChange={handleQrPhotoChange}
-                    disabled={!session?._id || session?.status !== "open" || photoScanning}
+                    disabled={!selectedDate || photoScanning}
                     className="hidden"
                   />
                 </label>
@@ -721,8 +793,8 @@ export default function AdminScanAttendancePage() {
                     Accepted students
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Current batch: {selectedCourse} - {selectedCourseLabel} - Year{" "}
-                    {selectedYear}
+                    Mixed-batch scan feed for {selectedDate}. Each card is routed
+                    to the correct course and year automatically.
                   </p>
                 </div>
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
@@ -735,12 +807,12 @@ export default function AdminScanAttendancePage() {
                   <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500">
                     Loading scanner workspace...
                   </div>
-                ) : scans.length === 0 ? (
+                ) : allScans.length === 0 ? (
                   <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500">
                     No student has been scanned in this session yet.
                   </div>
                 ) : (
-                  scans.map((entry) => {
+                  allScans.map((entry) => {
                     const isLatest =
                       String(entry.student?._id || "") === lastAcceptedStudentId;
 
@@ -765,6 +837,9 @@ export default function AdminScanAttendancePage() {
                             <p className="mt-2 text-xs font-medium text-slate-500">
                               Source: {String(entry.scanSource || "camera").toUpperCase()}
                             </p>
+                            <p className="mt-1 text-xs font-medium text-sky-700">
+                              Batch: {entry.sessionCourse || "-"} | Year {entry.sessionYear || "-"}
+                            </p>
                           </div>
 
                           <div className="text-right">
@@ -777,6 +852,85 @@ export default function AdminScanAttendancePage() {
                                 ? new Date(entry.scannedAt).toLocaleTimeString()
                                 : ""}
                             </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-[30px] border border-white/80 bg-white/92 p-5 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.28)]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-700">
+                    Open Sessions
+                  </p>
+                  <h2 className="mt-2 text-xl font-bold text-slate-950">
+                    Batch sessions for {selectedDate}
+                  </h2>
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-3">
+                {loading ? (
+                  <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500">
+                    Loading sessions...
+                  </div>
+                ) : sessions.length === 0 ? (
+                  <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500">
+                    No open batch sessions yet. Start scanning and they will open automatically.
+                  </div>
+                ) : (
+                  sessions.map((entry) => {
+                    const isActive =
+                      String(entry?._id || "") === String(activeSession?._id || "");
+                    const entryScans = Array.isArray(entry?.scans) ? entry.scans.length : 0;
+
+                    return (
+                      <div
+                        key={entry._id}
+                        className={`rounded-[24px] border px-4 py-4 shadow-sm ${
+                          isActive
+                            ? "border-sky-200 bg-sky-50"
+                            : "border-slate-200 bg-white"
+                        }`}
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-950">
+                              {entry.course} Year {entry.year}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Session code: {entry.sessionCode} | Scans: {entryScans}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setActiveSessionId(String(entry._id))}
+                              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            >
+                              {isActive ? "Active" : "Make Active"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => finalizeSession(entry._id)}
+                              disabled={actionLoading}
+                              className="rounded-2xl bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50"
+                            >
+                              Finalize
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => cancelSession(entry._id)}
+                              disabled={actionLoading}
+                              className="rounded-2xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
                           </div>
                         </div>
                       </div>

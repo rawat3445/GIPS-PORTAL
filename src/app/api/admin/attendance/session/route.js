@@ -52,6 +52,175 @@ async function buildSessionResponse(sessionId) {
   };
 }
 
+async function buildSessionListForDate({ adminId, date, status = "open" }) {
+  const sessions = await AttendanceSession.find({
+    createdBy: adminId,
+    date,
+    ...(status ? { status } : {}),
+  })
+    .sort({ updatedAt: -1, createdAt: -1, course: 1, year: 1 })
+    .lean();
+
+  const details = await Promise.all(
+    sessions.map((session) => buildSessionResponse(session._id))
+  );
+
+  return details.filter(Boolean);
+}
+
+async function createOrReuseAdminSession({ adminId, admin, course, year, date }) {
+  const existingSession = await AttendanceSession.findOne({
+    createdBy: adminId,
+    course,
+    year,
+    date,
+    status: "open",
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  if (existingSession) {
+    const detail = await buildSessionResponse(existingSession._id);
+    return {
+      reused: true,
+      created: false,
+      message: "Existing admin QR session loaded",
+      session: detail,
+    };
+  }
+
+  const session = await AttendanceSession.create({
+    course,
+    year,
+    date,
+    createdBy: adminId,
+    status: "open",
+    sessionCode: createSessionCode(),
+    expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+  });
+
+  await logActivity({
+    actor: admin,
+    actionType: "attendance_marked",
+    actionLabel: "Opened admin QR attendance session",
+    path: "/dashboard/admin/attendance/scan",
+    details: `Opened admin QR attendance session for ${course} Year ${year} on ${date}`,
+    metadata: {
+      sessionId: session._id,
+      course,
+      year,
+      date,
+      mode: "admin_qr_session",
+    },
+  });
+
+  const detail = await buildSessionResponse(session._id);
+
+  return {
+    reused: false,
+    created: true,
+    message: "Admin QR attendance session created",
+    session: detail,
+  };
+}
+
+async function finalizeAdminSession({ session, adminId, admin }) {
+  const scans = await AttendanceScanLog.find({ sessionId: session._id })
+    .select("studentId")
+    .lean();
+
+  if (!scans.length) {
+    throw new Error("At least one successful scan is required before finalizing");
+  }
+
+  const students = await User.find({
+    role: "student",
+    course: session.course,
+    year: session.year,
+  })
+    .select("name course year")
+    .lean();
+
+  if (!students.length) {
+    throw new Error("No students found for this course and year");
+  }
+
+  const holidayMap = await getHolidayMapForStudentsOnDate({
+    date: session.date,
+    course: session.course,
+    year: session.year,
+    studentIds: students.map((student) => String(student._id)),
+  });
+
+  const markableStudents = students.filter(
+    (student) => !holidayMap.has(String(student._id))
+  );
+
+  if (!markableStudents.length) {
+    throw new Error("All students are excluded by active events for this date");
+  }
+
+  const presentStudentIds = new Set(scans.map((scan) => String(scan.studentId)));
+  const records = markableStudents.map((student) => ({
+    studentId: student._id,
+    status: presentStudentIds.has(String(student._id)) ? "present" : "absent",
+  }));
+
+  const attendance = await Attendance.findOneAndUpdate(
+    {
+      course: session.course,
+      year: session.year,
+      date: session.date,
+    },
+    {
+      $set: {
+        markedBy: adminId,
+        approvalStatus: "pending",
+        reviewedBy: null,
+        reviewedAt: null,
+        reviewNote: "",
+        records,
+      },
+    },
+    { new: true, upsert: true }
+  );
+
+  session.status = "finalized";
+  session.finalizedAt = new Date();
+  session.finalizedAttendanceId = attendance._id;
+  session.scanCount = presentStudentIds.size;
+  session.presentCount = records.filter((record) => record.status === "present").length;
+  session.absentCount = records.filter((record) => record.status === "absent").length;
+  session.rosterCount = records.length;
+  await session.save();
+
+  await logActivity({
+    actor: admin,
+    actionType: "attendance_marked",
+    actionLabel: "Submitted admin QR attendance",
+    path: "/dashboard/admin/attendance/scan",
+    details: [
+      `Submitted admin QR attendance for ${session.course} Year ${session.year} on ${session.date}`,
+      `Present: ${session.presentCount}`,
+      `Absent: ${session.absentCount}`,
+      "Approval: pending admin approval",
+    ].join(" | "),
+    metadata: {
+      sessionId: session._id,
+      attendanceId: attendance._id,
+      course: session.course,
+      year: session.year,
+      date: session.date,
+      mode: "admin_qr_session",
+      presentCount: session.presentCount,
+      absentCount: session.absentCount,
+      rosterCount: session.rosterCount,
+    },
+  });
+
+  return buildSessionResponse(session._id);
+}
+
 export async function GET(request) {
   try {
     await connectDB();
@@ -81,6 +250,15 @@ export async function GET(request) {
 
       const detail = await buildSessionResponse(sessionId);
       return NextResponse.json(detail);
+    }
+
+    if (date && (!course || !Number.isFinite(year) || year <= 0)) {
+      const sessions = await buildSessionListForDate({
+        adminId: auth.decoded.id,
+        date,
+        status,
+      });
+      return NextResponse.json(sessions);
     }
 
     if (!course || !Number.isFinite(year) || year <= 0 || !date) {
@@ -152,60 +330,28 @@ export async function POST(request) {
       );
     }
 
-    const existingSession = await AttendanceSession.findOne({
-      createdBy: auth.decoded.id,
-      course,
-      year,
-      date,
-      status: "open",
-    })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    if (existingSession) {
-      const detail = await buildSessionResponse(existingSession._id);
-      return NextResponse.json({
-        reused: true,
-        message: "Existing admin QR session loaded",
-        session: detail,
-      });
-    }
-
-    const session = await AttendanceSession.create({
-      course,
-      year,
-      date,
-      createdBy: auth.decoded.id,
-      status: "open",
-      sessionCode: createSessionCode(),
-      expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
-    });
-
     const admin = await User.findById(auth.decoded.id).select("name email role");
-
-    await logActivity({
-      actor: admin,
-      actionType: "attendance_marked",
-      actionLabel: "Opened admin QR attendance session",
-      path: "/dashboard/admin/attendance/scan",
-      details: `Opened admin QR attendance session for ${course} Year ${year} on ${date}`,
-      metadata: {
-        sessionId: session._id,
-        course,
-        year,
-        date,
-        mode: "admin_qr_session",
-      },
+    const result = await createOrReuseAdminSession({
+      adminId: auth.decoded.id,
+      admin,
+      course,
+      year,
+      date,
     });
-
-    const detail = await buildSessionResponse(session._id);
+    const sessions = await buildSessionListForDate({
+      adminId: auth.decoded.id,
+      date,
+      status: "open",
+    });
 
     return NextResponse.json(
       {
-        message: "Admin QR attendance session created",
-        session: detail,
+        message: result.message,
+        reused: result.reused,
+        session: result.session,
+        sessions,
       },
-      { status: 201 },
+      { status: result.created ? 201 : 200 },
     );
   } catch (error) {
     return NextResponse.json(
@@ -227,13 +373,75 @@ export async function PATCH(request) {
 
     const body = await request.json();
     const sessionId = String(body?.sessionId || "").trim();
+    const date = String(body?.date || "").trim();
     const action = String(body?.action || "").trim().toLowerCase();
 
-    if (!sessionId || !["finalize", "cancel"].includes(action)) {
+    if (
+      (!sessionId && !date) ||
+      !["finalize", "cancel", "finalize_all", "cancel_all"].includes(action)
+    ) {
       return NextResponse.json(
-        { message: "sessionId and a valid action are required" },
+        { message: "Provide a sessionId or date with a valid action" },
         { status: 400 },
       );
+    }
+
+    const admin = await User.findById(auth.decoded.id).select("name email role");
+    if (action === "finalize_all" || action === "cancel_all") {
+      if (!date) {
+        return NextResponse.json(
+          { message: "date is required for bulk session actions" },
+          { status: 400 },
+        );
+      }
+
+      const sessions = await AttendanceSession.find({
+        createdBy: auth.decoded.id,
+        date,
+        status: "open",
+      }).sort({ createdAt: 1 });
+
+      if (!sessions.length) {
+        return NextResponse.json(
+          { message: "No open admin QR sessions found for this date" },
+          { status: 404 },
+        );
+      }
+
+      if (action === "cancel_all") {
+        for (const session of sessions) {
+          session.status = "cancelled";
+          await session.save();
+        }
+
+        const remainingSessions = await buildSessionListForDate({
+          adminId: auth.decoded.id,
+          date,
+          status: "open",
+        });
+
+        return NextResponse.json({
+          message: `Cancelled ${sessions.length} admin QR session${sessions.length === 1 ? "" : "s"} for ${date}`,
+          sessions: remainingSessions,
+        });
+      }
+
+      const finalizedSessions = [];
+      for (const session of sessions) {
+        finalizedSessions.push(
+          await finalizeAdminSession({
+            session,
+            adminId: auth.decoded.id,
+            admin,
+          })
+        );
+      }
+
+      return NextResponse.json({
+        message: `Finalized ${finalizedSessions.length} admin QR session${finalizedSessions.length === 1 ? "" : "s"} for ${date}`,
+        finalizedSessions,
+        sessions: [],
+      });
     }
 
     const session = await AttendanceSession.findById(sessionId);
@@ -247,8 +455,6 @@ export async function PATCH(request) {
         { status: 400 },
       );
     }
-
-    const admin = await User.findById(auth.decoded.id).select("name email role");
 
     if (action === "cancel") {
       session.status = "cancelled";
@@ -269,117 +475,33 @@ export async function PATCH(request) {
         },
       });
 
-      return NextResponse.json({ message: "Admin QR attendance session cancelled" });
+      const sessions = await buildSessionListForDate({
+        adminId: auth.decoded.id,
+        date: session.date,
+        status: "open",
+      });
+
+      return NextResponse.json({
+        message: "Admin QR attendance session cancelled",
+        sessions,
+      });
     }
 
-    const scans = await AttendanceScanLog.find({ sessionId: session._id })
-      .select("studentId")
-      .lean();
-
-    if (!scans.length) {
-      return NextResponse.json(
-        { message: "At least one successful scan is required before finalizing" },
-        { status: 400 },
-      );
-    }
-
-    const students = await User.find({
-      role: "student",
-      course: session.course,
-      year: session.year,
-    })
-      .select("name course year")
-      .lean();
-
-    if (!students.length) {
-      return NextResponse.json(
-        { message: "No students found for this course and year" },
-        { status: 400 },
-      );
-    }
-
-    const holidayMap = await getHolidayMapForStudentsOnDate({
+    const detail = await finalizeAdminSession({
+      session,
+      adminId: auth.decoded.id,
+      admin,
+    });
+    const sessions = await buildSessionListForDate({
+      adminId: auth.decoded.id,
       date: session.date,
-      course: session.course,
-      year: session.year,
-      studentIds: students.map((student) => String(student._id)),
+      status: "open",
     });
-
-    const markableStudents = students.filter(
-      (student) => !holidayMap.has(String(student._id)),
-    );
-
-    if (!markableStudents.length) {
-      return NextResponse.json(
-        { message: "All students are excluded by active events for this date" },
-        { status: 400 },
-      );
-    }
-
-    const presentStudentIds = new Set(scans.map((scan) => String(scan.studentId)));
-    const records = markableStudents.map((student) => ({
-      studentId: student._id,
-      status: presentStudentIds.has(String(student._id)) ? "present" : "absent",
-    }));
-
-    const attendance = await Attendance.findOneAndUpdate(
-      {
-        course: session.course,
-        year: session.year,
-        date: session.date,
-      },
-      {
-        $set: {
-          markedBy: auth.decoded.id,
-          approvalStatus: "pending",
-          reviewedBy: null,
-          reviewedAt: null,
-          reviewNote: "",
-          records,
-        },
-      },
-      { new: true, upsert: true },
-    );
-
-    session.status = "finalized";
-    session.finalizedAt = new Date();
-    session.finalizedAttendanceId = attendance._id;
-    session.scanCount = presentStudentIds.size;
-    session.presentCount = records.filter((record) => record.status === "present").length;
-    session.absentCount = records.filter((record) => record.status === "absent").length;
-    session.rosterCount = records.length;
-    await session.save();
-
-    await logActivity({
-      actor: admin,
-      actionType: "attendance_marked",
-      actionLabel: "Submitted admin QR attendance",
-      path: "/dashboard/admin/attendance/scan",
-      details: [
-        `Submitted admin QR attendance for ${session.course} Year ${session.year} on ${session.date}`,
-        `Present: ${session.presentCount}`,
-        `Absent: ${session.absentCount}`,
-        "Approval: pending admin approval",
-      ].join(" | "),
-      metadata: {
-        sessionId: session._id,
-        attendanceId: attendance._id,
-        course: session.course,
-        year: session.year,
-        date: session.date,
-        mode: "admin_qr_session",
-        presentCount: session.presentCount,
-        absentCount: session.absentCount,
-        rosterCount: session.rosterCount,
-      },
-    });
-
-    const detail = await buildSessionResponse(session._id);
 
     return NextResponse.json({
       message: "Admin QR attendance submitted for approval",
-      attendanceId: attendance._id,
       session: detail,
+      sessions,
     });
   } catch (error) {
     return NextResponse.json(

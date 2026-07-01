@@ -78,7 +78,20 @@ function getStatusLabel(status) {
   }
 }
 
-function getScopeLabel(scopeType, course, year, studentCount = 0) {
+function formatSelectionLabel(values, emptyLabel) {
+  if (!Array.isArray(values) || values.length === 0) return emptyLabel;
+  if (values.length <= 3) return values.join(", ");
+  return `${values.slice(0, 3).join(", ")} +${values.length - 3} more`;
+}
+
+function getScopeLabel(
+  scopeType,
+  course,
+  year,
+  studentCount = 0,
+  courses = [],
+  years = []
+) {
   if (scopeType === "student") {
     if (course && year) {
       return `${course} Year ${year} (${studentCount} selected student${studentCount === 1 ? "" : "s"})`;
@@ -87,11 +100,22 @@ function getScopeLabel(scopeType, course, year, studentCount = 0) {
   }
 
   if (scopeType === "courseYear") {
-    return course && year ? `${course} Year ${year}` : "selected course and year";
+    const courseLabel = formatSelectionLabel(
+      courses.length ? courses : course ? [course] : [],
+      "selected course"
+    );
+    const yearLabel = formatSelectionLabel(
+      years.length ? years.map(String) : year ? [String(year)] : [],
+      "selected year"
+    );
+    return `${courseLabel} | Year${(years.length ? years : year ? [year] : []).length === 1 ? "" : "s"} ${yearLabel}`;
   }
 
   if (scopeType === "course") {
-    return course ? `${course} (all years)` : "selected course";
+    return `${formatSelectionLabel(
+      courses.length ? courses : course ? [course] : [],
+      "selected course"
+    )} (all years)`;
   }
 
   return "all courses";
@@ -99,7 +123,14 @@ function getScopeLabel(scopeType, course, year, studentCount = 0) {
 
 function getAppliedEventLabel(eventInfo) {
   if (!eventInfo) return "";
-  return getScopeLabel(eventInfo.scopeType, eventInfo.course, eventInfo.year, eventInfo.scopeType === "student" ? 1 : 0);
+  return getScopeLabel(
+    eventInfo.scopeType,
+    eventInfo.course,
+    eventInfo.year,
+    eventInfo.scopeType === "student" ? 1 : 0,
+    eventInfo.courses || [],
+    eventInfo.years || []
+  );
 }
 
 function getEventTypeLabel(eventType) {
@@ -217,6 +248,38 @@ function getAdminBuilderPreset(scopeType, eventType) {
   }
 
   return "custom";
+}
+
+function getRecentEventKey(eventInfo) {
+  const courses = Array.isArray(eventInfo?.courses)
+    ? [...eventInfo.courses].map(String).sort()
+    : [];
+  const years = Array.isArray(eventInfo?.years)
+    ? [...eventInfo.years].map(String).sort()
+    : [];
+  const studentIds = Array.isArray(eventInfo?.studentIds)
+    ? [...eventInfo.studentIds].map(String).sort()
+    : [];
+
+  return [
+    eventInfo?.batchId || "",
+    eventInfo?.fromDate || "",
+    eventInfo?.toDate || "",
+    eventInfo?.title || "",
+    eventInfo?.eventType || "",
+    eventInfo?.scopeType || "",
+    eventInfo?.course || "",
+    eventInfo?.year ?? "",
+    courses.join(","),
+    years.join(","),
+    studentIds.join(","),
+  ].join("|");
+}
+
+function formatEventRange(fromDate, toDate) {
+  if (!fromDate) return "-";
+  if (!toDate || toDate === fromDate) return fromDate;
+  return `${fromDate} to ${toDate}`;
 }
 
 function AttendanceSummaryModal({
@@ -544,8 +607,8 @@ export function AdminAttendancePageContent({
   const [eventToDate, setEventToDate] = useState(getTodayISO());
   const [eventScopeType, setEventScopeType] = useState("global");
   const [eventType, setEventType] = useState("holiday");
-  const [eventCourse, setEventCourse] = useState("");
-  const [eventYear, setEventYear] = useState("");
+  const [eventCourses, setEventCourses] = useState([]);
+  const [eventYears, setEventYears] = useState([]);
   const [eventStudentIds, setEventStudentIds] = useState([]);
   const [eventStudents, setEventStudents] = useState([]);
   const [eventStudentsLoading, setEventStudentsLoading] = useState(false);
@@ -557,12 +620,35 @@ export function AdminAttendancePageContent({
   const [holidayMessage, setHolidayMessage] = useState("");
   const [showEventBuilder, setShowEventBuilder] = useState(false);
   const [holidayError, setHolidayError] = useState("");
+  const [recentEvents, setRecentEvents] = useState([]);
+  const [recentEventsLoading, setRecentEventsLoading] = useState(false);
+  const [recentEventsError, setRecentEventsError] = useState("");
+  const [editingRecentEvent, setEditingRecentEvent] = useState(null);
+  const [recentEventActionKey, setRecentEventActionKey] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reviewLoadingId, setReviewLoadingId] = useState("");
   const [reviewMessage, setReviewMessage] = useState("");
   const [reviewError, setReviewError] = useState("");
   const eventBuilderPreset = getAdminBuilderPreset(eventScopeType, eventType);
+  const eventCourse = eventCourses[0] || "";
+  const eventYear = eventYears[0] || "";
+
+  const toggleEventCourse = useCallback((courseOption) => {
+    setEventCourses((prev) =>
+      prev.includes(courseOption)
+        ? prev.filter((item) => item !== courseOption)
+        : [...prev, courseOption]
+    );
+  }, []);
+
+  const toggleEventYear = useCallback((yearOption) => {
+    setEventYears((prev) =>
+      prev.includes(yearOption)
+        ? prev.filter((item) => item !== yearOption)
+        : [...prev, yearOption]
+    );
+  }, []);
 
   const handleEventBuilderPresetChange = (preset) => {
     if (preset === "custom") return;
@@ -571,6 +657,8 @@ export function AdminAttendancePageContent({
       setEventScopeType("global");
       setEventType("holiday");
       setEventStudentIds([]);
+      setEventCourses([]);
+      setEventYears([]);
       return;
     }
 
@@ -578,9 +666,10 @@ export function AdminAttendancePageContent({
       setEventScopeType("course");
       setEventType("holiday");
       setEventStudentIds([]);
-      if (!eventCourse && course) {
-        setEventCourse(course);
+      if (!eventCourses.length && course) {
+        setEventCourses([course]);
       }
+      setEventYears([]);
       return;
     }
 
@@ -588,11 +677,11 @@ export function AdminAttendancePageContent({
       setEventScopeType("courseYear");
       setEventType("holiday");
       setEventStudentIds([]);
-      if (!eventCourse && course) {
-        setEventCourse(course);
+      if (!eventCourses.length && course) {
+        setEventCourses([course]);
       }
-      if (!eventYear && year) {
-        setEventYear(year);
+      if (!eventYears.length && year) {
+        setEventYears([year]);
       }
       return;
     }
@@ -600,11 +689,11 @@ export function AdminAttendancePageContent({
     if (preset === "studentInternship") {
       setEventScopeType("student");
       setEventType("internship");
-      if (!eventCourse && course) {
-        setEventCourse(course);
+      if (!eventCourses.length && course) {
+        setEventCourses([course]);
       }
-      if (!eventYear && year) {
-        setEventYear(year);
+      if (!eventYears.length && year) {
+        setEventYears([year]);
       }
       return;
     }
@@ -612,11 +701,11 @@ export function AdminAttendancePageContent({
     if (preset === "studentEvent") {
       setEventScopeType("student");
       setEventType("event");
-      if (!eventCourse && course) {
-        setEventCourse(course);
+      if (!eventCourses.length && course) {
+        setEventCourses([course]);
       }
-      if (!eventYear && year) {
-        setEventYear(year);
+      if (!eventYears.length && year) {
+        setEventYears([year]);
       }
     }
   };
@@ -639,6 +728,35 @@ export function AdminAttendancePageContent({
   useEffect(() => {
     setApprovalStatus(initialStatus);
   }, [initialStatus]);
+
+  useEffect(() => {
+    if (eventScopeType === "global") {
+      if (eventCourses.length) setEventCourses([]);
+      if (eventYears.length) setEventYears([]);
+      if (eventStudentIds.length) setEventStudentIds([]);
+      return;
+    }
+
+    if (eventScopeType === "course") {
+      if (eventYears.length) setEventYears([]);
+      if (eventStudentIds.length) setEventStudentIds([]);
+      return;
+    }
+
+    if (eventScopeType === "courseYear") {
+      if (eventStudentIds.length) setEventStudentIds([]);
+      return;
+    }
+
+    if (eventScopeType === "student") {
+      if (eventCourses.length > 1) {
+        setEventCourses((prev) => prev.slice(0, 1));
+      }
+      if (eventYears.length > 1) {
+        setEventYears((prev) => prev.slice(0, 1));
+      }
+    }
+  }, [eventCourses.length, eventScopeType, eventStudentIds.length, eventYears.length]);
 
   const reviewAttendance = useCallback(async (attendanceId, decision) => {
     try {
@@ -809,19 +927,43 @@ export function AdminAttendancePageContent({
     }
   }, [course, date, year]);
 
+  const fetchRecentEvents = useCallback(async () => {
+    try {
+      setRecentEventsLoading(true);
+      setRecentEventsError("");
+
+      const res = await fetch("/api/admin/holidays?view=recent&limit=8", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await res.json().catch(() => []);
+      if (!res.ok) {
+        throw new Error(data?.message || "Failed to load recent events");
+      }
+
+      setRecentEvents(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setRecentEvents([]);
+      setRecentEventsError(err.message || "Failed to load recent events");
+    } finally {
+      setRecentEventsLoading(false);
+    }
+  }, []);
+
   async function saveHoliday() {
     if (!eventFromDate || !eventToDate) {
       setHolidayError("Choose a start date and end date for the event.");
       return;
     }
 
-    if (eventScopeType !== "global" && !eventCourse) {
-      setHolidayError("Choose a course for the selected event scope.");
+    if (eventScopeType !== "global" && eventCourses.length === 0) {
+      setHolidayError("Choose at least one course for the selected event scope.");
       return;
     }
 
-    if ((eventScopeType === "courseYear" || eventScopeType === "student") && !eventYear) {
-      setHolidayError("Choose a year for the selected event scope.");
+    if ((eventScopeType === "courseYear" || eventScopeType === "student") && eventYears.length === 0) {
+      setHolidayError("Choose at least one year for the selected event scope.");
       return;
     }
 
@@ -846,12 +988,33 @@ export function AdminAttendancePageContent({
           eventType,
           scopeType: eventScopeType,
           course: eventCourse,
+          courses: eventCourses,
           year:
             eventScopeType === "courseYear" || eventScopeType === "student"
               ? Number(eventYear)
               : undefined,
+          years:
+            eventScopeType === "courseYear" || eventScopeType === "student"
+              ? eventYears.map(Number)
+              : undefined,
           studentIds:
             eventScopeType === "student" ? eventStudentIds : undefined,
+          replaceExisting: editingRecentEvent
+            ? {
+                batchId: editingRecentEvent.batchId,
+                fromDate: editingRecentEvent.fromDate,
+                toDate: editingRecentEvent.toDate,
+                scopeType: editingRecentEvent.scopeType,
+                course: editingRecentEvent.course || "",
+                courses: editingRecentEvent.courses || [],
+                year: editingRecentEvent.year ?? undefined,
+                years: editingRecentEvent.years || [],
+                studentIds:
+                  editingRecentEvent.scopeType === "student"
+                    ? editingRecentEvent.studentIds || []
+                    : undefined,
+              }
+            : undefined,
         }),
       });
 
@@ -869,13 +1032,17 @@ export function AdminAttendancePageContent({
           eventScopeType,
           eventCourse,
           eventYear,
-          eventStudentIds.length
+          eventStudentIds.length,
+          eventCourses,
+          eventYears
         )} from ${eventFromDate} to ${eventToDate}`;
       setHolidayMessage(successMessage);
+      setEditingRecentEvent(null);
       if (eventScopeType !== "student") {
         await fetchHolidayInfo(date);
       }
       fetchAttendance();
+      fetchRecentEvents();
       window.alert(successMessage);
     } catch (err) {
       const errorMessage = err.message || "Failed to save holiday";
@@ -892,13 +1059,13 @@ export function AdminAttendancePageContent({
       return;
     }
 
-    if (eventScopeType !== "global" && !eventCourse) {
-      setHolidayError("Choose a course for the selected event scope.");
+    if (eventScopeType !== "global" && eventCourses.length === 0) {
+      setHolidayError("Choose at least one course for the selected event scope.");
       return;
     }
 
-    if ((eventScopeType === "courseYear" || eventScopeType === "student") && !eventYear) {
-      setHolidayError("Choose a year for the selected event scope.");
+    if ((eventScopeType === "courseYear" || eventScopeType === "student") && eventYears.length === 0) {
+      setHolidayError("Choose at least one year for the selected event scope.");
       return;
     }
 
@@ -919,11 +1086,17 @@ export function AdminAttendancePageContent({
         body: JSON.stringify({
           fromDate: eventFromDate,
           toDate: eventToDate,
+          batchId: editingRecentEvent?.batchId,
           scopeType: eventScopeType,
           course: eventCourse,
+          courses: eventCourses,
           year:
             eventScopeType === "courseYear" || eventScopeType === "student"
               ? Number(eventYear)
+              : undefined,
+          years:
+            eventScopeType === "courseYear" || eventScopeType === "student"
+              ? eventYears.map(Number)
               : undefined,
           studentIds:
             eventScopeType === "student" ? eventStudentIds : undefined,
@@ -937,10 +1110,12 @@ export function AdminAttendancePageContent({
 
       setHolidayInfo(null);
       setHolidayMessage(data.message || "Event removed successfully");
+      setEditingRecentEvent(null);
       if (eventScopeType !== "student") {
         await fetchHolidayInfo(date);
       }
       fetchAttendance();
+      fetchRecentEvents();
       window.alert(data.message || "Event removed successfully");
     } catch (err) {
       const errorMessage = err.message || "Failed to remove event";
@@ -990,6 +1165,46 @@ export function AdminAttendancePageContent({
     fetchHolidayInfo();
   }, [fetchHolidayInfo]);
 
+  useEffect(() => {
+    fetchRecentEvents();
+  }, [fetchRecentEvents]);
+
+  function loadRecentEventIntoBuilder(eventInfo) {
+    setShowEventBuilder(true);
+    setEditingRecentEvent(eventInfo);
+    setHolidayMessage("");
+    setHolidayError("");
+    setRecentEventsError("");
+    setEventFromDate(eventInfo.fromDate || getTodayISO());
+    setEventToDate(eventInfo.toDate || eventInfo.fromDate || getTodayISO());
+    setEventScopeType(eventInfo.scopeType || "global");
+    setEventType(eventInfo.eventType || "holiday");
+    setEventCourses(
+      Array.isArray(eventInfo.courses) && eventInfo.courses.length
+        ? eventInfo.courses.map(String)
+        : eventInfo.course
+        ? [String(eventInfo.course)]
+        : []
+    );
+    setEventYears(
+      Array.isArray(eventInfo.years) && eventInfo.years.length
+        ? eventInfo.years.map((value) => String(value))
+        : eventInfo.year
+        ? [String(eventInfo.year)]
+        : []
+    );
+    setEventStudentIds(
+      Array.isArray(eventInfo.studentIds)
+        ? eventInfo.studentIds.map(String)
+        : [],
+    );
+    setHolidayTitle(eventInfo.title || "");
+  }
+
+  function cancelRecentEventEditing() {
+    setEditingRecentEvent(null);
+  }
+
   async function removeHoliday() {
     if (!holidayInfo) return;
 
@@ -1005,9 +1220,12 @@ export function AdminAttendancePageContent({
         body: JSON.stringify({
           fromDate: holidayInfo.fromDate || holidayInfo.date,
           toDate: holidayInfo.toDate || holidayInfo.date,
+          batchId: holidayInfo.batchId,
           scopeType: holidayInfo.scopeType || "global",
           course: holidayInfo.course || "",
+          courses: holidayInfo.courses || [],
           year: holidayInfo.year ?? undefined,
+          years: holidayInfo.years || [],
           studentIds:
             holidayInfo.scopeType === "student"
               ? eventStudentIds.length
@@ -1030,10 +1248,57 @@ export function AdminAttendancePageContent({
         await fetchHolidayInfo(date);
       }
       fetchAttendance();
+      fetchRecentEvents();
     } catch (err) {
       setHolidayError(err.message || "Failed to remove event");
     } finally {
       setHolidaySaving(false);
+    }
+  }
+
+  async function removeRecentEvent(eventInfo) {
+    const eventKey = getRecentEventKey(eventInfo);
+
+    try {
+      setRecentEventActionKey(eventKey);
+      setHolidayMessage("");
+      setHolidayError("");
+
+      const res = await fetch("/api/admin/holidays", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          batchId: eventInfo.batchId,
+          fromDate: eventInfo.fromDate,
+          toDate: eventInfo.toDate,
+          scopeType: eventInfo.scopeType,
+          course: eventInfo.course || "",
+          courses: eventInfo.courses || [],
+          year: eventInfo.year ?? undefined,
+          years: eventInfo.years || [],
+          studentIds:
+            eventInfo.scopeType === "student" ? eventInfo.studentIds || [] : undefined,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to remove recent event");
+      }
+
+      if (editingRecentEvent && getRecentEventKey(editingRecentEvent) === eventKey) {
+        setEditingRecentEvent(null);
+      }
+
+      setHolidayMessage(data.message || "Event removed successfully");
+      fetchAttendance();
+      fetchRecentEvents();
+      await fetchHolidayInfo(date);
+    } catch (err) {
+      setHolidayError(err.message || "Failed to remove recent event");
+    } finally {
+      setRecentEventActionKey("");
     }
   }
 
@@ -1121,6 +1386,121 @@ export function AdminAttendancePageContent({
             {holidayStatus}
           </div>
 
+          <div className="mb-4 rounded-xl border border-sky-100 bg-white/90 p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-sky-700">
+                  Recent Event Builder Activity
+                </p>
+                <p className="mt-1 text-sm text-gray-600">
+                  Review the latest saved event ranges and reopen them with all options for editing.
+                </p>
+              </div>
+              {recentEventsLoading ? (
+                <span className="text-sm font-medium text-gray-500">
+                  Loading recent events...
+                </span>
+              ) : null}
+            </div>
+
+            {recentEventsError ? (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {recentEventsError}
+              </div>
+            ) : null}
+
+            {!recentEventsLoading && !recentEventsError && recentEvents.length === 0 ? (
+              <div className="mt-3 rounded-lg border border-dashed border-sky-200 bg-sky-50/50 px-4 py-3 text-sm text-gray-600">
+                No recent event builder entries found yet.
+              </div>
+            ) : null}
+
+            {recentEvents.length > 0 ? (
+              <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-2">
+                {recentEvents.map((recentEvent) => {
+                  const eventKey = getRecentEventKey(recentEvent);
+                  const isEditing = editingRecentEvent
+                    ? getRecentEventKey(editingRecentEvent) === eventKey
+                    : false;
+                  const isBusy = recentEventActionKey === eventKey;
+
+                  return (
+                    <div
+                      key={eventKey}
+                      className={`rounded-xl border px-4 py-4 shadow-sm transition ${
+                        isEditing
+                          ? "border-amber-300 bg-amber-50"
+                          : "border-gray-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-950">
+                            {recentEvent.title || getEventTypeLabel(recentEvent.eventType)}
+                          </p>
+                          <p className="mt-1 text-xs font-medium text-gray-500">
+                            Range: {formatEventRange(recentEvent.fromDate, recentEvent.toDate)}
+                          </p>
+                        </div>
+                        <span
+                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getEventTypeClasses(
+                            recentEvent.eventType,
+                          )}`}
+                        >
+                          {getEventTypeLabel(recentEvent.eventType)}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 space-y-1 text-sm text-gray-700">
+                        <p>
+                          <span className="font-semibold text-gray-900">Scope:</span>{" "}
+                          {getScopeLabel(
+                            recentEvent.scopeType,
+                            recentEvent.course,
+                            recentEvent.year ? String(recentEvent.year) : "",
+                            recentEvent.studentCount || 0,
+                            recentEvent.courses || [],
+                            recentEvent.years || [],
+                          )}
+                        </p>
+                        {recentEvent.latestUpdatedAt ? (
+                          <p>
+                            <span className="font-semibold text-gray-900">Last Updated:</span>{" "}
+                            {new Date(recentEvent.latestUpdatedAt).toLocaleString()}
+                          </p>
+                        ) : null}
+                        {recentEvent.scopeType === "student" ? (
+                          <p>
+                            <span className="font-semibold text-gray-900">Students:</span>{" "}
+                            {recentEvent.studentCount}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => loadRecentEventIntoBuilder(recentEvent)}
+                          className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                        >
+                          {isEditing ? "Editing in Builder" : "Edit in Builder"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeRecentEvent(recentEvent)}
+                          disabled={isBusy}
+                          className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          {isBusy ? "Removing..." : "Remove"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex-1">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
@@ -1148,6 +1528,28 @@ export function AdminAttendancePageContent({
 
           {showEventBuilder ? (
             <>
+          {editingRecentEvent ? (
+            <div className="mt-5 rounded-xl border border-amber-300 bg-amber-100/70 px-4 py-3 text-sm text-amber-950">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold">
+                    Editing recent event: {editingRecentEvent.title || getEventTypeLabel(editingRecentEvent.eventType)}
+                  </p>
+                  <p className="mt-1 text-xs">
+                    Saving now will replace the old event range with these updated options.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={cancelRecentEventEditing}
+                  className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-50"
+                >
+                  Cancel Edit Mode
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="mt-5 rounded-xl border border-amber-100 bg-white/85 p-4">
             <label className="mb-2 block text-sm font-medium text-gray-700">
               Quick Setup
@@ -1245,41 +1647,108 @@ export function AdminAttendancePageContent({
               <label className="mb-2 block text-sm font-medium text-gray-700">
                 Event Course
               </label>
-              <select
-                value={eventCourse}
-                onChange={(e) => setEventCourse(e.target.value)}
-                disabled={eventScopeType === "global"}
-                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100 disabled:text-gray-400"
-              >
-                <option value="">Select Course</option>
-                {COURSE_OPTIONS.map((courseOption) => (
-                  <option key={courseOption} value={courseOption}>
-                    {courseOption}
-                  </option>
-                ))}
-              </select>
+              {eventScopeType === "student" ? (
+                <select
+                  value={eventCourse}
+                  onChange={(e) =>
+                    setEventCourses(e.target.value ? [e.target.value] : [])
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="">Select Course</option>
+                  {COURSE_OPTIONS.map((courseOption) => (
+                    <option key={courseOption} value={courseOption}>
+                      {courseOption}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="rounded-xl border border-gray-300 bg-white p-3">
+                  {eventScopeType === "global" ? (
+                    <p className="text-sm text-gray-500">All courses are already included.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {COURSE_OPTIONS.map((courseOption) => {
+                        const isChecked = eventCourses.includes(courseOption);
+                        return (
+                          <label
+                            key={courseOption}
+                            className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                              isChecked
+                                ? "border-amber-300 bg-amber-50 text-amber-900"
+                                : "border-gray-200 bg-white text-gray-700 hover:border-amber-200 hover:bg-amber-50/40"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleEventCourse(courseOption)}
+                              className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                            />
+                            <span>{courseOption}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">
                 Event Year
               </label>
-              <select
-                value={eventYear}
-                onChange={(e) => setEventYear(e.target.value)}
-                disabled={
-                  eventScopeType !== "courseYear" &&
-                  eventScopeType !== "student"
-                }
-                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100 disabled:text-gray-400"
-              >
-                <option value="">Select Year</option>
-                {YEAR_OPTIONS.map((yearOption) => (
-                  <option key={yearOption.value} value={yearOption.value}>
-                    {yearOption.label}
-                  </option>
-                ))}
-              </select>
+              {eventScopeType === "student" ? (
+                <select
+                  value={eventYear}
+                  onChange={(e) =>
+                    setEventYears(e.target.value ? [e.target.value] : [])
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="">Select Year</option>
+                  {YEAR_OPTIONS.map((yearOption) => (
+                    <option key={yearOption.value} value={yearOption.value}>
+                      {yearOption.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="rounded-xl border border-gray-300 bg-white p-3">
+                  {eventScopeType !== "courseYear" ? (
+                    <p className="text-sm text-gray-500">
+                      {eventScopeType === "global"
+                        ? "All years are already included."
+                        : "All years of the selected courses are included."}
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {YEAR_OPTIONS.map((yearOption) => {
+                        const isChecked = eventYears.includes(yearOption.value);
+                        return (
+                          <label
+                            key={yearOption.value}
+                            className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                              isChecked
+                                ? "border-amber-300 bg-amber-50 text-amber-900"
+                                : "border-gray-200 bg-white text-gray-700 hover:border-amber-200 hover:bg-amber-50/40"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleEventYear(yearOption.value)}
+                              className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                            />
+                            <span>{yearOption.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="md:col-span-2 rounded-xl border border-amber-100 bg-white/80 px-4 py-3 text-sm text-gray-700">
@@ -1291,8 +1760,8 @@ export function AdminAttendancePageContent({
                 {getBuilderScopeLabel(eventScopeType)}.{" "}
                 {getBuilderScopeHelpText(
                   eventScopeType,
-                  eventCourse,
-                  eventYear,
+                  eventCourses.length > 1 ? formatSelectionLabel(eventCourses, "selected courses") : eventCourse,
+                  eventYears.length > 1 ? formatSelectionLabel(eventYears, "selected years") : eventYear,
                   eventStudentIds.length
                 )}
               </p>

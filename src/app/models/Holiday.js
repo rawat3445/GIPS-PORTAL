@@ -44,6 +44,11 @@ const HolidaySchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+    batchId: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     markedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

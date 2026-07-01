@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connectDB from "../../../lib/db";
 import Holiday, { ensureHolidayIndexes } from "../../../models/Holiday";
 import {
+  buildHolidayDeleteFilter,
   buildHolidayBulkOperations,
   findApplicableHoliday,
   getProcessableEventRange,
@@ -101,6 +102,8 @@ export async function POST(request) {
             : "course",
         course: assignedCourse,
         year: body?.year,
+        courses: body?.courses,
+        years: body?.years,
         studentIds: body?.studentIds,
       });
     } catch (error) {
@@ -118,6 +121,8 @@ export async function POST(request) {
         scopeType: scope.scopeType,
         course: scope.course,
         year: scope.year,
+        courses: scope.courses,
+        years: scope.years,
         studentIds: scope.studentIds,
         fromDate,
         toDate,
@@ -199,21 +204,22 @@ export async function DELETE(request) {
             : "course",
         course: assignedCourse,
         year: body?.year,
+        courses: body?.courses,
+        years: body?.years,
         studentIds: body?.studentIds,
       });
     } catch (error) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
 
-    const result = await Holiday.deleteMany({
-      date: { $gte: fromDate, $lte: toDate },
-      scopeType: scope.scopeType,
-      course: scope.course,
-      year: scope.year,
-      ...(scope.scopeType === "student"
-        ? { studentId: { $in: scope.studentIds } }
-        : { studentId: null }),
-    });
+    const result = await Holiday.deleteMany(
+      buildHolidayDeleteFilter({
+        fromDate,
+        toDate,
+        scope,
+        batchId: body?.batchId,
+      })
+    );
 
     return NextResponse.json({
       message: `Removed event for ${getScopeLabel(scope)} from ${fromDate} to ${toDate}`,
