@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MessageSquareText,
   MessageSquare,
   PanelLeftClose, 
   PanelLeftOpen,
@@ -69,6 +70,11 @@ export default function StudentLayoutClient({ children }) {
       name: "Class Tests",
       href: "/dashboard/student/class-tests",
       icon: Target,
+    },
+    {
+      name: "Faculty Review",
+      href: "/dashboard/student/faculty-review",
+      icon: MessageSquareText,
     },
     {
       name: "Portal Feedback",

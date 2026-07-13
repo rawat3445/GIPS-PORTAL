@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AttendancePerformanceChart from "../../_components/AttendancePerformanceChart";
 
@@ -630,6 +631,7 @@ export function AdminAttendancePageContent({
   const [reviewLoadingId, setReviewLoadingId] = useState("");
   const [reviewMessage, setReviewMessage] = useState("");
   const [reviewError, setReviewError] = useState("");
+  const [hydratedSearch, setHydratedSearch] = useState(false);
   const eventBuilderPreset = getAdminBuilderPreset(eventScopeType, eventType);
   const eventCourse = eventCourses[0] || "";
   const eventYear = eventYears[0] || "";
@@ -649,6 +651,37 @@ export function AdminAttendancePageContent({
         : [...prev, yearOption]
     );
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const nextCourse = params.get("course") || "";
+    const nextYear = params.get("year") || "";
+    const nextDate = params.get("date") || "";
+    const nextStatus = params.get("status") || "";
+
+    if (nextCourse) {
+      setCourse(nextCourse);
+      setEventCourses([nextCourse]);
+      setEventScopeType(nextYear ? "courseYear" : "course");
+    }
+
+    if (nextYear) {
+      setYear(nextYear);
+      setEventYears([nextYear]);
+    }
+
+    if (nextDate) {
+      setDate(nextDate);
+      setEventFromDate(nextDate);
+      setEventToDate(nextDate);
+    }
+
+    if (!lockStatusFilter && nextStatus) {
+      setApprovalStatus(nextStatus);
+    }
+
+    setHydratedSearch(true);
+  }, [lockStatusFilter]);
 
   const handleEventBuilderPresetChange = (preset) => {
     if (preset === "custom") return;
@@ -1156,8 +1189,9 @@ export function AdminAttendancePageContent({
   }
 
   useEffect(() => {
+    if (!hydratedSearch) return;
     fetchAttendance();
-  }, [fetchAttendance]);
+  }, [fetchAttendance, hydratedSearch]);
 
   useEffect(() => {
     setHolidayMessage("");
@@ -2049,7 +2083,7 @@ export function AdminAttendancePageContent({
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="min-w-[720px] w-full text-sm">
+                  <table className="min-w-[880px] w-full text-sm">
                     <thead className="bg-gray-50 border-b border-gray-300">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
@@ -2060,6 +2094,9 @@ export function AdminAttendancePageContent({
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
                           Status
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-800">
+                          Profile
                         </th>
                       </tr>
                     </thead>
@@ -2091,6 +2128,20 @@ export function AdminAttendancePageContent({
                             >
                               {record.status}
                             </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Link
+                              href={`/dashboard/admin/students?studentId=${encodeURIComponent(
+                                record.studentId?._id || "",
+                              )}&course=${encodeURIComponent(
+                                record.studentId?.course || item.course || "",
+                              )}&year=${encodeURIComponent(
+                                String(record.studentId?.year || item.year || ""),
+                              )}`}
+                              className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                            >
+                              Open Profile
+                            </Link>
                           </td>
                         </tr>
                       ))}

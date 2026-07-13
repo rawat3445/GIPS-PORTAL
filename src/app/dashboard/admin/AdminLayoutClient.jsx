@@ -14,6 +14,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   LogOut,
+  MessageSquareText,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -127,6 +128,12 @@ export default function AdminLayoutClient({ children }) {
       href: "/dashboard/admin/class-tests",
       icon: Target,
       isActive: pathname.startsWith("/dashboard/admin/class-tests"),
+    },
+    {
+      name: "Faculty Reviews",
+      href: "/dashboard/admin/faculty-reviews",
+      icon: MessageSquareText,
+      isActive: pathname.startsWith("/dashboard/admin/faculty-reviews"),
     },
     {
       name: "Messages",

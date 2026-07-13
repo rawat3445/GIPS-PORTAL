@@ -1561,6 +1561,7 @@ export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
+  const [prefillStudentId, setPrefillStudentId] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedStudentView, setSelectedStudentView] = useState("details");
   const [editingStudent, setEditingStudent] = useState(null);
@@ -1630,6 +1631,25 @@ export default function StudentsPage() {
   }
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const nextCourse = params.get("course") || "";
+    const nextYear = params.get("year") || "";
+    const nextStudentId = params.get("studentId") || "";
+
+    if (nextCourse) {
+      setSelectedCourse(nextCourse);
+    }
+
+    if (nextYear) {
+      setSelectedYear(nextYear);
+    }
+
+    if (nextStudentId) {
+      setPrefillStudentId(nextStudentId);
+    }
+  }, []);
+
+  useEffect(() => {
     async function fetchStudents() {
       try {
         const res = await fetch("/api/admin/users?role=student");
@@ -1646,6 +1666,16 @@ export default function StudentsPage() {
 
     fetchStudents();
   }, []);
+
+  useEffect(() => {
+    if (!prefillStudentId || students.length === 0) return;
+
+    const matchedStudent = students.find((student) => student._id === prefillStudentId);
+    if (!matchedStudent) return;
+
+    setSelectedStudent(matchedStudent);
+    setSelectedStudentView("details");
+  }, [prefillStudentId, students]);
 
   async function openStudentSummary(studentId) {
     try {
