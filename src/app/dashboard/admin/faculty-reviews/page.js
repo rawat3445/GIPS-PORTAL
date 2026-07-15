@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   GraduationCap,
+  Search,
   MessageSquareText,
   Star,
   Trash2,
@@ -55,6 +57,8 @@ export default function AdminFacultyReviewsPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [deletingId, setDeletingId] = useState("");
+  const [selectedFacultyId, setSelectedFacultyId] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [data, setData] = useState({
     totalReviews: 0,
     ratedReviews: 0,
@@ -134,6 +138,85 @@ export default function AdminFacultyReviewsPage() {
     [data.facultySummary],
   );
 
+  const selectedFaculty = useMemo(() => {
+    if (!data.facultySummary.length) return null;
+    return (
+      data.facultySummary.find((item) => item.facultyId === selectedFacultyId) ||
+      data.facultySummary[0]
+    );
+  }, [data.facultySummary, selectedFacultyId]);
+
+  useEffect(() => {
+    if (!selectedFacultyId && data.facultySummary[0]?.facultyId) {
+      setSelectedFacultyId(data.facultySummary[0].facultyId);
+    }
+  }, [data.facultySummary, selectedFacultyId]);
+
+  const facultyReviews = useMemo(() => {
+    if (!selectedFaculty?.facultyId) return [];
+    return data.reviews.filter(
+      (review) => review.facultyId === selectedFaculty.facultyId,
+    );
+  }, [data.reviews, selectedFaculty]);
+
+  const duplicateKeys = useMemo(() => {
+    const counts = new Map();
+
+    facultyReviews.forEach((review) => {
+      const key = String(review.studentId || review.studentEmail || review.studentName || "")
+        .trim()
+        .toLowerCase();
+      if (!key) return;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+
+    return new Set(
+      Array.from(counts.entries())
+        .filter(([, count]) => count > 1)
+        .map(([key]) => key),
+    );
+  }, [facultyReviews]);
+
+  const visibleReviews = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    return facultyReviews.filter((review) => {
+      const reviewKey = String(
+        review.studentId || review.studentEmail || review.studentName || "",
+      )
+        .trim()
+        .toLowerCase();
+
+      const matchesSearch =
+        !normalizedSearch ||
+        [
+          review.studentName,
+          review.studentEmail,
+          review.course,
+          review.facultyName,
+          review.comment,
+          String(review.year || ""),
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedSearch);
+
+      return matchesSearch && Boolean(reviewKey || normalizedSearch === "");
+    });
+  }, [facultyReviews, searchTerm]);
+
+  const duplicateReviewCount = useMemo(
+    () =>
+      facultyReviews.filter((review) =>
+        duplicateKeys.has(
+          String(review.studentId || review.studentEmail || review.studentName || "")
+            .trim()
+            .toLowerCase(),
+        ),
+      ).length,
+    [facultyReviews, duplicateKeys],
+  );
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fff7ed_0%,#fffbeb_24%,#f8fafc_100%)] p-4 md:p-6">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -199,15 +282,15 @@ export default function AdminFacultyReviewsPage() {
           />
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
           <section className="rounded-[28px] border border-white/80 bg-white/94 p-5 shadow-[0_24px_55px_-40px_rgba(15,23,42,0.35)] md:p-6">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-                  Staff Summary
+                  Faculty Review List
                 </p>
                 <h2 className="mt-2 text-xl font-bold text-slate-950">
-                  Rating by staff name
+                  Open a particular faculty
                 </h2>
               </div>
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
@@ -225,10 +308,19 @@ export default function AdminFacultyReviewsPage() {
               </div>
             ) : (
               <div className="mt-5 space-y-3">
-                {topFaculty.map((item) => (
-                  <div
+                {data.facultySummary.map((item) => {
+                  const isActive = selectedFaculty?.facultyId === item.facultyId;
+
+                  return (
+                  <button
                     key={`${item.facultyId}-${item.facultyName}`}
-                    className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4"
+                    type="button"
+                    onClick={() => setSelectedFacultyId(item.facultyId)}
+                    className={`block w-full rounded-[22px] border p-4 text-left transition ${
+                      isActive
+                        ? "border-amber-300 bg-amber-50/90 shadow-sm"
+                        : "border-slate-200 bg-slate-50/80 hover:border-amber-200 hover:bg-amber-50/50"
+                    }`}
                   >
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
@@ -251,38 +343,126 @@ export default function AdminFacultyReviewsPage() {
                     <p className="mt-3 text-xs text-slate-400">
                       Latest review: {formatDateTime(item.latestReviewAt)}
                     </p>
-                  </div>
-                ))}
+                  </button>
+                )})}
               </div>
             )}
           </section>
 
           <section className="rounded-[28px] border border-white/80 bg-white/94 p-5 shadow-[0_24px_55px_-40px_rgba(15,23,42,0.35)] md:p-6">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">
-              Recent Submissions
+              Faculty-Wise Reviews
             </p>
             <h2 className="mt-2 text-xl font-bold text-slate-950">
-              Student name, course, and comments
+              {selectedFaculty?.facultyName || "Select faculty to inspect reviews"}
             </h2>
             <p className="mt-2 text-sm text-slate-500">
-              This list keeps the exact staff name, student name, course, year,
-              rating, and each question score together.
+              Open one faculty and review all students who submitted feedback for
+              that staff member. Search by student name, email, course, year, or comment.
             </p>
+
+            {selectedFaculty ? (
+              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Selected Faculty
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">
+                    {selectedFaculty.facultyName}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {selectedFaculty.facultyAssignedCourse || "Unassigned"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Total Reviews
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">
+                    {facultyReviews.length}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {selectedFaculty.ratedReviewCount || 0} with ratings
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Duplicate Alerts
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">
+                    {duplicateReviewCount}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Reviews from students who submitted more than once
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-5 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+              <label className="block">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Search Reviews
+                </p>
+                <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <Search className="h-4 w-4 text-slate-400" />
+                  <input
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Search student name, email, course, year, or comment"
+                    className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                  />
+                </div>
+              </label>
+            </div>
+
+            {selectedFaculty && duplicateReviewCount > 0 ? (
+              <div className="mt-5 rounded-[22px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
+                  <div>
+                    <p className="font-semibold">
+                      Duplicate review alert for this faculty
+                    </p>
+                    <p className="mt-1 leading-6">
+                      Students marked with a duplicate badge reviewed this faculty
+                      more than once. You can manually inspect and delete the extra review.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             {loading ? (
               <div className="mt-5 rounded-[22px] border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-sm text-slate-500">
                 Loading reviews...
               </div>
-            ) : !data.reviews.length ? (
+            ) : !selectedFaculty ? (
               <div className="mt-5 rounded-[22px] border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-sm text-slate-500">
-                No reviews submitted yet.
+                Select a faculty member to view student reviews.
+              </div>
+            ) : !visibleReviews.length ? (
+              <div className="mt-5 rounded-[22px] border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-sm text-slate-500">
+                No reviews matched this faculty and search.
               </div>
             ) : (
               <div className="mt-5 space-y-4">
-                {data.reviews.map((review) => (
+                {visibleReviews.map((review) => {
+                  const duplicateKey = String(
+                    review.studentId || review.studentEmail || review.studentName || "",
+                  )
+                    .trim()
+                    .toLowerCase();
+                  const isDuplicate = duplicateKeys.has(duplicateKey);
+
+                  return (
                   <article
                     key={review._id}
-                    className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4"
+                    className={`rounded-[24px] border p-4 ${
+                      isDuplicate
+                        ? "border-amber-300 bg-amber-50/60"
+                        : "border-slate-200 bg-slate-50/80"
+                    }`}
                   >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0">
@@ -293,6 +473,11 @@ export default function AdminFacultyReviewsPage() {
                           <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-800">
                             {review.overallRating ? `${review.overallRating} / 5` : "Comment only"}
                           </span>
+                          {isDuplicate ? (
+                            <span className="rounded-full bg-rose-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-800">
+                              Duplicate Review
+                            </span>
+                          ) : null}
                         </div>
                         <p className="mt-1 text-sm text-slate-500">
                           {review.facultyAssignedCourse || review.course || "-"}
@@ -386,7 +571,7 @@ export default function AdminFacultyReviewsPage() {
                       </button>
                     </div>
                   </article>
-                ))}
+                )})}
               </div>
             )}
           </section>
