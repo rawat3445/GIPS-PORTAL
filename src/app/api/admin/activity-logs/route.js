@@ -514,7 +514,7 @@ export async function GET(request) {
     const reportDays = normalizeWindow(searchParams.get("reportDays"), 7, 1, 30);
     const inactiveDays = normalizeWindow(
       searchParams.get("inactiveDays"),
-      7,
+      15,
       1,
       60,
     );

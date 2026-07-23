@@ -221,7 +221,7 @@ function AttendanceLogMeta({ metadata }) {
 function createEmptyStudentReport(reportDays, inactiveDays) {
   return {
     reportDays: Number(reportDays || 7),
-    inactiveDays: Number(inactiveDays || 7),
+    inactiveDays: Number(inactiveDays || 15),
     totalStudents: 0,
     inactiveStudentCount: 0,
     neverLoggedInCount: 0,
@@ -261,7 +261,7 @@ export default function AdminActivityLogsPage({
 }) {
   const [logs, setLogs] = useState([]);
   const [studentLoginReport, setStudentLoginReport] = useState(
-    createEmptyStudentReport(7, 7),
+    createEmptyStudentReport(7, 15),
   );
   const [exactUserStats, setExactUserStats] = useState(
     createEmptyExactUserStats(),
@@ -272,7 +272,7 @@ export default function AdminActivityLogsPage({
   const [role, setRole] = useState(lockedRole);
   const [actionType, setActionType] = useState("");
   const [reportDays, setReportDays] = useState("7");
-  const [inactiveDays, setInactiveDays] = useState("7");
+  const [inactiveDays, setInactiveDays] = useState("15");
   const [studentTab, setStudentTab] = useState("attention");
 
   useEffect(() => {
@@ -557,7 +557,7 @@ export default function AdminActivityLogsPage({
               {
                 label: "Blocked Access",
                 value: studentLoginReport.blockedStudentCount || 0,
-                note: "Students whose 7 working-day window ended",
+                note: "Students whose 15 working-day window ended",
                 tone: "text-rose-700",
                 icon: Ban,
               },
@@ -602,7 +602,7 @@ export default function AdminActivityLogsPage({
                   Login Access Rule
                 </p>
                 <h3 className="mt-2 text-lg font-semibold text-slate-950">
-                  Student access is tracked with 7 working days
+                  Student access is tracked with 15 working days
                 </h3>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
                   Last Login is kept separately for authentication history. Blocking and inactivity now follow each student&apos;s latest recorded portal activity. If admin resets the student password, the next login starts a fresh record. Sundays and holidays are skipped.

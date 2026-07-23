@@ -7,7 +7,7 @@ import {
 } from "./attendanceEvents";
 
 export const STUDENT_LOGIN_ACCESS_START_DATE = "2026-05-06";
-export const STUDENT_LOGIN_WORKING_DAYS_ALLOWED = 7;
+export const STUDENT_LOGIN_WORKING_DAYS_ALLOWED = 15;
 
 function safeIsoDate(value) {
   const normalized = String(value || "").trim();
