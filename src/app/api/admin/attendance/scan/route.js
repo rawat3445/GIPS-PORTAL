@@ -17,6 +17,56 @@ async function buildCounts(sessionId) {
   return { scanCount };
 }
 
+async function findOrCreateAdminSession({ adminId, student, date }) {
+  const course = String(student.course || "").trim().toUpperCase();
+  const year = Number(student.year || 0);
+
+  const validationMessage = getAttendanceDateValidationMessage(date);
+  if (validationMessage) {
+    return { error: validationMessage, status: 400 };
+  }
+
+  const classHoliday = await findApplicableHoliday({
+    date,
+    course,
+    year,
+  });
+  if (classHoliday) {
+    return {
+      error: `This date already has an active ${classHoliday.eventType || "holiday"}${
+        classHoliday.title ? `: ${classHoliday.title}` : ""
+      }`,
+      status: 400,
+    };
+  }
+
+  const existingSession = await AttendanceSession.findOne({
+    createdBy: adminId,
+    course,
+    year,
+    date,
+    status: "open",
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  if (existingSession) {
+    return { session: existingSession };
+  }
+
+  const session = await AttendanceSession.create({
+    course,
+    year,
+    date,
+    createdBy: adminId,
+    status: "open",
+    sessionCode: `AQR-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+    expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+  });
+
+  return { session: session.toObject() };
+}
+
 export async function POST(request) {
   try {
     await connectDB();
@@ -81,62 +131,34 @@ export async function POST(request) {
           { status: 400 },
         );
       }
-    } else {
-      const validationMessage = getAttendanceDateValidationMessage(date);
-      if (validationMessage) {
-        return NextResponse.json({ message: validationMessage }, { status: 400 });
-      }
+    }
 
-      const classHoliday = await findApplicableHoliday({
-        date,
-        course: student.course,
-        year: student.year,
-      });
-      if (classHoliday) {
+    if (
+      !session ||
+      String(student.course || "").toUpperCase() !== String(session.course || "").toUpperCase() ||
+      Number(student.year || 0) !== Number(session.year || 0)
+    ) {
+      if (!date && session?.date) {
         return NextResponse.json(
-          {
-            message: `This date already has an active ${classHoliday.eventType || "holiday"}${
-              classHoliday.title ? `: ${classHoliday.title}` : ""
-            }`,
-          },
+          { message: "date is required to auto-route this student to the correct batch session" },
           { status: 400 },
         );
       }
 
-      const existingSession = await AttendanceSession.findOne({
-        createdBy: auth.decoded.id,
-        course: String(student.course || "").trim().toUpperCase(),
-        year: Number(student.year || 0),
-        date,
-        status: "open",
-      })
-        .sort({ createdAt: -1 })
-        .lean();
+      const routed = await findOrCreateAdminSession({
+        adminId: auth.decoded.id,
+        student,
+        date: date || session.date,
+      });
 
-      if (existingSession) {
-        session = existingSession;
-      } else {
-        session = await AttendanceSession.create({
-          course: String(student.course || "").trim().toUpperCase(),
-          year: Number(student.year || 0),
-          date,
-          createdBy: auth.decoded.id,
-          status: "open",
-          sessionCode: `AQR-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
-          expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
-        });
-        session = session.toObject();
+      if (routed.error) {
+        return NextResponse.json(
+          { message: routed.error },
+          { status: routed.status || 400 },
+        );
       }
-    }
 
-    if (
-      String(student.course || "").toUpperCase() !== String(session.course || "").toUpperCase() ||
-      Number(student.year || 0) !== Number(session.year || 0)
-    ) {
-      return NextResponse.json(
-        { message: "This student does not belong to the current course and year session" },
-        { status: 400 },
-      );
+      session = routed.session;
     }
 
     const activeEvent = await findApplicableHoliday({

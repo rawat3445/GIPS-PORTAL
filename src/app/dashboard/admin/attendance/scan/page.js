@@ -9,21 +9,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-const COURSE_OPTIONS = [
-  { value: "BPT", label: "Bachelor of Physiotherapy" },
-  { value: "BOPTOM", label: "Bachelor of Optometry" },
-  { value: "BMRIT", label: "Bachelor of Medical Radiology and Imaging Technology" },
-  { value: "DOPTOM", label: "Diploma in Optometry" },
-  { value: "BOTT", label: "Bachelor of Operation Theatre Technology" },
-];
-
-const YEAR_OPTIONS = [
-  { value: "1", label: "1st Year" },
-  { value: "2", label: "2nd Year" },
-  { value: "3", label: "3rd Year" },
-  { value: "4", label: "4th Year" },
-];
-
 function getTodayISO() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
@@ -59,9 +44,7 @@ function getCameraSupportError() {
 }
 
 export default function AdminScanAttendancePage() {
-  const [selectedCourse, setSelectedCourse] = useState("BPT");
   const [selectedDate, setSelectedDate] = useState(getTodayISO());
-  const [selectedYear, setSelectedYear] = useState("1");
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -77,35 +60,12 @@ export default function AdminScanAttendancePage() {
   const lastScanAtRef = useRef(0);
   const initialDateRef = useRef(selectedDate);
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const params = new URLSearchParams(window.location.search);
-    const course = String(params.get("course") || "").trim().toUpperCase();
-    const year = String(params.get("year") || "").trim();
-
-    if (COURSE_OPTIONS.some((option) => option.value === course)) {
-      setSelectedCourse(course);
-    }
-
-    if (YEAR_OPTIONS.some((option) => option.value === year)) {
-      setSelectedYear(year);
-    }
-  }, []);
-
   const activeSession = useMemo(
     () =>
       sessions.find((entry) => String(entry?._id || "") === activeSessionId) ||
-      sessions.find(
-        (entry) =>
-          String(entry?.course || "").toUpperCase() === selectedCourse &&
-          String(entry?.year || "") === selectedYear,
-      ) ||
       sessions[0] ||
       null,
-    [activeSessionId, selectedCourse, selectedYear, sessions],
+    [activeSessionId, sessions],
   );
 
   async function fetchSessionsForDate(date) {
@@ -189,7 +149,6 @@ export default function AdminScanAttendancePage() {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
-            sessionId: activeSession?._id || undefined,
             date: selectedDate,
             qrText,
             scanSource,
@@ -205,8 +164,6 @@ export default function AdminScanAttendancePage() {
         setLastAcceptedStudentId(String(data?.student?._id || ""));
         setManualValue("");
         if (data?.session?._id) {
-          setSelectedCourse(String(data.session.course || "").trim().toUpperCase());
-          setSelectedYear(String(data.session.year || ""));
           await refreshSessionsForDate(selectedDate, String(data.session._id));
         } else if (activeSession?._id) {
           await refreshSessionById(activeSession._id);
@@ -350,40 +307,6 @@ export default function AdminScanAttendancePage() {
       }
     };
   }, [scannerEnabled, selectedDate, submitScan]);
-
-  async function createOrOpenSession() {
-    try {
-      setActionLoading(true);
-      setError("");
-      setMessage("");
-
-      const res = await fetch("/api/admin/attendance/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          course: selectedCourse,
-          year: Number(selectedYear),
-          date: selectedDate,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to create admin QR session");
-      }
-
-      setSelectedCourse(String(data?.session?.course || selectedCourse));
-      setSelectedYear(String(data?.session?.year || selectedYear));
-      setSessions(Array.isArray(data?.sessions) ? data.sessions : []);
-      setActiveSessionId(String(data?.session?._id || ""));
-      setMessage(data.message || "Admin QR session is ready");
-    } catch (sessionError) {
-      setError(sessionError.message || "Failed to create admin QR session");
-    } finally {
-      setActionLoading(false);
-    }
-  }
 
   async function finalizeSession(sessionId = activeSession?._id) {
     if (!sessionId) {
@@ -573,41 +496,7 @@ export default function AdminScanAttendancePage() {
                 </span>
               </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Quick Open Course
-                  </label>
-                  <select
-                    value={selectedCourse}
-                    onChange={(e) => setSelectedCourse(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                  >
-                    {COURSE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.value} - {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Quick Open Year
-                  </label>
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                  >
-                    {YEAR_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
+              <div className="mt-5 grid grid-cols-1 gap-4">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">
                     Attendance Date
@@ -622,17 +511,6 @@ export default function AdminScanAttendancePage() {
               </div>
 
               <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={createOrOpenSession}
-                  disabled={actionLoading}
-                  className="rounded-2xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 disabled:opacity-50"
-                >
-                  {actionLoading
-                    ? "Working..."
-                    : "Open Selected Batch Manually"}
-                </button>
-
                 <button
                   type="button"
                   onClick={() => refreshSessionsForDate(selectedDate)}
@@ -650,7 +528,7 @@ export default function AdminScanAttendancePage() {
                     disabled={actionLoading}
                     className="rounded-2xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 disabled:opacity-50"
                   >
-                    Finalize All Open Sessions
+                    Submit All Scanned ID Cards
                   </button>
                 ) : null}
               </div>
@@ -660,8 +538,9 @@ export default function AdminScanAttendancePage() {
                   Auto Mode
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-700">
-                  Keep the scanner on this date. Every scanned student card will
-                  automatically go to that student&apos;s own course and year session.
+                  Select only the attendance date, then scan ID cards from any
+                  course or year. The system creates the correct batch session
+                  automatically for each student.
                 </p>
                 <p className="mt-3 text-sm font-semibold text-sky-700">
                   Open sessions on {selectedDate}: {openSessionCount}

@@ -152,7 +152,7 @@ export default async function StudentIdCardPage() {
                 </div>
               </div>
 
-              <div className="relative z-[2] mx-auto mt-4 h-[66px] w-[66px] items-center justify-center rounded-full border-[4px] border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(219,234,254,0.92))] shadow-[0_18px_40px_-20px_rgba(15,23,42,0.3)]">
+              <div className="relative z-[2] mx-auto mt-4 h-[16px] w-[16px] items-center justify-center rounded-full border-[4px] border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(219,234,254,0.92))] shadow-[0_18px_40px_-20px_rgba(15,23,42,0.3)]">
                 {student.profileImage ? (
                   <img
                     src={student.profileImage}

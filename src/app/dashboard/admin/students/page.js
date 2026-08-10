@@ -231,7 +231,7 @@ function buildIdCardMarkup({
             <div class="authority-meta">
               <div class="authority-label">Issuing Authority</div>
               <div class="authority-role">${escapeHtml(CARD_AUTHORITY)}</div>
-              <div class="authority-org">${escapeHtml(COLLEGE_NAME)}</div>
+              
             </div>
           </div>
         </div>
@@ -322,7 +322,7 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
             position: relative;
             overflow: hidden;
             width: 5.4cm;
-            height: 8.56cm;
+            height: 8.8cm;
             border-radius: 14px;
             border: 1px solid rgba(15, 23, 42, 0.08);
             background: #ffffff;
@@ -334,7 +334,7 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
             height: 100%;
             display: flex;
             flex-direction: column;
-            padding: 10px 9px;
+            padding: 4px 9px;
           }
           .hero {
             position: absolute;
@@ -388,32 +388,33 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
           .header {
             position: relative;
             z-index: 2;
-            margin-top: 8px;
+          
             display: flex;
             align-items: flex-start;
             gap: 8px;
             border-radius: 12px;
-            padding: 6px;
+            padding: 4px;
           }
           .header-front {
+          font-size: 22px;
             border: 1px solid rgba(255, 255, 255, 0.95);
             background: #facc15;
           }
           .logo {
-            width: 28px;
-            height: 28px;
+            width: 45px;
+            height: 45px;
             flex-shrink: 0;
             object-fit: contain;
           }
           .college {
             min-width: 0;
-            font-size: 5.5px;
+            font-size: 7px;
             line-height: 1.1;
             color: #dc2626;
           }
           .college strong {
             display: block;
-            font-size: 8px;
+            font-size: 11px;
             line-height: 1.05;
             font-weight: 700;
             color: #ffffff;
@@ -423,10 +424,10 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
             margin-top: 2px;
           }
           .photo-wrap {
-            margin: 16px auto 0;
+            margin: 1px auto 0;
             padding: 0;
-            width: 66px;
-            height: 66px;
+            width: 80px;
+            height: 80px;
             border-radius: 999px;
             border: 4px solid rgba(255, 255, 255, 0.9);
             background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(219,234,254,0.92));
@@ -462,7 +463,7 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
           .name {
             margin-top: 8px;
             text-align: center;
-            font-size: 14px;
+            font-size: 12px;
             line-height: 1.1;
             font-weight: 900;
             color: #020617;
@@ -491,7 +492,7 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
             color: #0f172a;
           }
           .row-label {
-            font-size: 5px;
+            font-size: 9px;
             font-weight: 700;
             letter-spacing: 0.12em;
             text-transform: uppercase;
@@ -508,13 +509,12 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
           .bottom {
             margin-top: auto;
             display: flex;
-            align-items: flex-end;
             justify-content: space-between;
             gap: 8px;
           }
           .signature-box {
-            width: 72px;
-            min-height: 30px;
+            width: 58px;
+            min-height: 40px;
             border-radius: 8px;
             background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(239,246,255,0.82));
             padding: 3px 5px;
@@ -522,57 +522,52 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
           }
           .signature-box img {
             width: 100%;
-            height: 14px;
+            height: 20px;
             object-fit: contain;
             display: block;
           }
           .signature-label {
-            margin-top: 1px;
-            font-size: 3.4px;
+            margin-top: 6px;
+            font-size: 10px;
             color: #334155;
           }
           .authority-meta {
             text-align: right;
           }
           .authority-label {
-            font-size: 3.9px;
+            font-size: 8px;
             font-weight: 700;
+            margin-top: 8px;
             letter-spacing: 0.1em;
             text-transform: uppercase;
             color: #475569;
           }
           .authority-role {
-            margin-top: 2px;
-            font-size: 5.6px;
+            margin-top:8px;
+            font-size: 10px;
             font-weight: 800;
             color: #0f172a;
           }
-          .authority-org {
-            margin-top: 2px;
-            max-width: 80px;
-            font-size: 3.6px;
-            line-height: 1.25;
-            color: #334155;
-          }
+          
           .back-center {
-            margin-top: 8px;
+            margin-top: 6px;
             display: flex;
             flex: 1;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 7px;
           }
           .back-qr {
-            border-radius: 18px;
+            border-radius: 6px;
             background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(239,246,255,0.9));
-            padding: 8px;
+            padding: 4px;
             box-shadow: 0 18px 36px -24px rgba(15, 23, 42, 0.45);
           }
           .back-qr img {
             display: block;
-            width: 126px;
-            height: 126px;
+            width: 160px;
+            height: 160px;
             border-radius: 10px;
             object-fit: contain;
             background: #ffffff;
@@ -580,14 +575,14 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
           .back-note {
             margin: 0;
             text-align: center;
-            font-size: 7px;
+            font-size: 10px;
             font-weight: 700;
             letter-spacing: 0.08em;
             text-transform: uppercase;
             color: #334155;
           }
           .address-box {
-            margin-top: 4px;
+            margin-top: 10px;
             border-radius: 10px;
             background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(239,246,255,0.86));
             padding: 4px 6px;
@@ -595,7 +590,7 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
             border: 1px solid rgba(255,255,255,0.9);
           }
           .address-label {
-            font-size: 5px;
+            font-size: 8px;
             font-weight: 700;
             letter-spacing: 0.12em;
             text-transform: uppercase;
@@ -603,7 +598,8 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
           }
           .address-value {
             margin-top: 2px;
-            font-size: 7px;
+            font-size: 10px;
+            margin-bottom: 6px;
             font-weight: 600;
             line-height: 1.05;
             color: #0f172a;
@@ -1232,8 +1228,8 @@ function StudentQrPanel({ student, onStudentUpdated }) {
             className="mx-auto relative flex flex-col overflow-hidden rounded-[14px] border border-sky-100 bg-white/90 p-[10px] text-slate-900 shadow-[0_22px_48px_-26px_rgba(15,23,42,0.45)]"
             style={{
               fontFamily: '"Trebuchet MS", "Arial Narrow", Arial, sans-serif',
-              width: "5.4cm",
-              height: "8.56cm",
+              width: "6.4cm",
+              height: "11.50cm",
             }}
           >
             <div className="absolute inset-x-0 top-0 h-[108px] bg-linear-to-r from-yellow-500 via-white to-sky-400" />
@@ -1246,20 +1242,20 @@ function StudentQrPanel({ student, onStudentUpdated }) {
                 <img
                   src="/collage_logo.png"
                   alt="GIPS Logo"
-                  className="h-7 w-7 flex-shrink-0 object-contain"
+                  className="h-11 w-11 flex-shrink-0 object-contain"
                 />
                 <div className="min-w-0">
-                  <p className="text-[8px] font-bold leading-tight text-white">
+                  <p className="text-[15px] font-bold leading-tight text-white">
                     {COLLEGE_NAME}
                   </p>
-                  <p className="mt-0.5 text-[5.5px] leading-[1.1] text-red-600">
+                  <p className="mt-0.5 text-[7.5px] leading-[1.1] text-red-600">
                     {COLLEGE_AFFILIATION}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="relative z-[2] mx-auto mt-4 h-[66px] w-[66px] items-center justify-center rounded-full border-[4px] border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(219,234,254,0.92))] shadow-[0_18px_40px_-20px_rgba(15,23,42,0.3)]">
+            <div className="relative z-[2] mx-auto mt-4 h-[86px] w-[86px] items-center justify-center rounded-full border-[4px] border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(219,234,254,0.92))] shadow-[0_18px_40px_-20px_rgba(15,23,42,0.3)]">
               {student.profileImage ? (
                 <img
                   src={student.profileImage}
@@ -1275,7 +1271,7 @@ function StudentQrPanel({ student, onStudentUpdated }) {
 
             <div className="relative z-[2] mt-2 text-center">
               <h3
-                className="text-[14px] font-black uppercase leading-tight text-slate-950"
+                className="text-[20px] font-black uppercase leading-tight text-slate-950"
                 style={{
                   fontFamily:
                     '"Franklin Gothic Medium", "Arial Narrow", Arial, sans-serif',
@@ -1284,69 +1280,67 @@ function StudentQrPanel({ student, onStudentUpdated }) {
               >
                 {student.name}
               </h3>
-              <p className="mt-0.5 text-[7px] font-semibold leading-[1.05] text-slate-800">
+              <p className="mt-0.5 text-[9px] font-semibold leading-[1.05] text-slate-800">
                 {courseLabel}
               </p>
             </div>
 
             <div className="relative z-[2] mt-1.5 grid grid-cols-1 gap-1">
               <div className="rounded-[6px] border border-sky-200/40 border-l-[2px] border-l-sky-500 bg-[linear-gradient(90deg,rgba(224,242,254,0.72),rgba(255,255,255,0.18))] px-[5px] py-[2px]">
-                <p className="text-[5px] font-bold uppercase tracking-[0.12em] text-sky-700">
+                <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-700">
                   Student ID
                 </p>
-                <p className="mt-0.5 text-[7px] font-bold leading-[1.05] text-slate-900">
+                <p className="mt-0.5 text-[9px] font-bold leading-[1.05] text-slate-900">
                   {studentCardId}
                 </p>
               </div>
 
               <div className="rounded-[6px] border border-sky-200/40 border-l-[2px] border-l-sky-500 bg-[linear-gradient(90deg,rgba(224,242,254,0.72),rgba(255,255,255,0.18))] px-[5px] py-[2px]">
-                <p className="text-[5px] font-bold uppercase tracking-[0.12em] text-sky-700">
+                <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-700">
                   Session
                 </p>
-                <p className="mt-0.5 text-[7px] font-bold leading-[1.05] text-slate-900">
+                <p className="mt-0.5 text-[9px] font-bold leading-[1.05] text-slate-900">
                   {sessionLabel}
                 </p>
               </div>
 
               <div className="rounded-[6px] border border-sky-200/40 border-l-[2px] border-l-sky-500 bg-[linear-gradient(90deg,rgba(224,242,254,0.72),rgba(255,255,255,0.18))] px-[5px] py-[2px]">
-                <p className="text-[5px] font-bold uppercase tracking-[0.12em] text-sky-700">
+                <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-700">
                   Parent Contact No
                 </p>
-                <p className="mt-0.5 text-[7px] font-bold leading-[1.05] text-slate-900">
+                <p className="mt-0.5 text-[9px] font-bold leading-[1.05] text-slate-900">
                   {parentContactLabel}
                 </p>
               </div>
 
               <div className="rounded-[6px] border border-sky-200/40 border-l-[2px] border-l-sky-500 bg-[linear-gradient(90deg,rgba(224,242,254,0.72),rgba(255,255,255,0.18))] px-[5px] py-[2px]">
-                <p className="text-[5px] font-bold uppercase tracking-[0.12em] text-sky-700">
+                <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-700">
                   Blood Group
                 </p>
-                <p className="mt-0.5 text-[7px] font-bold leading-[1.05] text-slate-900">
+                <p className="mt-0.5 text-[9px] font-bold leading-[1.05] text-slate-900">
                   {bloodGroupLabel}
                 </p>
               </div>
             </div>
 
             <div className="relative z-[2] mt-auto flex items-end justify-between gap-2 pt-1.5">
-              <div className="w-[72px] rounded-[8px] border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(239,246,255,0.82))] px-[5px] py-[3px]">
+              <div className="w-[92px] rounded-[11px] border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(239,246,255,0.82))] px-[5px] py-[3px]">
                 <img
                   src={signatureDataUrl || "/signature-vice-principal.jpeg"}
                   alt="Authority Signature"
-                  className="h-[12px] w-full object-contain opacity-90"
+                  className="h-[22px] w-full object-contain opacity-90"
                 />
-                <p className="mt-0.5 text-[5px] text-slate-700">Signature</p>
+                <p className="mt-0.5 text-[9px] text-slate-700">Signature</p>
               </div>
 
-              <div className="max-w-[100px] text-right">
-                <p className="text-[5px] font-bold uppercase tracking-[0.12em] text-slate-500">
+              <div className="max-w-[120px] text-right">
+                <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">
                   Issuing Authority
                 </p>
-                <p className="mt-0.5 text-[8px] font-extrabold text-slate-900">
+                <p className="mt-0.5 text-[9px] font-extrabold text-slate-900">
                   {CARD_AUTHORITY}
                 </p>
-                <p className="mt-0.5 text-[5px] leading-[1.05] text-slate-700">
-                  {COLLEGE_NAME}
-                </p>
+                
               </div>
             </div>
           </div>
@@ -1360,8 +1354,8 @@ function StudentQrPanel({ student, onStudentUpdated }) {
             className="mx-auto relative flex flex-col overflow-hidden rounded-[14px] border border-cyan-100 bg-white p-[10px] text-slate-900 shadow-[0_22px_48px_-26px_rgba(15,23,42,0.45)]"
             style={{
               fontFamily: '"Trebuchet MS", "Arial Narrow", Arial, sans-serif',
-              width: "5.4cm",
-              height: "8.56cm",
+              width: "6.4cm",
+              height: "11.50cm",
             }}
           >
             <div className="absolute inset-x-0 top-0 h-[118px] bg-yellow-400" />
@@ -1375,16 +1369,16 @@ function StudentQrPanel({ student, onStudentUpdated }) {
                   <img
                     src={qrDataUrl}
                     alt={`QR for ${student.name}`}
-                    className="h-[126px] w-[126px] rounded-[10px] bg-white object-contain"
+                    className="h-[156px] w-[156px] rounded-[10px] bg-white object-contain"
                   />
                 ) : (
-                  <div className="flex h-[126px] w-[126px] items-center justify-center rounded-[10px] border border-dashed border-slate-200 bg-slate-50 px-2 text-center text-[8px] text-slate-500">
+                  <div className="flex h-[156px] w-[156px] items-center justify-center rounded-[10px] border border-dashed border-slate-200 bg-slate-50 px-2 text-center text-[8px] text-slate-500">
                     {qrError || "Generating QR..."}
                   </div>
                 )}
               </div>
               <p
-                className="text-[7px] font-bold uppercase text-slate-700"
+                className="text-[9px] font-bold uppercase text-slate-700"
                 style={{
                   fontFamily:
                     '"Franklin Gothic Medium", "Arial Narrow", Arial, sans-serif',
@@ -1396,35 +1390,35 @@ function StudentQrPanel({ student, onStudentUpdated }) {
             </div>
             <div className="relative z-[2] grid grid-cols-1 gap-1">
               <div className="rounded-[6px] border border-sky-200/40 border-l-[2px] border-l-sky-500 bg-[linear-gradient(90deg,rgba(224,242,254,0.72),rgba(255,255,255,0.18))] px-[5px] py-[2px]">
-                <p className="text-[5px] font-bold uppercase tracking-[0.12em] text-sky-700">
+                <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-700">
                   College Phone No
                 </p>
-                <p className="mt-0.5 text-[7px] font-bold leading-[1.05] text-slate-900">
+                <p className="mt-0.5 text-[9px] font-bold leading-[1.05] text-slate-900">
                   {cardBackFields.phone}
                 </p>
               </div>
               <div className="rounded-[6px] border border-sky-200/40 border-l-[2px] border-l-sky-500 bg-[linear-gradient(90deg,rgba(224,242,254,0.72),rgba(255,255,255,0.18))] px-[5px] py-[2px]">
-                <p className="text-[5px] font-bold uppercase tracking-[0.12em] text-sky-700">
+                <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-700">
                   Website
                 </p>
-                <p className="mt-0.5 text-[7px] font-bold leading-[1.05] text-slate-900">
+                <p className="mt-0.5 text-[9px] font-bold leading-[1.05] text-slate-900">
                   {websiteLabel}
                 </p>
               </div>
               <div className="rounded-[6px] border border-sky-200/40 border-l-[2px] border-l-sky-500 bg-[linear-gradient(90deg,rgba(224,242,254,0.72),rgba(255,255,255,0.18))] px-[5px] py-[2px]">
-                <p className="text-[5px] font-bold uppercase tracking-[0.12em] text-sky-700">
+                <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-700">
                   Message
                 </p>
-                <p className="mt-0.5 text-[7px] font-bold leading-[1.05] text-slate-900">
+                <p className="mt-0.5 text-[9px] font-bold leading-[1.05] text-slate-900">
                   {cardBackFields.message}
                 </p>
               </div>
             </div>
             <div className="relative z-[2] mt-1 rounded-[10px] border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(239,246,255,0.86))] px-[6px] py-[4px] text-center">
-              <p className="text-[5px] font-bold uppercase tracking-[0.12em] text-slate-500">
+              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">
                 Student Residential Address
               </p>
-              <p className="mt-0.5 text-[7px] font-semibold leading-[1.05] text-slate-900">
+              <p className="mt-0.5 text-[9px] font-semibold leading-[1.05] text-slate-900">
                 {studentResidentialAddress}
               </p>
             </div>
