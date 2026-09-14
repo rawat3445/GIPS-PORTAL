@@ -924,9 +924,8 @@ export async function GET(request) {
             studentId: me._id,
           }),
           Attendance.find({
-            course,
-            year,
             date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
+            "records.studentId": me._id,
             $or: APPROVED_OR_LEGACY_ATTENDANCE_QUERY,
           })
             .select({ date: 1, records: 1 })
@@ -1875,9 +1874,8 @@ export async function GET(request) {
       }
 
       const doc = await Attendance.findOne({
-        course,
-        year,
         date,
+        "records.studentId": me._id,
         $or: APPROVED_OR_LEGACY_ATTENDANCE_QUERY,
       }).lean();
 
@@ -1895,9 +1893,8 @@ export async function GET(request) {
 
     if (from && to) {
       const docs = await Attendance.find({
-        course,
-        year,
         date: { $gte: from, $lte: to },
+        "records.studentId": me._id,
         $or: APPROVED_OR_LEGACY_ATTENDANCE_QUERY,
       })
         .select({ date: 1, records: 1 })

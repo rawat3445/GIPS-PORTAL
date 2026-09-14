@@ -54,8 +54,6 @@ async function buildStudentAttendanceSummary(student) {
     studentId: student._id,
   });
   const docs = await Attendance.find({
-    course: String(student.course || "").toUpperCase(),
-    year: Number(student.year),
     date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
     "records.studentId": student._id,
     $or: APPROVED_OR_LEGACY_ATTENDANCE_QUERY,
