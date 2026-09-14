@@ -323,7 +323,7 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
             overflow: hidden;
             width: 5.4cm;
             height: 8.8cm;
-            border-radius: 14px;
+            border-radius: 6px;
             border: 1px solid rgba(15, 23, 42, 0.08);
             background: #ffffff;
             box-shadow: 0 22px 48px -26px rgba(15, 23, 42, 0.45);
@@ -334,7 +334,7 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
             height: 100%;
             display: flex;
             flex-direction: column;
-            padding: 4px 9px;
+            padding: 10px 10px;
           }
           .hero {
             position: absolute;
@@ -379,7 +379,7 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
             transform: rotate(-3deg);
           }
           .band {
-            height: 7px;
+            height: 6px;
             border-radius: 999px;
           }
           .band-hidden {
@@ -461,7 +461,7 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
             justify-content: center;
           }
           .name {
-            margin-top: 8px;
+            margin-top: 1px;
             text-align: center;
             font-size: 12px;
             line-height: 1.1;
@@ -479,9 +479,9 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
             color: #1f2937;
           }
           .meta {
-            margin-top: 6px;
+            margin-top: 3px;
             display: grid;
-            gap: 2px;
+            gap: 1px;
           }
           .row {
             border-radius: 6px;
@@ -500,24 +500,23 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
           }
           .row-value {
             margin-top: 2px;
-            font-size: 7px;
+            font-size: 8px;
             font-weight: 700;
             line-height: 1.05;
             word-break: break-word;
             color: #0f172a;
           }
           .bottom {
-            margin-top: auto;
             display: flex;
             justify-content: space-between;
             gap: 8px;
           }
           .signature-box {
-            width: 58px;
+            width: 61px;
             min-height: 40px;
             border-radius: 8px;
             background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(239,246,255,0.82));
-            padding: 3px 5px;
+            padding: 1px 10px;
             border: 1px solid rgba(255,255,255,0.88);
           }
           .signature-box img {
@@ -527,12 +526,13 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
             display: block;
           }
           .signature-label {
-            margin-top: 6px;
+            margin-top: 4px;
             font-size: 10px;
             color: #334155;
           }
           .authority-meta {
             text-align: right;
+            margin-right: 5px;
           }
           .authority-label {
             font-size: 8px;
@@ -1581,6 +1581,13 @@ export default function StudentsPage() {
   const [summaryMonthKey, setSummaryMonthKey] = useState(getCurrentMonthKey());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [promotionCourse, setPromotionCourse] = useState("");
+  const [promotionFromYear, setPromotionFromYear] = useState("1");
+  const [promotionPreview, setPromotionPreview] = useState(null);
+  const [promotionLoading, setPromotionLoading] = useState(false);
+  const [promotionError, setPromotionError] = useState("");
+  const [promotionOpenSessions, setPromotionOpenSessions] = useState([]);
+  const [promotionMessage, setPromotionMessage] = useState("");
 
   const filteredStudents = students.filter((student) => {
     const query = searchTerm.toLowerCase();
@@ -1825,6 +1832,92 @@ export default function StudentsPage() {
     }
   }
 
+  async function requestPromotionPreview() {
+    try {
+      setPromotionLoading(true);
+      setPromotionError("");
+      setPromotionMessage("");
+      setPromotionPreview(null);
+      setPromotionOpenSessions([]);
+
+      const res = await fetch("/api/admin/students/promote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          course: promotionCourse,
+          fromYear: Number(promotionFromYear),
+          toYear: Number(promotionFromYear) + 1,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (Array.isArray(data.openSessions)) {
+          setPromotionOpenSessions(data.openSessions);
+        }
+        throw new Error(data.message || "Unable to preview student promotion");
+      }
+
+      setPromotionPreview(data);
+    } catch (err) {
+      setPromotionError(err.message || "Unable to preview student promotion");
+    } finally {
+      setPromotionLoading(false);
+    }
+  }
+
+  async function confirmPromotion() {
+    if (!promotionPreview?.students?.length) return;
+
+    const cohortLabel = promotionPreview.course === "all"
+      ? `all Year ${promotionPreview.fromYear} students`
+      : `${promotionPreview.course} Year ${promotionPreview.fromYear}`;
+    if (!confirm(`Promote ${promotionPreview.count} student(s) in ${cohortLabel} to Year ${promotionPreview.toYear}? This cannot be undone from this screen.`)) {
+      return;
+    }
+
+    try {
+      setPromotionLoading(true);
+      setPromotionError("");
+      const res = await fetch("/api/admin/students/promote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          course: promotionCourse,
+          fromYear: promotionPreview.fromYear,
+          toYear: promotionPreview.toYear,
+          studentIds: promotionPreview.students.map((student) => student._id),
+          confirm: true,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || "Unable to promote students");
+      }
+
+      const promotedIds = new Set(data.promotedStudentIds || []);
+      setStudents((prev) =>
+        prev.map((student) =>
+          promotedIds.has(student._id)
+            ? { ...student, year: promotionPreview.toYear }
+            : student,
+        ),
+      );
+      setSelectedStudent((prev) =>
+        prev && promotedIds.has(prev._id)
+          ? { ...prev, year: promotionPreview.toYear }
+          : prev,
+      );
+      setPromotionMessage(data.message || "Students promoted successfully.");
+      setPromotionPreview(null);
+    } catch (err) {
+      setPromotionError(err.message || "Unable to promote students");
+    } finally {
+      setPromotionLoading(false);
+    }
+  }
+
   return (
     <div className="p-4 md:p-6">
       {/* Header */}
@@ -1876,6 +1969,112 @@ export default function StudentsPage() {
           <option value="4">Year 4</option>
         </select>
       </div>
+
+      <section className="mb-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4 md:p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-base font-bold text-indigo-950">Promote students</h2>
+            <p className="mt-1 max-w-2xl text-sm text-indigo-900">
+              Move one completed cohort forward by one academic year. Historical attendance, results, and tests keep their original year.
+            </p>
+          </div>
+          <p className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700">
+            Year 1 → 2, Year 2 → 3, Year 3 → 4
+          </p>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <select
+            value={promotionCourse}
+            onChange={(e) => {
+              setPromotionCourse(e.target.value);
+              setPromotionPreview(null);
+            }}
+            className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-gray-900"
+          >
+            <option value="">All courses</option>
+            {Object.entries(COURSE_NAMES).map(([code, name]) => (
+              <option key={code} value={code}>{code} — {name}</option>
+            ))}
+          </select>
+          <select
+            value={promotionFromYear}
+            onChange={(e) => {
+              setPromotionFromYear(e.target.value);
+              setPromotionPreview(null);
+            }}
+            className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-gray-900"
+          >
+            <option value="1">Year 1 → Year 2</option>
+            <option value="2">Year 2 → Year 3</option>
+            <option value="3">Year 3 → Year 4</option>
+          </select>
+          <button
+            type="button"
+            onClick={requestPromotionPreview}
+            disabled={promotionLoading}
+            className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {promotionLoading ? "Checking..." : "Preview Promotion"}
+          </button>
+        </div>
+
+        {promotionError ? <p className="mt-3 text-sm font-medium text-red-700">{promotionError}</p> : null}
+        {promotionOpenSessions.length ? (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            <p className="font-semibold">Active attendance session{promotionOpenSessions.length === 1 ? "" : "s"} blocking this promotion:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {promotionOpenSessions.map((session) => (
+                <li key={`${session.sessionCode}-${session.date}`}>
+                  {session.course} — Year {session.year}, {session.date} ({session.sessionCode})
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs leading-5">
+              Open the QR Scanner and finalize or cancel the listed session. If it is not visible there, it was created by another admin account and that admin must close it.
+            </p>
+            <Link
+              href={`/dashboard/admin/attendance/scan?course=${encodeURIComponent(promotionOpenSessions[0].course)}&year=${encodeURIComponent(String(promotionOpenSessions[0].year))}`}
+              className="mt-2 inline-flex font-semibold text-amber-800 underline hover:text-amber-950"
+            >
+              Open QR Scanner
+            </Link>
+          </div>
+        ) : null}
+        {promotionMessage ? <p className="mt-3 text-sm font-medium text-emerald-700">{promotionMessage}</p> : null}
+
+        {promotionPreview ? (
+          <div className="mt-4 rounded-lg border border-indigo-200 bg-white p-4">
+            <p className="text-sm font-semibold text-gray-900">
+              {promotionPreview.count} student(s) will move from Year {promotionPreview.fromYear} to Year {promotionPreview.toYear}.
+            </p>
+            {promotionPreview.count === 0 ? (
+              <p className="mt-2 text-sm text-gray-600">No matching students were found.</p>
+            ) : (
+              <>
+                <p className="mt-1 text-xs text-gray-600">
+                  Review the roster below, then confirm the promotion. The server will verify this exact list again before updating it.
+                </p>
+                <div className="mt-3 max-h-36 overflow-y-auto rounded border border-gray-200">
+                  {promotionPreview.students.map((student) => (
+                    <p key={student._id} className="border-b border-gray-100 px-3 py-2 text-sm text-gray-700 last:border-b-0">
+                      {student.name} <span className="text-gray-500">— {student.course}, Year {student.year}</span>
+                    </p>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={confirmPromotion}
+                  disabled={promotionLoading}
+                  className="mt-3 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {promotionLoading ? "Promoting..." : `Confirm: Promote ${promotionPreview.count} Student(s)`}
+                </button>
+              </>
+            )}
+          </div>
+        ) : null}
+      </section>
 
       {/* Table */}
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">

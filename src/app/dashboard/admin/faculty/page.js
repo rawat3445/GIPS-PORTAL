@@ -315,7 +315,7 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
             width: 5.4cm;
             height: 8.56cm;
             border-radius: 14px;
-            border: 1px solid rgba(15, 23, 42, 0.08);
+            border: 1px solid rgba(84, 125, 219, 0.08);
             background:
               radial-gradient(circle at top left, rgba(255,255,255,0.75), transparent 30%),
               radial-gradient(circle at bottom right, rgba(109,208,203,0.28), transparent 34%),
@@ -376,10 +376,7 @@ function buildIdCardDocument(content, title, { includeToolbar = false } = {}) {
             background: rgba(241, 252, 251, 0.26);
             transform: rotate(-3deg);
           }
-          .band {
-            height: 7px;
-            border-radius: 999px;
-          }
+          
           .band-hidden {
             opacity: 0;
           }

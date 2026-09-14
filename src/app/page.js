@@ -150,7 +150,7 @@ export default async function Home() {
                 className="mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg"
                 style={{ animation: "liftIn 0.95s ease-out both 0.16s" }}
               >
-                Step into a polished college workspace where students stay on
+                step college workspace where students stay on
                 top of attendance, faculty manage daily operations smoothly, and
                 administrators oversee the entire academic system with clarity.
               </p>
