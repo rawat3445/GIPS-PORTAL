@@ -228,7 +228,7 @@ function StudentRow({ student, variant = "neutral" }) {
                 )}&course=${encodeURIComponent(student.course || "")}&year=${encodeURIComponent(
                   String(student.year || ""),
                 )}`}
-                className="truncate text-base font-semibold text-slate-950 hover:text-blue-700 hover:underline"
+                className="min-w-0 whitespace-normal break-words text-base font-semibold text-slate-950 hover:text-blue-700 hover:underline [overflow-wrap:anywhere]"
               >
                 {student.name}
               </Link>
@@ -243,7 +243,7 @@ function StudentRow({ student, variant = "neutral" }) {
                 </span>
               )}
             </div>
-            <p className="mt-1 truncate text-sm text-gray-500">{student.email}</p>
+            <p className="mt-1 break-words text-sm text-gray-500 [overflow-wrap:anywhere]">{student.email}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700">
                 {student.course || "-"}
@@ -268,10 +268,10 @@ function StudentRow({ student, variant = "neutral" }) {
               </div>
               <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-3 py-3 text-center">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">
-                  Present Days
+                  Present / Marked
                 </p>
                 <p className="mt-2 text-lg font-bold text-slate-900">
-                  {student.presentDays}
+                  {student.presentDays} / {student.markedDays}
                 </p>
               </div>
             </>
@@ -601,9 +601,9 @@ export default function AdminDashboard() {
       tone: "rose",
     },
     {
-      title: "Highest Attendance",
+      title: "High Attendance Students",
       value: loading ? "..." : stats.highestAttendanceStudents,
-      note: "Students leading the portal on attendance right now.",
+      note: "Students above 70% overall attendance across all courses and years.",
       icon: TrendingUp,
       tone: "emerald",
     },
@@ -999,7 +999,7 @@ export default function AdminDashboard() {
 
           <ExpandableSection
             title="Highest Attendance"
-            subtitle="Students currently leading the portal on attendance."
+            subtitle="Students above 70% overall attendance across all courses and years, ranked by percentage."
             count={loading ? "..." : stats.highestAttendanceStudents}
             icon={TrendingUp}
             open={sections.highest}

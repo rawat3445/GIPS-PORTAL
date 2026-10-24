@@ -189,15 +189,14 @@ export async function GET() {
       .slice(0, 10);
 
     const highAttendanceStudentList = [...attendanceStudents]
-      .filter((student) => student.markedDays > 0)
+      .filter((student) => student.attendancePercentage > 70)
       .sort((a, b) => {
         if (a.attendancePercentage !== b.attendancePercentage) {
           return b.attendancePercentage - a.attendancePercentage;
         }
 
         return b.presentDays - a.presentDays || a.name.localeCompare(b.name);
-      })
-      .slice(0, 10);
+      });
 
     const atRiskStudents = attendanceStudents.filter(
       (student) => student.markedDays > 0 && student.attendancePercentage <= 50,

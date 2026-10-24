@@ -1,9 +1,16 @@
 import Holiday from "../models/Holiday";
 
 export const ATTENDANCE_START_DATE = "2026-01-01";
+export const FIRST_YEAR_ATTENDANCE_START_DATE = "2026-09-17";
 export const WINTER_VACATION_FROM = "2026-01-01";
 export const WINTER_VACATION_TO = "2026-01-18";
 export const COLLEGE_RESUME_DATE = "2026-01-19";
+
+export function getStudentAttendanceStartDate(year) {
+  return Number(year) === 1
+    ? FIRST_YEAR_ATTENDANCE_START_DATE
+    : ATTENDANCE_START_DATE;
+}
 
 export function toISODate(date) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000)

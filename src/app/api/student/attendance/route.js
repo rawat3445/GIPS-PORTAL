@@ -15,6 +15,7 @@ import {
   ATTENDANCE_START_DATE,
   COLLEGE_RESUME_DATE,
   findApplicableHoliday,
+  getStudentAttendanceStartDate,
   getCalendarEndDateForContext,
   getHolidayMapForContext,
   isSunday,
@@ -868,6 +869,7 @@ export async function GET(request) {
 
     const course = String(me?.course || "").toUpperCase();
     const year = Number(me?.year);
+    const studentStartDate = getStudentAttendanceStartDate(year);
     const todayISO = toISODate(new Date());
     const currentMonthKey = todayISO.slice(0, 7);
 
@@ -910,14 +912,14 @@ export async function GET(request) {
       ] =
         await Promise.all([
           getHolidayMapForContext({
-            fromDate: ATTENDANCE_START_DATE,
+            fromDate: studentStartDate,
             toDate: calendarEndDate,
             course,
             year,
             studentId: me._id,
           }),
           getHolidayMapForContext({
-            fromDate: ATTENDANCE_START_DATE,
+            fromDate: studentStartDate,
             toDate: holidayCoverageEndDate,
             course,
             year,
@@ -1092,7 +1094,7 @@ export async function GET(request) {
       const monthsMap = new Map();
       const calendar = [];
       const streakTimeline = [];
-      let cursor = ATTENDANCE_START_DATE;
+      let cursor = studentStartDate;
 
       while (cursor <= calendarEndDate) {
         const monthKey = cursor.slice(0, 7);
@@ -1300,6 +1302,7 @@ export async function GET(request) {
           const studentId = String(student._id);
           const stats = leaderboardStatsMap.get(studentId);
           if (!stats) return;
+          if (leaderboardCursor < getStudentAttendanceStartDate(stats.year)) return;
 
           const groupKey = getLeaderboardGroupKey(stats.course, stats.year);
           const applicableHoliday = getApplicableLeaderboardHoliday({
@@ -1791,7 +1794,7 @@ export async function GET(request) {
         year,
         streakMonthKey: currentMonthKey,
         streakMonthLabel: monthLabel(currentMonthKey),
-        startDate: ATTENDANCE_START_DATE,
+        startDate: studentStartDate,
         currentDate: todayISO,
         calendarEndDate,
         vacation: {

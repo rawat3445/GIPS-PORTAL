@@ -26,6 +26,15 @@ function getCurrentMonthKey() {
   return `${year}-${month}`;
 }
 
+function formatAttendanceStartDate(date) {
+  if (!date) return "January 1, 2026";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${date}T00:00:00`));
+}
+
 function getMonthLabel(monthKey) {
   const [year, month] = monthKey.split("-").map(Number);
   return new Intl.DateTimeFormat("en-US", {
@@ -585,7 +594,7 @@ export default function StudentAttendancePage() {
             My Attendance
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-600 md:text-base">
-            Attendance is tracked from January 1, 2026 to today. Winter vacation
+            Attendance is tracked from {formatAttendanceStartDate(summary?.startDate)} to today. Winter vacation
             from January 1 to January 18, 2026 is excluded, Sundays are
             treated as holidays, and saved future events appear in upcoming months.
           </p>
@@ -647,7 +656,7 @@ export default function StudentAttendancePage() {
                   {overall.percentage}%
                 </p>
                 <p className="mt-2 text-xs text-gray-500">
-                  From January 2026 to current date
+                  From {formatAttendanceStartDate(summary?.startDate)} to current date
                 </p>
               </div>
 

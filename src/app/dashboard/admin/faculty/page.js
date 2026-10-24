@@ -200,7 +200,7 @@ function buildIdCardMarkup({
               <div class="row-label">Faculty ID</div>
               <div class="row-value">${escapeHtml(idLabel)}</div>
             </div>
-            <div class="row">
+            <div cla ss="row">
               <div class="row-label">${escapeHtml(detailOneLabel)}</div>
               <div class="row-value">${escapeHtml(detailOneValue)}</div>
             </div>

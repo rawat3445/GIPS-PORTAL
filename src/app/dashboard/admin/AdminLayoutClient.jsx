@@ -256,7 +256,7 @@ export default function AdminLayoutClient({ children }) {
   };
 
   return (
-    <div className="flex min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7_0%,#fff7ed_28%,#f8fafc_62%,#f8fafc_100%)]">
+    <div className="flex  bg-[radial-gradient(circle_at_top,#fef3c7_0%,#fff7ed_28%,#f8fafc_62%,#f8fafc_100%)]">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px] md:hidden"
@@ -265,7 +265,7 @@ export default function AdminLayoutClient({ children }) {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col overflow-x-hidden border-r border-white/10 bg-[linear-gradient(180deg,#3f1d12_0%,#b45309_42%,#111827_100%)] text-white shadow-[24px_0_80px_-42px_rgba(15,23,42,0.9)] transition-all duration-300 md:static md:z-auto ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col overflow-x-hidden border-r border-white/10 bg-[linear-gradient(180deg,#3f1d12_0%,#b45309_42%,#111827_100%)] text-white shadow-[24px_0_80px_-42px_rgba(15,23,42,0.9)] transition-all duration-300 ${
           sidebarOpen
             ? "translate-x-0 w-72"
             : "-translate-x-full w-72 md:translate-x-0 md:w-24"
@@ -307,7 +307,7 @@ export default function AdminLayoutClient({ children }) {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-4">
+        <nav className="min-h-0 sticky flex-1 overflow-y-auto p-4">
           {sidebarOpen && (
             <div className="mb-3 flex items-center justify-between px-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-100/75">
@@ -390,7 +390,11 @@ export default function AdminLayoutClient({ children }) {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 overflow-y-auto">
+      <main
+        className={`min-w-0 flex-1 transition-[margin] duration-300 ${
+          sidebarOpen ? "md:ml-72" : "md:ml-24"
+        }`}
+      >
         <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-white/60 bg-white/80 px-4 py-3 backdrop-blur md:hidden">
           <button
             type="button"

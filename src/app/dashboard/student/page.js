@@ -1790,7 +1790,9 @@ export default function StudentDashboard() {
     {
       title: "Overall",
       value: `${overallAttendance}%`,
-      note: "Counted from January 2026 to today",
+      note: Number(me?.year) === 1
+        ? "Counted from September 17, 2026 to today"
+        : "Counted from January 1, 2026 to today",
       icon: TrendingUp,
       iconWrap: "bg-emerald-100 text-emerald-700",
       valueClass: "text-emerald-700",

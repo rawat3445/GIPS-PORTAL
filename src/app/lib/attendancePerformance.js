@@ -1,7 +1,7 @@
 import Attendance from "../models/Attendance";
 import {
   addDays,
-  ATTENDANCE_START_DATE,
+  getStudentAttendanceStartDate,
   getHolidayMapForContext,
   isSunday,
   isWinterVacation,
@@ -20,6 +20,7 @@ export async function buildStudentAttendancePerformance(
   const todayISO = endDate || toISODate(new Date());
   const course = String(student?.course || "").toUpperCase();
   const year = Number(student?.year);
+  const startDate = getStudentAttendanceStartDate(year);
   const studentId = student?._id;
 
   if (!course || !year || !studentId) {
@@ -33,7 +34,7 @@ export async function buildStudentAttendancePerformance(
   }
 
   const holidayMap = await getHolidayMapForContext({
-    fromDate: ATTENDANCE_START_DATE,
+    fromDate: startDate,
     toDate: todayISO,
     course,
     year,
@@ -41,9 +42,7 @@ export async function buildStudentAttendancePerformance(
   });
 
   const docs = await Attendance.find({
-    course,
-    year,
-    date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
+    date: { $gte: startDate, $lte: todayISO },
     "records.studentId": studentId,
     $or: APPROVED_OR_LEGACY_ATTENDANCE_QUERY,
   })
@@ -62,7 +61,7 @@ export async function buildStudentAttendancePerformance(
     }
   });
 
-  let cursor = ATTENDANCE_START_DATE;
+  let cursor = startDate;
   let workingDays = 0;
   let markedDays = 0;
   let presentDays = 0;

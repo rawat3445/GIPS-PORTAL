@@ -4,8 +4,8 @@ import Attendance from "../../../../models/Attendance";
 import User from "../../../../models/User";
 import {
   addDays,
-  ATTENDANCE_START_DATE,
   COLLEGE_RESUME_DATE,
+  getStudentAttendanceStartDate,
   getCalendarEndDateForContext,
   getHolidayMapForContext,
   isSunday,
@@ -41,20 +41,21 @@ async function getMeOrThrow(request) {
 
 async function buildStudentAttendanceSummary(student) {
   const todayISO = toISODate(new Date());
+  const startDate = getStudentAttendanceStartDate(student.year);
   const calendarEndDate = await getCalendarEndDateForContext({
     course: student.course,
     year: student.year,
     studentId: student._id,
   });
   const holidayMap = await getHolidayMapForContext({
-    fromDate: ATTENDANCE_START_DATE,
+    fromDate: startDate,
     toDate: calendarEndDate,
     course: student.course,
     year: student.year,
     studentId: student._id,
   });
   const docs = await Attendance.find({
-    date: { $gte: ATTENDANCE_START_DATE, $lte: todayISO },
+    date: { $gte: startDate, $lte: todayISO },
     "records.studentId": student._id,
     $or: APPROVED_OR_LEGACY_ATTENDANCE_QUERY,
   })
@@ -73,7 +74,7 @@ async function buildStudentAttendanceSummary(student) {
 
   const monthsMap = new Map();
   const calendar = [];
-  let cursor = ATTENDANCE_START_DATE;
+  let cursor = startDate;
 
   while (cursor <= calendarEndDate) {
     const monthKey = cursor.slice(0, 7);
@@ -183,7 +184,7 @@ async function buildStudentAttendanceSummary(student) {
       course: student.course,
       year: student.year,
     },
-    startDate: ATTENDANCE_START_DATE,
+    startDate,
     currentDate: todayISO,
     calendarEndDate,
     vacation: {
